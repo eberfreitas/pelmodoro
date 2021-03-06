@@ -1,0 +1,10 @@
+{
+  "devDependencies": {
+    "elm-hot": "^1.1.6",
+    "node-elm-compiler": "^5.0.5",
+    "parcel-bundler": "^1.12.3"
+  },
+  "scripts": {
+    "dev": "parcel ./index.html"
+  }
+}
