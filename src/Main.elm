@@ -3,6 +3,7 @@ module Main exposing (main)
 import Browser
 import Html exposing (Html)
 import Html.Events as Events
+import List.Extra as ListEx
 import Platform exposing (Program)
 import Task
 import Time exposing (Posix, Zone)
@@ -144,6 +145,30 @@ addElapsedSecond (Current p elapsed) =
     Current p (elapsed + 1)
 
 
+evalElapsedTime : Current -> Repeat -> List Interval -> ( Current, Bool )
+evalElapsedTime ((Current ( idx, interval ) elapsed) as current) repeat intervals =
+    if secondsLeft current == 0 then
+        let
+            firstInterval =
+                intervals |> List.head |> Maybe.withDefault (Activity (25 * 60))
+        in
+        case ( intervals |> ListEx.getAt (idx + 1), repeat ) of
+            ( Nothing, FullRepeat ) ->
+                ( Current ( 0, firstInterval ) 0, True )
+
+            ( Nothing, _ ) ->
+                ( Current ( 0, firstInterval ) 0, False )
+
+            ( Just nextInterval, NoRepeat ) ->
+                ( Current ( idx + 1, nextInterval ) 0, False )
+
+            ( Just nextInterval, _ ) ->
+                ( Current ( idx + 1, nextInterval ) 0, True )
+
+    else
+        ( addElapsedSecond current, True )
+
+
 update : Msg -> Model -> ( Model, Cmd msg )
 update msg model =
     let
@@ -154,13 +179,13 @@ update msg model =
         Tick posix ->
             if model.playing == True then
                 let
-                    newCurrent =
-                        model.current |> addElapsedSecond
+                    ( newCurrent, newPlaying ) =
+                        evalElapsedTime model.current model.repeat model.intervals
                 in
-                done { model | current = newCurrent }
+                done { model | current = newCurrent, playing = newPlaying, time = posix }
 
             else
-                done model
+                done { model | time = posix }
 
         AdjustTimeZone newZone ->
             done { model | zone = newZone }
