@@ -14,6 +14,7 @@ type Msg
     | AdjustTimeZone Zone
     | Pause
     | Play
+    | Skip
 
 
 type Interval
@@ -136,6 +137,7 @@ view model =
 
               else
                 Html.button [ Events.onClick Play ] [ Html.text "Start" ]
+            , Html.button [ Events.onClick Skip ] [ Html.text "Skip" ]
             ]
         ]
 
@@ -145,19 +147,24 @@ addElapsedSecond (Current p elapsed) =
     Current p (elapsed + 1)
 
 
+firstInverval : List Interval -> Interval
+firstInverval =
+    List.head >> Maybe.withDefault (Activity (25 * 60))
+
+
 evalElapsedTime : Current -> Repeat -> List Interval -> ( Current, Bool )
 evalElapsedTime ((Current ( idx, interval ) elapsed) as current) repeat intervals =
     if secondsLeft current == 0 then
         let
-            firstInterval =
-                intervals |> List.head |> Maybe.withDefault (Activity (25 * 60))
+            firstInterval_ =
+                intervals |> firstInverval
         in
         case ( intervals |> ListEx.getAt (idx + 1), repeat ) of
             ( Nothing, FullRepeat ) ->
-                ( Current ( 0, firstInterval ) 0, True )
+                ( Current ( 0, firstInterval_ ) 0, True )
 
             ( Nothing, _ ) ->
-                ( Current ( 0, firstInterval ) 0, False )
+                ( Current ( 0, firstInterval_ ) 0, False )
 
             ( Just nextInterval, NoRepeat ) ->
                 ( Current ( idx + 1, nextInterval ) 0, False )
@@ -195,6 +202,24 @@ update msg model =
 
         Play ->
             done { model | playing = True }
+
+        Skip ->
+            let
+                (Current ( idx, _ ) _) =
+                    model.current
+
+                ( nextIdx, nextInterval ) =
+                    case ListEx.getAt (idx + 1) model.intervals of
+                        Just next ->
+                            ( idx + 1, next )
+
+                        Nothing ->
+                            ( 0, model.intervals |> firstInverval )
+
+                newCurrent =
+                    Current ( nextIdx, nextInterval ) 0
+            in
+            done { model | current = newCurrent, playing = False }
 
 
 subs : Model -> Sub Msg
