@@ -2,9 +2,12 @@ module Main exposing (main)
 
 import Browser
 import Html exposing (Html)
+import Html.Attributes as HtmlAttrs
 import Html.Events as Events
 import List.Extra as ListEx
 import Platform exposing (Program)
+import Svg
+import Svg.Attributes as SvgAttrs
 import Task
 import Time exposing (Posix, Zone)
 
@@ -15,6 +18,7 @@ type Msg
     | Pause
     | Play
     | Skip
+    | SetRepeat Repeat
 
 
 type Interval
@@ -44,6 +48,7 @@ type alias Settings =
 type alias Model =
     { zone : Zone
     , time : Posix
+    , uptime : Int
     , settings : Settings
     , current : Current
     , playing : Bool
@@ -65,6 +70,7 @@ defaultModel : Model
 defaultModel =
     { zone = Time.utc
     , time = Time.millisToPosix 0
+    , uptime = 0
     , settings = defaultSettings
     , current = Current ( 0, Activity (25 * 60) ) 0
     , playing = False
@@ -106,7 +112,7 @@ secondsToDisplay secs =
             min =
                 (toFloat secs / 60) |> floor
         in
-        pad min ++ ":" ++ pad (secs - (min * 60))
+        String.fromInt min ++ ":" ++ pad (secs - (min * 60))
 
 
 getSeconds : Interval -> Seconds
@@ -129,15 +135,121 @@ secondsLeft (Current ( _, interval ) elapsed) =
 
 view : Model -> Html Msg
 view model =
-    Html.div []
-        [ Html.div [] [ Html.text <| secondsToDisplay (secondsLeft model.current) ]
-        , Html.div []
-            [ if model.playing then
-                Html.button [ Events.onClick Pause ] [ Html.text "Pause" ]
+    let
+        timerOpacity =
+            if model.playing == True then
+                "100"
 
-              else
-                Html.button [ Events.onClick Play ] [ Html.text "Start" ]
-            , Html.button [ Events.onClick Skip ] [ Html.text "Skip" ]
+            else if (model.uptime |> modBy 2) == 0 then
+                "0"
+
+            else
+                "100"
+
+        timerColor =
+            case model.current of
+                Current ( _, Activity _ ) _ ->
+                    "tomato"
+
+                _ ->
+                    "#2D5BDE"
+
+        ( activityRadius, breakRadius ) =
+            ( 110, 92 )
+
+        ( activityCircunference, breakCircunference ) =
+            ( 2 * pi * activityRadius |> truncate
+            , 2 * pi * breakRadius |> truncate
+            )
+
+        ( activitySection, breakSection ) =
+            case model.current of
+                Current ( _, Activity _ ) _ ->
+                    ( model.current |> elapsedPercentage |> circunferenceSection activityCircunference, 0 )
+
+                _ ->
+                    ( 0, model.current |> elapsedPercentage |> circunferenceSection breakCircunference )
+    in
+    Html.div [ HtmlAttrs.class "container" ]
+        [ Html.div [ HtmlAttrs.class "main" ]
+            [ Svg.svg [ SvgAttrs.width "240", SvgAttrs.height "240", SvgAttrs.viewBox "0 0 240 240" ]
+                -- Activity circle
+                [ Svg.circle
+                    [ SvgAttrs.cx "50%"
+                    , SvgAttrs.cy "50%"
+                    , SvgAttrs.r (String.fromInt activityRadius)
+                    , SvgAttrs.fill "none"
+                    , SvgAttrs.stroke "tomato"
+                    , SvgAttrs.strokeWidth "20"
+                    , SvgAttrs.strokeOpacity "0.25"
+                    ]
+                    []
+                , Svg.circle
+                    [ SvgAttrs.cx "120"
+                    , SvgAttrs.cy "120"
+                    , SvgAttrs.r (String.fromInt activityRadius)
+                    , SvgAttrs.fill "none"
+                    , SvgAttrs.stroke "tomato"
+                    , SvgAttrs.strokeWidth "20"
+                    , SvgAttrs.transform "rotate(-90, 120, 120) scale(1, -1) translate(0, -240)"
+                    , SvgAttrs.strokeDasharray (String.fromInt activityCircunference)
+                    , SvgAttrs.strokeDashoffset (String.fromInt activitySection)
+                    ]
+                    []
+
+                -- Break circle
+                , Svg.circle
+                    [ SvgAttrs.cx "50%"
+                    , SvgAttrs.cy "50%"
+                    , SvgAttrs.r (String.fromInt breakRadius)
+                    , SvgAttrs.fill "none"
+                    , SvgAttrs.stroke "#2D5BDE"
+                    , SvgAttrs.strokeWidth "16"
+                    , SvgAttrs.strokeOpacity "0.25"
+                    ]
+                    []
+                , Svg.circle
+                    [ SvgAttrs.cx "50%"
+                    , SvgAttrs.cy "50%"
+                    , SvgAttrs.r (String.fromInt breakRadius)
+                    , SvgAttrs.fill "none"
+                    , SvgAttrs.stroke "#2D5BDE"
+                    , SvgAttrs.strokeWidth "16"
+                    , SvgAttrs.transform "rotate(-90, 120, 120) scale(1, -1) translate(0, -240)"
+                    , SvgAttrs.strokeDasharray (String.fromInt breakCircunference)
+                    , SvgAttrs.strokeDashoffset (String.fromInt breakSection)
+                    ]
+                    []
+
+                -- Timer
+                , Svg.text_
+                    [ SvgAttrs.x "50%"
+                    , SvgAttrs.y "55%"
+                    , SvgAttrs.textAnchor "middle"
+                    , SvgAttrs.fill timerColor
+                    , SvgAttrs.fontFamily "Montserrat"
+                    , SvgAttrs.fontSize "36px"
+                    , SvgAttrs.opacity timerOpacity
+                    ]
+                    [ Svg.text <| secondsToDisplay (secondsLeft model.current) ]
+                ]
+            , Html.div [ HtmlAttrs.class "controls" ]
+                [ if model.playing then
+                    Html.button [ Events.onClick Pause ] [ Html.i [ HtmlAttrs.class "fas fa-pause " ] [] ]
+
+                  else
+                    Html.button [ Events.onClick Play ] [ Html.i [ HtmlAttrs.class "fas fa-play " ] [] ]
+                , Html.button [ Events.onClick Skip ] [ Html.i [ HtmlAttrs.class "fas fa-forward " ] [] ]
+                , case model.repeat of
+                    NoRepeat ->
+                        Html.button [ Events.onClick (SetRepeat SimpleRepeat), HtmlAttrs.class "no-repeat" ] [ Html.i [ HtmlAttrs.class "fas fa-redo-alt" ] [] ]
+
+                    SimpleRepeat ->
+                        Html.button [ Events.onClick (SetRepeat FullRepeat), HtmlAttrs.class "simple-repeat" ] [ Html.i [ HtmlAttrs.class "fas fa-redo-alt" ] [] ]
+
+                    FullRepeat ->
+                        Html.button [ Events.onClick (SetRepeat NoRepeat), HtmlAttrs.class "full-repeat" ] [ Html.i [ HtmlAttrs.class "fas fa-redo-alt" ] [] ]
+                ]
             ]
         ]
 
@@ -176,6 +288,16 @@ evalElapsedTime ((Current ( idx, interval ) elapsed) as current) repeat interval
         ( addElapsedSecond current, True )
 
 
+elapsedPercentage : Current -> Int
+elapsedPercentage (Current ( _, interval ) elapsed) =
+    (toFloat elapsed * 100 / (toFloat <| getSeconds interval)) |> truncate
+
+
+circunferenceSection : Int -> Int -> Int
+circunferenceSection circunference percentage =
+    toFloat circunference * toFloat percentage / 100.0 |> truncate
+
+
 update : Msg -> Model -> ( Model, Cmd msg )
 update msg model =
     let
@@ -189,10 +311,10 @@ update msg model =
                     ( newCurrent, newPlaying ) =
                         evalElapsedTime model.current model.repeat model.intervals
                 in
-                done { model | current = newCurrent, playing = newPlaying, time = posix }
+                done { model | current = newCurrent, playing = newPlaying, time = posix, uptime = model.uptime + 1 }
 
             else
-                done { model | time = posix }
+                done { model | time = posix, uptime = model.uptime + 1 }
 
         AdjustTimeZone newZone ->
             done { model | zone = newZone }
@@ -220,6 +342,9 @@ update msg model =
                     Current ( nextIdx, nextInterval ) 0
             in
             done { model | current = newCurrent, playing = False }
+
+        SetRepeat repeat ->
+            done { model | repeat = repeat }
 
 
 subs : Model -> Sub Msg

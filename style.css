@@ -1,0 +1,57 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  background-color: #FFF3F0;
+  font-size: 16px;
+  overflow: hidden;
+}
+
+button {
+  background-color: transparent;
+  border: none;
+}
+
+.container {
+  height: 100vh;
+  width: 100vw;
+}
+
+.main {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  justify-content: center;
+  width: 100%;
+}
+
+.controls {
+  margin-top: 1rem;
+}
+
+.controls button {
+  border: 1px solid tomato;
+  border-radius: 50%;
+  color: tomato;
+  cursor: pointer;
+  height: 3.5rem;
+  margin: .5rem;
+  width: 3.5rem;
+}
+
+.no-repeat {
+  opacity: .25;
+}
+
+.simple-repeat {
+  opacity: 1;
+}
+
+.full-repeat {
+  border-color: #2D5BDE !important;
+  color: #2D5BDE !important;
+}
