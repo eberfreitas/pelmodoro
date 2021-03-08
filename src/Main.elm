@@ -105,7 +105,7 @@ secondsToDisplay secs =
             num |> String.fromInt |> String.padLeft 2 '0'
     in
     if secs < 60 then
-        "00:" ++ pad secs
+        "0:" ++ pad secs
 
     else
         let
@@ -141,34 +141,30 @@ view model =
                 "100"
 
             else if (model.uptime |> modBy 2) == 0 then
-                "0"
+                "100"
 
             else
-                "100"
+                "0"
 
         timerColor =
             case model.current of
                 Current ( _, Activity _ ) _ ->
                     "tomato"
 
-                _ ->
+                Current ( _, Break _ ) _ ->
                     "#2D5BDE"
 
-        ( activityRadius, breakRadius ) =
-            ( 110, 92 )
+                Current ( _, LongBreak _ ) _ ->
+                    "#2DBCE0"
 
-        ( activityCircunference, breakCircunference ) =
-            ( 2 * pi * activityRadius |> truncate
-            , 2 * pi * breakRadius |> truncate
-            )
+        timerRadius =
+            110
 
-        ( activitySection, breakSection ) =
-            case model.current of
-                Current ( _, Activity _ ) _ ->
-                    ( model.current |> elapsedPercentage |> circunferenceSection activityCircunference, 0 )
+        timerCircunference =
+            2 * pi * timerRadius |> truncate
 
-                _ ->
-                    ( 0, model.current |> elapsedPercentage |> circunferenceSection breakCircunference )
+        timerSection =
+            model.current |> elapsedPercentage |> circunferenceSection timerCircunference
     in
     Html.div [ HtmlAttrs.class "container" ]
         [ Html.div [ HtmlAttrs.class "main" ]
@@ -177,7 +173,7 @@ view model =
                 [ Svg.circle
                     [ SvgAttrs.cx "50%"
                     , SvgAttrs.cy "50%"
-                    , SvgAttrs.r (String.fromInt activityRadius)
+                    , SvgAttrs.r (String.fromInt timerRadius)
                     , SvgAttrs.fill "none"
                     , SvgAttrs.stroke "tomato"
                     , SvgAttrs.strokeWidth "20"
@@ -187,37 +183,13 @@ view model =
                 , Svg.circle
                     [ SvgAttrs.cx "120"
                     , SvgAttrs.cy "120"
-                    , SvgAttrs.r (String.fromInt activityRadius)
+                    , SvgAttrs.r (String.fromInt timerRadius)
                     , SvgAttrs.fill "none"
-                    , SvgAttrs.stroke "tomato"
+                    , SvgAttrs.stroke timerColor
                     , SvgAttrs.strokeWidth "20"
                     , SvgAttrs.transform "rotate(-90, 120, 120) scale(1, -1) translate(0, -240)"
-                    , SvgAttrs.strokeDasharray (String.fromInt activityCircunference)
-                    , SvgAttrs.strokeDashoffset (String.fromInt activitySection)
-                    ]
-                    []
-
-                -- Break circle
-                , Svg.circle
-                    [ SvgAttrs.cx "50%"
-                    , SvgAttrs.cy "50%"
-                    , SvgAttrs.r (String.fromInt breakRadius)
-                    , SvgAttrs.fill "none"
-                    , SvgAttrs.stroke "#2D5BDE"
-                    , SvgAttrs.strokeWidth "16"
-                    , SvgAttrs.strokeOpacity "0.25"
-                    ]
-                    []
-                , Svg.circle
-                    [ SvgAttrs.cx "50%"
-                    , SvgAttrs.cy "50%"
-                    , SvgAttrs.r (String.fromInt breakRadius)
-                    , SvgAttrs.fill "none"
-                    , SvgAttrs.stroke "#2D5BDE"
-                    , SvgAttrs.strokeWidth "16"
-                    , SvgAttrs.transform "rotate(-90, 120, 120) scale(1, -1) translate(0, -240)"
-                    , SvgAttrs.strokeDasharray (String.fromInt breakCircunference)
-                    , SvgAttrs.strokeDashoffset (String.fromInt breakSection)
+                    , SvgAttrs.strokeDasharray (String.fromInt timerCircunference)
+                    , SvgAttrs.strokeDashoffset (String.fromInt timerSection)
                     ]
                     []
 
