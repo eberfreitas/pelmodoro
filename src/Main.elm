@@ -1,4 +1,4 @@
-module Main exposing (main)
+port module Main exposing (main)
 
 import Browser
 import Html exposing (Html)
@@ -10,6 +10,9 @@ import Svg
 import Svg.Attributes as SvgAttrs
 import Task
 import Time exposing (Posix, Zone)
+
+
+port playSound : () -> Cmd msg
 
 
 type Msg
@@ -175,7 +178,7 @@ view model =
                     , SvgAttrs.cy "50%"
                     , SvgAttrs.r (String.fromInt timerRadius)
                     , SvgAttrs.fill "none"
-                    , SvgAttrs.stroke "tomato"
+                    , SvgAttrs.stroke timerColor
                     , SvgAttrs.strokeWidth "20"
                     , SvgAttrs.strokeOpacity "0.25"
                     ]
@@ -236,28 +239,31 @@ firstInverval =
     List.head >> Maybe.withDefault (Activity (25 * 60))
 
 
-evalElapsedTime : Current -> Repeat -> List Interval -> ( Current, Bool )
+evalElapsedTime : Current -> Repeat -> List Interval -> ( Current, Bool, Cmd msg )
 evalElapsedTime ((Current ( idx, interval ) elapsed) as current) repeat intervals =
     if secondsLeft current == 0 then
         let
             firstInterval_ =
                 intervals |> firstInverval
+
+            ( current_, playing ) =
+                case ( intervals |> ListEx.getAt (idx + 1), repeat ) of
+                    ( Nothing, FullRepeat ) ->
+                        ( Current ( 0, firstInterval_ ) 0, True )
+
+                    ( Nothing, _ ) ->
+                        ( Current ( 0, firstInterval_ ) 0, False )
+
+                    ( Just nextInterval, NoRepeat ) ->
+                        ( Current ( idx + 1, nextInterval ) 0, False )
+
+                    ( Just nextInterval, _ ) ->
+                        ( Current ( idx + 1, nextInterval ) 0, True )
         in
-        case ( intervals |> ListEx.getAt (idx + 1), repeat ) of
-            ( Nothing, FullRepeat ) ->
-                ( Current ( 0, firstInterval_ ) 0, True )
-
-            ( Nothing, _ ) ->
-                ( Current ( 0, firstInterval_ ) 0, False )
-
-            ( Just nextInterval, NoRepeat ) ->
-                ( Current ( idx + 1, nextInterval ) 0, False )
-
-            ( Just nextInterval, _ ) ->
-                ( Current ( idx + 1, nextInterval ) 0, True )
+        ( current_, playing, playSound () )
 
     else
-        ( addElapsedSecond current, True )
+        ( addElapsedSecond current, True, Cmd.none )
 
 
 elapsedPercentage : Current -> Int
@@ -280,10 +286,10 @@ update msg model =
         Tick posix ->
             if model.playing == True then
                 let
-                    ( newCurrent, newPlaying ) =
+                    ( newCurrent, newPlaying, cmd ) =
                         evalElapsedTime model.current model.repeat model.intervals
                 in
-                done { model | current = newCurrent, playing = newPlaying, time = posix, uptime = model.uptime + 1 }
+                ( { model | current = newCurrent, playing = newPlaying, time = posix, uptime = model.uptime + 1 }, cmd )
 
             else
                 done { model | time = posix, uptime = model.uptime + 1 }
