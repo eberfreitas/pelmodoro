@@ -12,7 +12,7 @@ import Task
 import Time exposing (Posix, Zone)
 
 
-port playSound : () -> Cmd msg
+port notify : () -> Cmd msg
 
 
 type Msg
@@ -57,11 +57,33 @@ type alias Model =
     , playing : Bool
     , repeat : Repeat
     , intervals : List Interval
+    , log : Log
     }
 
 
+type Feeling
+    = Good
+    | Neutral
+    | Bad
+
+
+type alias Cycle =
+    { index : Int
+    , interval : Interval
+    , start : Maybe Posix
+    , end : Maybe Posix
+    , feeling : Maybe Feeling
+    , description : Maybe String
+    , seconds : Maybe Seconds
+    }
+
+
+type alias Log =
+    List Cycle
+
+
 type Current
-    = Current ( Int, Interval ) Int
+    = Current Cycle Seconds
 
 
 defaultSettings : Settings
@@ -69,16 +91,48 @@ defaultSettings =
     Settings 4 (25 * 60) (5 * 60) (15 * 60)
 
 
+newCycle : Int -> Interval -> Maybe Posix -> Cycle
+newCycle index interval start =
+    let
+        new =
+            Cycle index interval Nothing Nothing Nothing Nothing Nothing
+    in
+    start |> Maybe.map (\s -> { new | start = Just s }) |> Maybe.withDefault new
+
+
+logCycle : Posix -> Current -> Log -> Log
+logCycle now (Current cycle elapsed) log =
+    { cycle | end = Just now, seconds = Just elapsed }
+        |> List.singleton
+        |> (++) log
+
+
+startCycle : Posix -> Cycle -> Cycle
+startCycle now cycle =
+    { cycle | start = Just now }
+
+
 defaultModel : Model
 defaultModel =
+    let
+        intervals =
+            buildIntervals defaultSettings
+
+        firstInterval_ =
+            firstInverval intervals
+
+        current =
+            Current (newCycle 0 firstInterval_ Nothing) 0
+    in
     { zone = Time.utc
     , time = Time.millisToPosix 0
     , uptime = 0
     , settings = defaultSettings
-    , current = Current ( 0, Activity (25 * 60) ) 0
+    , current = current
     , playing = False
     , repeat = NoRepeat
-    , intervals = buildIntervals defaultSettings
+    , intervals = intervals
+    , log = []
     }
 
 
@@ -132,7 +186,7 @@ getSeconds interval =
 
 
 secondsLeft : Current -> Seconds
-secondsLeft (Current ( _, interval ) elapsed) =
+secondsLeft (Current { interval } elapsed) =
     getSeconds interval - elapsed
 
 
@@ -149,15 +203,15 @@ view model =
             else
                 "0"
 
-        timerColor =
-            case model.current of
-                Current ( _, Activity _ ) _ ->
+        timerColor (Current { interval } _) =
+            case interval of
+                Activity _ ->
                     "tomato"
 
-                Current ( _, Break _ ) _ ->
+                Break _ ->
                     "#2D5BDE"
 
-                Current ( _, LongBreak _ ) _ ->
+                LongBreak _ ->
                     "#2DBCE0"
 
         timerRadius =
@@ -178,7 +232,7 @@ view model =
                     , SvgAttrs.cy "50%"
                     , SvgAttrs.r (String.fromInt timerRadius)
                     , SvgAttrs.fill "none"
-                    , SvgAttrs.stroke timerColor
+                    , SvgAttrs.stroke <| timerColor model.current
                     , SvgAttrs.strokeWidth "20"
                     , SvgAttrs.strokeOpacity "0.25"
                     ]
@@ -188,7 +242,7 @@ view model =
                     , SvgAttrs.cy "120"
                     , SvgAttrs.r (String.fromInt timerRadius)
                     , SvgAttrs.fill "none"
-                    , SvgAttrs.stroke timerColor
+                    , SvgAttrs.stroke <| timerColor model.current
                     , SvgAttrs.strokeWidth "20"
                     , SvgAttrs.transform "rotate(-90, 120, 120) scale(1, -1) translate(0, -240)"
                     , SvgAttrs.strokeDasharray (String.fromInt timerCircunference)
@@ -201,7 +255,7 @@ view model =
                     [ SvgAttrs.x "50%"
                     , SvgAttrs.y "55%"
                     , SvgAttrs.textAnchor "middle"
-                    , SvgAttrs.fill timerColor
+                    , SvgAttrs.fill <| timerColor model.current
                     , SvgAttrs.fontFamily "Montserrat"
                     , SvgAttrs.fontSize "36px"
                     , SvgAttrs.opacity timerOpacity
@@ -239,35 +293,35 @@ firstInverval =
     List.head >> Maybe.withDefault (Activity (25 * 60))
 
 
-evalElapsedTime : Current -> Repeat -> List Interval -> ( Current, Bool, Cmd msg )
-evalElapsedTime ((Current ( idx, interval ) elapsed) as current) repeat intervals =
+evalElapsedTime : Posix -> Current -> Repeat -> List Interval -> ( Current, Bool, Cmd msg )
+evalElapsedTime now ((Current { index, interval } elapsed) as current) repeat intervals =
     if secondsLeft current == 0 then
         let
             firstInterval_ =
                 intervals |> firstInverval
 
             ( current_, playing ) =
-                case ( intervals |> ListEx.getAt (idx + 1), repeat ) of
+                case ( intervals |> ListEx.getAt (index + 1), repeat ) of
                     ( Nothing, FullRepeat ) ->
-                        ( Current ( 0, firstInterval_ ) 0, True )
+                        ( Current (newCycle 0 firstInterval_ (Just now)) 0, True )
 
                     ( Nothing, _ ) ->
-                        ( Current ( 0, firstInterval_ ) 0, False )
+                        ( Current (newCycle 0 firstInterval_ Nothing) 0, False )
 
                     ( Just nextInterval, NoRepeat ) ->
-                        ( Current ( idx + 1, nextInterval ) 0, False )
+                        ( Current (newCycle (index + 1) nextInterval Nothing) 0, False )
 
                     ( Just nextInterval, _ ) ->
-                        ( Current ( idx + 1, nextInterval ) 0, True )
+                        ( Current (newCycle (index + 1) nextInterval (Just now)) 0, True )
         in
-        ( current_, playing, playSound () )
+        ( current_, playing, notify () )
 
     else
         ( addElapsedSecond current, True, Cmd.none )
 
 
 elapsedPercentage : Current -> Int
-elapsedPercentage (Current ( _, interval ) elapsed) =
+elapsedPercentage (Current { interval } elapsed) =
     (toFloat elapsed * 100 / (toFloat <| getSeconds interval)) |> truncate
 
 
@@ -287,9 +341,16 @@ update msg model =
             if model.playing == True then
                 let
                     ( newCurrent, newPlaying, cmd ) =
-                        evalElapsedTime model.current model.repeat model.intervals
+                        evalElapsedTime model.time model.current model.repeat model.intervals
+
+                    newLog =
+                        if cmd /= Cmd.none then
+                            model.log |> logCycle model.time model.current
+
+                        else
+                            model.log
                 in
-                ( { model | current = newCurrent, playing = newPlaying, time = posix, uptime = model.uptime + 1 }, cmd )
+                ( { model | current = newCurrent, playing = newPlaying, time = posix, uptime = model.uptime + 1, log = newLog }, cmd )
 
             else
                 done { model | time = posix, uptime = model.uptime + 1 }
@@ -301,25 +362,32 @@ update msg model =
             done { model | playing = False }
 
         Play ->
-            done { model | playing = True }
+            let
+                (Current cycle _) =
+                    model.current
+            in
+            done { model | playing = True, current = Current (startCycle model.time cycle) 0 }
 
         Skip ->
             let
-                (Current ( idx, _ ) _) =
+                (Current { index } _) =
                     model.current
 
-                ( nextIdx, nextInterval ) =
-                    case ListEx.getAt (idx + 1) model.intervals of
+                ( nextIndex, nextInterval ) =
+                    case ListEx.getAt (index + 1) model.intervals of
                         Just next ->
-                            ( idx + 1, next )
+                            ( index + 1, next )
 
                         Nothing ->
                             ( 0, model.intervals |> firstInverval )
 
                 newCurrent =
-                    Current ( nextIdx, nextInterval ) 0
+                    Current (newCycle nextIndex nextInterval Nothing) 0
+
+                newLog =
+                    model.log |> logCycle model.time model.current
             in
-            done { model | current = newCurrent, playing = False }
+            done { model | current = newCurrent, playing = False, log = newLog }
 
         SetRepeat repeat ->
             done { model | repeat = repeat }
