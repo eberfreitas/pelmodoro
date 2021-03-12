@@ -16,7 +16,8 @@ port notify : () -> Cmd msg
 
 
 type Msg
-    = Tick Posix
+    = NoOp
+    | Tick Posix
     | AdjustTimeZone Zone
     | Pause
     | Play
@@ -40,11 +41,17 @@ type alias Seconds =
     Int
 
 
+type ColorMode
+    = Light
+    | Dark
+
+
 type alias Settings =
     { activitiesCount : Int
     , activity : Seconds
     , break : Seconds
     , longBreak : Seconds
+    , colorMode : ColorMode
     }
 
 
@@ -68,8 +75,7 @@ type Feeling
 
 
 type alias Cycle =
-    { index : Int
-    , interval : Interval
+    { interval : Interval
     , start : Maybe Posix
     , end : Maybe Posix
     , feeling : Maybe Feeling
@@ -83,25 +89,25 @@ type alias Log =
 
 
 type Current
-    = Current Cycle Seconds
+    = Current Int Cycle Seconds
 
 
 defaultSettings : Settings
 defaultSettings =
-    Settings 4 (25 * 60) (5 * 60) (15 * 60)
+    Settings 4 (25 * 60) (5 * 60) (15 * 60) Light
 
 
-newCycle : Int -> Interval -> Maybe Posix -> Cycle
-newCycle index interval start =
+newCycle : Interval -> Maybe Posix -> Cycle
+newCycle interval start =
     let
         new =
-            Cycle index interval Nothing Nothing Nothing Nothing Nothing
+            Cycle interval Nothing Nothing Nothing Nothing Nothing
     in
     start |> Maybe.map (\s -> { new | start = Just s }) |> Maybe.withDefault new
 
 
 logCycle : Posix -> Current -> Log -> Log
-logCycle now (Current cycle elapsed) log =
+logCycle now (Current _ cycle elapsed) log =
     { cycle | end = Just now, seconds = Just elapsed }
         |> List.singleton
         |> (++) log
@@ -122,7 +128,7 @@ defaultModel =
             firstInverval intervals
 
         current =
-            Current (newCycle 0 firstInterval_ Nothing) 0
+            Current 0 (newCycle firstInterval_ Nothing) 0
     in
     { zone = Time.utc
     , time = Time.millisToPosix 0
@@ -148,6 +154,22 @@ buildIntervals settings =
         |> List.repeat settings.activitiesCount
         |> List.intersperse (Break settings.break)
         |> flip (++) [ LongBreak settings.longBreak ]
+
+
+intervalToColor : ColorMode -> Interval -> String
+intervalToColor mode interval =
+    case ( mode, interval ) of
+        ( Light, Activity _ ) ->
+            "tomato"
+
+        ( Light, Break _ ) ->
+            "#2D5BDE"
+
+        ( Light, LongBreak _ ) ->
+            "#2DBCE0"
+
+        _ ->
+            "TBD"
 
 
 init : () -> ( Model, Cmd Msg )
@@ -185,13 +207,91 @@ getSeconds interval =
             secs
 
 
+intervalToString : Interval -> String
+intervalToString interval =
+    case interval of
+        Activity _ ->
+            "activity"
+
+        Break _ ->
+            "break"
+
+        LongBreak _ ->
+            "longbreak"
+
+
 secondsLeft : Current -> Seconds
-secondsLeft (Current { interval } elapsed) =
+secondsLeft (Current _ { interval } elapsed) =
     getSeconds interval - elapsed
 
 
-view : Model -> Html Msg
-view model =
+renderIntervals : ColorMode -> Current -> List Interval -> Html Msg
+renderIntervals colorMode ((Current index _ _) as current) intervals =
+    intervals
+        |> List.indexedMap
+            (\idx interval ->
+                if index > idx then
+                    Html.div
+                        [ HtmlAttrs.class "bullet done"
+                        , HtmlAttrs.style "background-color" (intervalToColor colorMode interval)
+                        ]
+                        []
+                        |> List.singleton
+                        |> Html.li [ HtmlAttrs.class (intervalToString interval) ]
+
+                else if index < idx then
+                    Html.div
+                        [ HtmlAttrs.class "bullet undone"
+                        , HtmlAttrs.style "background-color" (intervalToColor colorMode interval)
+                        ]
+                        []
+                        |> List.singleton
+                        |> Html.li [ HtmlAttrs.class (intervalToString interval) ]
+
+                else
+                    [ Html.div
+                        [ HtmlAttrs.class "bullet ongoing"
+                        , HtmlAttrs.style "background-color" (intervalToColor colorMode interval)
+                        ]
+                        []
+                    , Html.div
+                        [ HtmlAttrs.class "ongoing-indicator"
+                        , HtmlAttrs.style "width" (elapsedPercentage current |> String.fromInt |> flip (++) "%")
+                        , HtmlAttrs.style "height" (elapsedPercentage current |> String.fromInt |> flip (++) "%")
+                        , HtmlAttrs.style "top" (elapsedPercentage current |> (-) 100 |> toFloat |> flip (/) 2 |> String.fromFloat |> flip (++) "%")
+                        , HtmlAttrs.style "left" (elapsedPercentage current |> (-) 100 |> toFloat |> flip (/) 2 |> String.fromFloat |> flip (++) "%")
+                        , HtmlAttrs.style "background-color" (intervalToColor colorMode interval)
+                        ]
+                        []
+                    ]
+                        |> Html.li [ HtmlAttrs.class (intervalToString interval) ]
+            )
+        |> Html.ul [ HtmlAttrs.class "intervals" ]
+
+
+renderControls : Bool -> Repeat -> Html Msg
+renderControls playing repeat =
+    Html.div [ HtmlAttrs.class "controls" ]
+        [ if playing then
+            Html.button [ Events.onClick Pause ] [ Html.i [ HtmlAttrs.class "fas fa-pause " ] [] ]
+
+          else
+            Html.button [ Events.onClick Play ] [ Html.i [ HtmlAttrs.class "fas fa-play " ] [] ]
+        , Html.button [ Events.onClick Skip ] [ Html.i [ HtmlAttrs.class "fas fa-forward " ] [] ]
+        , case repeat of
+            NoRepeat ->
+                Html.button [ Events.onClick (SetRepeat SimpleRepeat), HtmlAttrs.class "no-repeat" ] [ Html.i [ HtmlAttrs.class "fas fa-redo-alt" ] [] ]
+
+            SimpleRepeat ->
+                Html.button [ Events.onClick (SetRepeat FullRepeat), HtmlAttrs.class "simple-repeat" ] [ Html.i [ HtmlAttrs.class "fas fa-redo-alt" ] [] ]
+
+            FullRepeat ->
+                Html.button [ Events.onClick (SetRepeat NoRepeat), HtmlAttrs.class "full-repeat" ] [ Html.i [ HtmlAttrs.class "fas fa-redo-alt" ] [] ]
+        ]
+
+
+renderTimer : Model -> Html Msg
+renderTimer model =
     let
         timerOpacity =
             if model.playing == True then
@@ -203,16 +303,8 @@ view model =
             else
                 "0"
 
-        timerColor (Current { interval } _) =
-            case interval of
-                Activity _ ->
-                    "tomato"
-
-                Break _ ->
-                    "#2D5BDE"
-
-                LongBreak _ ->
-                    "#2DBCE0"
+        (Current _ { interval } _) =
+            model.current
 
         timerRadius =
             110
@@ -223,69 +315,56 @@ view model =
         timerSection =
             model.current |> elapsedPercentage |> circunferenceSection timerCircunference
     in
+    Svg.svg [ SvgAttrs.width "240", SvgAttrs.height "240", SvgAttrs.viewBox "0 0 240 240", SvgAttrs.class "timer" ]
+        [ Svg.circle
+            [ SvgAttrs.cx "50%"
+            , SvgAttrs.cy "50%"
+            , SvgAttrs.r (String.fromInt timerRadius)
+            , SvgAttrs.fill "none"
+            , SvgAttrs.stroke <| intervalToColor model.settings.colorMode interval
+            , SvgAttrs.strokeWidth "20"
+            , SvgAttrs.strokeOpacity "0.25"
+            ]
+            []
+        , Svg.circle
+            [ SvgAttrs.cx "120"
+            , SvgAttrs.cy "120"
+            , SvgAttrs.r (String.fromInt timerRadius)
+            , SvgAttrs.fill "none"
+            , SvgAttrs.stroke <| intervalToColor model.settings.colorMode interval
+            , SvgAttrs.strokeWidth "20"
+            , SvgAttrs.transform "rotate(-90, 120, 120) scale(1, -1) translate(0, -240)"
+            , SvgAttrs.strokeDasharray (String.fromInt timerCircunference)
+            , SvgAttrs.strokeDashoffset (String.fromInt timerSection)
+            ]
+            []
+        , Svg.text_
+            [ SvgAttrs.x "50%"
+            , SvgAttrs.y "55%"
+            , SvgAttrs.textAnchor "middle"
+            , SvgAttrs.fill <| intervalToColor model.settings.colorMode interval
+            , SvgAttrs.fontFamily "Montserrat"
+            , SvgAttrs.fontSize "36px"
+            , SvgAttrs.opacity timerOpacity
+            ]
+            [ Svg.text <| secondsToDisplay (secondsLeft model.current) ]
+        ]
+
+
+view : Model -> Html Msg
+view model =
     Html.div [ HtmlAttrs.class "container" ]
         [ Html.div [ HtmlAttrs.class "main" ]
-            [ Svg.svg [ SvgAttrs.width "240", SvgAttrs.height "240", SvgAttrs.viewBox "0 0 240 240" ]
-                -- Activity circle
-                [ Svg.circle
-                    [ SvgAttrs.cx "50%"
-                    , SvgAttrs.cy "50%"
-                    , SvgAttrs.r (String.fromInt timerRadius)
-                    , SvgAttrs.fill "none"
-                    , SvgAttrs.stroke <| timerColor model.current
-                    , SvgAttrs.strokeWidth "20"
-                    , SvgAttrs.strokeOpacity "0.25"
-                    ]
-                    []
-                , Svg.circle
-                    [ SvgAttrs.cx "120"
-                    , SvgAttrs.cy "120"
-                    , SvgAttrs.r (String.fromInt timerRadius)
-                    , SvgAttrs.fill "none"
-                    , SvgAttrs.stroke <| timerColor model.current
-                    , SvgAttrs.strokeWidth "20"
-                    , SvgAttrs.transform "rotate(-90, 120, 120) scale(1, -1) translate(0, -240)"
-                    , SvgAttrs.strokeDasharray (String.fromInt timerCircunference)
-                    , SvgAttrs.strokeDashoffset (String.fromInt timerSection)
-                    ]
-                    []
-
-                -- Timer
-                , Svg.text_
-                    [ SvgAttrs.x "50%"
-                    , SvgAttrs.y "55%"
-                    , SvgAttrs.textAnchor "middle"
-                    , SvgAttrs.fill <| timerColor model.current
-                    , SvgAttrs.fontFamily "Montserrat"
-                    , SvgAttrs.fontSize "36px"
-                    , SvgAttrs.opacity timerOpacity
-                    ]
-                    [ Svg.text <| secondsToDisplay (secondsLeft model.current) ]
-                ]
-            , Html.div [ HtmlAttrs.class "controls" ]
-                [ if model.playing then
-                    Html.button [ Events.onClick Pause ] [ Html.i [ HtmlAttrs.class "fas fa-pause " ] [] ]
-
-                  else
-                    Html.button [ Events.onClick Play ] [ Html.i [ HtmlAttrs.class "fas fa-play " ] [] ]
-                , Html.button [ Events.onClick Skip ] [ Html.i [ HtmlAttrs.class "fas fa-forward " ] [] ]
-                , case model.repeat of
-                    NoRepeat ->
-                        Html.button [ Events.onClick (SetRepeat SimpleRepeat), HtmlAttrs.class "no-repeat" ] [ Html.i [ HtmlAttrs.class "fas fa-redo-alt" ] [] ]
-
-                    SimpleRepeat ->
-                        Html.button [ Events.onClick (SetRepeat FullRepeat), HtmlAttrs.class "simple-repeat" ] [ Html.i [ HtmlAttrs.class "fas fa-redo-alt" ] [] ]
-
-                    FullRepeat ->
-                        Html.button [ Events.onClick (SetRepeat NoRepeat), HtmlAttrs.class "full-repeat" ] [ Html.i [ HtmlAttrs.class "fas fa-redo-alt" ] [] ]
-                ]
+            [ renderTimer model
+            , renderIntervals model.settings.colorMode model.current model.intervals
+            , renderControls model.playing model.repeat
             ]
         ]
 
 
 addElapsedSecond : Current -> Current
-addElapsedSecond (Current p elapsed) =
-    Current p (elapsed + 1)
+addElapsedSecond (Current i p elapsed) =
+    Current i p (elapsed + 1)
 
 
 firstInverval : List Interval -> Interval
@@ -294,7 +373,7 @@ firstInverval =
 
 
 evalElapsedTime : Posix -> Current -> Repeat -> List Interval -> ( Current, Bool, Cmd msg )
-evalElapsedTime now ((Current { index, interval } elapsed) as current) repeat intervals =
+evalElapsedTime now ((Current index { interval } elapsed) as current) repeat intervals =
     if secondsLeft current == 0 then
         let
             firstInterval_ =
@@ -303,16 +382,16 @@ evalElapsedTime now ((Current { index, interval } elapsed) as current) repeat in
             ( current_, playing ) =
                 case ( intervals |> ListEx.getAt (index + 1), repeat ) of
                     ( Nothing, FullRepeat ) ->
-                        ( Current (newCycle 0 firstInterval_ (Just now)) 0, True )
+                        ( Current 0 (newCycle firstInterval_ (Just now)) 0, True )
 
                     ( Nothing, _ ) ->
-                        ( Current (newCycle 0 firstInterval_ Nothing) 0, False )
+                        ( Current 0 (newCycle firstInterval_ Nothing) 0, False )
 
                     ( Just nextInterval, NoRepeat ) ->
-                        ( Current (newCycle (index + 1) nextInterval Nothing) 0, False )
+                        ( Current (index + 1) (newCycle nextInterval Nothing) 0, False )
 
                     ( Just nextInterval, _ ) ->
-                        ( Current (newCycle (index + 1) nextInterval (Just now)) 0, True )
+                        ( Current (index + 1) (newCycle nextInterval (Just now)) 0, True )
         in
         ( current_, playing, notify () )
 
@@ -321,7 +400,7 @@ evalElapsedTime now ((Current { index, interval } elapsed) as current) repeat in
 
 
 elapsedPercentage : Current -> Int
-elapsedPercentage (Current { interval } elapsed) =
+elapsedPercentage (Current _ { interval } elapsed) =
     (toFloat elapsed * 100 / (toFloat <| getSeconds interval)) |> truncate
 
 
@@ -337,6 +416,9 @@ update msg model =
             ( m, Cmd.none )
     in
     case msg of
+        NoOp ->
+            done model
+
         Tick posix ->
             if model.playing == True then
                 let
@@ -363,14 +445,14 @@ update msg model =
 
         Play ->
             let
-                (Current cycle _) =
+                (Current index cycle _) =
                     model.current
             in
-            done { model | playing = True, current = Current (startCycle model.time cycle) 0 }
+            done { model | playing = True, current = Current index (startCycle model.time cycle) 0 }
 
         Skip ->
             let
-                (Current { index } _) =
+                (Current index _ _) =
                     model.current
 
                 ( nextIndex, nextInterval ) =
@@ -382,7 +464,7 @@ update msg model =
                             ( 0, model.intervals |> firstInverval )
 
                 newCurrent =
-                    Current (newCycle nextIndex nextInterval Nothing) 0
+                    Current nextIndex (newCycle nextInterval Nothing) 0
 
                 newLog =
                     model.log |> logCycle model.time model.current

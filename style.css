@@ -29,8 +29,12 @@ button {
   width: 100%;
 }
 
+.timer {
+  margin: .5rem 0;
+}
+
 .controls {
-  margin-top: 1rem;
+  margin: .5rem 0;
 }
 
 .controls button {
@@ -39,7 +43,7 @@ button {
   color: tomato;
   cursor: pointer;
   height: 3.5rem;
-  margin: .5rem;
+  margin: 0 .5rem;
   width: 3.5rem;
 }
 
@@ -54,4 +58,48 @@ button {
 .full-repeat {
   border-color: #2D5BDE !important;
   color: #2D5BDE !important;
+}
+
+.intervals {
+  display: flex;
+  list-style: none;
+  margin: .5rem 0;
+  padding: 0;
+}
+
+.intervals li {
+  height: 1.5rem;
+  margin: 0 .25rem;
+  position: relative;
+  width: 1.5rem;
+}
+
+.intervals .break {
+  width: 1rem;
+  height: 1rem;
+  margin: .25rem;
+}
+
+.intervals .bullet {
+  border-radius: 50%;
+  height: 100%;
+  width: 100%;
+}
+
+.intervals .done {
+  opacity: 1;
+}
+
+.intervals .undone {
+  opacity: .25;
+}
+
+.intervals .ongoing {
+  opacity: .5;
+}
+
+.intervals .ongoing-indicator {
+  border-radius: 50%;
+  opacity: 1;
+  position: absolute;
 }
