@@ -4,6 +4,7 @@ module Model exposing
     , Interval(..)
     , Model
     , Page(..)
+    , Seconds
     , Theme(..)
     , currentAddElapsed
     , currentElapsedPct
@@ -13,6 +14,8 @@ module Model exposing
     , cycleStart
     , default
     , firstInverval
+    , intervalSeconds
+    , intervalsTotalRun
     )
 
 import Helpers
@@ -50,17 +53,10 @@ type Interval
     | LongBreak Int
 
 
-type Feeling
-    = Good
-    | Neutral
-    | Bad
-
-
 type alias Cycle =
     { interval : Interval
     , start : Maybe Posix
     , end : Maybe Posix
-    , feeling : Maybe Feeling
     , seconds : Maybe Seconds
     }
 
@@ -98,7 +94,7 @@ type alias Model =
 
 defaultSettings : Settings
 defaultSettings =
-    Settings 4 (25 * 60) (5 * 60) (15 * 60) LightTheme
+    Settings 4 (5 * 60) (2 * 60) (10 * 60) LightTheme
 
 
 buildIntervals : Settings -> List Interval
@@ -119,7 +115,7 @@ cycleBuild : Interval -> Maybe Posix -> Cycle
 cycleBuild interval start =
     let
         new =
-            Cycle interval Nothing Nothing Nothing Nothing
+            Cycle interval Nothing Nothing Nothing
     in
     start |> Maybe.map (\s -> { new | start = Just s }) |> Maybe.withDefault new
 
@@ -142,8 +138,8 @@ default =
     , uptime = 0
     , settings = defaultSettings
     , current = current
-    , playing = False
-    , continuity = NoCont
+    , playing = True
+    , continuity = SimpleCont
     , intervals = intervals
     , log = []
     }
@@ -172,6 +168,11 @@ intervalSeconds interval =
 
         LongBreak s ->
             s
+
+
+intervalsTotalRun : List Interval -> Seconds
+intervalsTotalRun intervals =
+    intervals |> List.foldl (\i t -> i |> intervalSeconds |> (+) t) 0
 
 
 currentSecondsLeft : Current -> Float

@@ -7,23 +7,15 @@ import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as HtmlAttr
 import List.Extra as ListEx
 import Model exposing (Continuity(..), Current, Interval, Model, Page(..))
+import Msg exposing (Msg(..))
 import Platform exposing (Program)
 import Svg.Styled as Svg
 import Task
-import Time exposing (Posix, Zone)
+import Time exposing (Posix)
+import View.Timer as Timer
 
 
 port notify : () -> Cmd msg
-
-
-type Msg
-    = NoOp
-    | Tick Posix
-    | AdjustTimeZone Zone
-    | Pause
-    | Play
-    | Skip
-    | SetCont Continuity
 
 
 init : () -> ( Model, Cmd Msg )
@@ -38,11 +30,21 @@ view model =
             [ Css.width <| Css.vw 100.0
             , Css.height <| Css.vh 100.0
             , Css.position Css.relative
-            , Css.backgroundColor <| (model.settings.theme |> Colors.backgroundColor)
+            , Css.backgroundColor <| (model.settings.theme |> Colors.backgroundColor |> Colors.toCssColor)
             ]
         ]
-        [ Html.div [] []
+        [ renderPage model
         ]
+
+
+renderPage : Model -> Html Msg
+renderPage model =
+    case model.page of
+        TimerPage ->
+            Timer.render model
+
+        _ ->
+            Html.text "other pages"
 
 
 evalElapsedTime : Posix -> Current -> Continuity -> List Interval -> ( Current, Bool, Cmd msg )

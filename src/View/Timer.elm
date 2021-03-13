@@ -1,0 +1,186 @@
+module View.Timer exposing (render)
+
+import Colors
+import Css
+import Html.Styled as Html exposing (Html)
+import Html.Styled.Attributes as HtmlAttr
+import Model exposing (Current, Interval, Model, Seconds, Theme)
+import Msg exposing (Msg(..))
+import Svg.Styled as Svg exposing (Svg)
+import Svg.Styled.Attributes as SvgAttr
+
+
+secondsToDisplay : Seconds -> String
+secondsToDisplay secs =
+    let
+        pad num =
+            num |> String.fromInt |> String.padLeft 2 '0'
+    in
+    if secs < 60 then
+        "0:" ++ pad secs
+
+    else
+        let
+            min =
+                (toFloat secs / 60) |> floor
+        in
+        String.fromInt min ++ ":" ++ pad (secs - (min * 60))
+
+
+renderTimer : Bool -> Int -> Theme -> Current -> Svg Msg
+renderTimer playing uptime theme current =
+    let
+        timerOpacity =
+            if playing == True then
+                "100"
+
+            else if (uptime |> modBy 2) == 0 then
+                "100"
+
+            else
+                "0"
+    in
+    Svg.text_
+        [ SvgAttr.x "50%"
+        , SvgAttr.y "55%"
+        , SvgAttr.textAnchor "middle"
+        , SvgAttr.fill <| (current.cycle.interval |> Colors.intervalToColor theme |> Colors.toRgbaString)
+        , SvgAttr.fontFamily "Montserrat"
+        , SvgAttr.fontSize "36px"
+        , SvgAttr.opacity timerOpacity
+        ]
+        [ Svg.text <| secondsToDisplay (Model.currentSecondsLeft current |> truncate) ]
+
+
+renderIntervalArcs : Theme -> Current -> List Interval -> List (Svg msg)
+renderIntervalArcs theme current intervals =
+    let
+        first ( f, _, _ ) =
+            f
+
+        totalRun =
+            intervals |> Model.intervalsTotalRun |> toFloat
+    in
+    intervals
+        |> List.foldl
+            (\interval ( paths, idx, startAngle ) ->
+                let
+                    intervalSecs =
+                        Model.intervalSeconds interval |> toFloat
+
+                    intervalAngle =
+                        360.0 * intervalSecs / totalRun
+
+                    start =
+                        startAngle
+
+                    end =
+                        startAngle + intervalAngle
+
+                    buildArc interval_ opacity_ start_ end_ =
+                        Svg.path
+                            [ SvgAttr.strokeWidth "8"
+                            , SvgAttr.strokeLinecap "round"
+                            , SvgAttr.fill "none"
+                            , SvgAttr.stroke <| (interval_ |> Colors.intervalToColor theme |> Colors.toRgbaString)
+                            , SvgAttr.d (describeArc 130.0 130.0 120.0 (start_ + 3.0) (end_ - 3.0))
+                            , SvgAttr.opacity opacity_
+                            ]
+                            []
+
+                    currentArc =
+                        if idx == current.index then
+                            let
+                                elapsedPct =
+                                    Model.currentElapsedPct current
+
+                                elapsedIntervalAngle =
+                                    intervalAngle * elapsedPct / 100.0
+                            in
+                            buildArc interval "1" start (start + elapsedIntervalAngle)
+
+                        else
+                            Svg.path [] []
+
+                    opacity =
+                        if idx >= current.index then
+                            ".25"
+
+                        else
+                            "1"
+                in
+                ( buildArc interval opacity start end :: currentArc :: paths
+                , idx + 1
+                , end
+                )
+            )
+            ( [], 0, 0 )
+        |> first
+
+
+render : Model -> Html Msg
+render model =
+    Html.div
+        [ HtmlAttr.css
+            [ Css.displayFlex
+            , Css.alignItems Css.center
+            , Css.justifyContent Css.center
+            , Css.width <| Css.pct 100.0
+            , Css.height <| Css.pct 100.0
+            ]
+        ]
+        [ Svg.svg
+            [ SvgAttr.width "260"
+            , SvgAttr.height "260"
+            , SvgAttr.viewBox "0 0 260 260"
+            ]
+            (renderIntervalArcs model.settings.theme model.current model.intervals
+                ++ [ renderTimer model.playing model.uptime model.settings.theme model.current ]
+            )
+        ]
+
+
+
+-- Functions "stolen" from https://stackoverflow.com/a/18473154/129676
+
+
+polarToCartesian : Float -> Float -> Float -> Float -> ( Float, Float )
+polarToCartesian centerX centerY radius angleInDegrees =
+    let
+        angleInRadians =
+            (angleInDegrees - 90) * pi / 180.0
+    in
+    ( centerX + (radius * cos angleInRadians)
+    , centerY + (radius * sin angleInRadians)
+    )
+
+
+describeArc : Float -> Float -> Float -> Float -> Float -> String
+describeArc x y radius startAngle endAngle =
+    let
+        ( startX, startY ) =
+            polarToCartesian x y radius endAngle
+
+        ( endX, endY ) =
+            polarToCartesian x y radius startAngle
+
+        largeArcFlag =
+            if endAngle - startAngle <= 180.0 then
+                "0"
+
+            else
+                "1"
+    in
+    [ "M"
+    , String.fromFloat startX
+    , String.fromFloat startY
+    , "A"
+    , String.fromFloat radius
+    , String.fromFloat radius
+    , "0"
+    , largeArcFlag
+    , "0"
+    , String.fromFloat endX
+    , String.fromFloat endY
+    ]
+        |> String.join " "

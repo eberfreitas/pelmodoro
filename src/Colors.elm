@@ -1,37 +1,46 @@
-module Colors exposing (backgroundColor, intervalToColor)
+module Colors exposing (backgroundColor, intervalToColor, toCssColor, toRgbaString)
 
 import Css exposing (Color)
+import Helpers
 import Model exposing (Interval(..), Theme(..))
 
 
-type alias ThemeColors =
-    { background : Color
-    , activity : Color
-    , break : Color
-    , longBreak : Color
-    , controls : Color
-    , text : Color
+type alias BaseColor =
+    { red : Int
+    , green : Int
+    , blue : Int
+    , alpha : Float
     }
 
 
-washedTomato : Color
+type alias ThemeColors =
+    { background : BaseColor
+    , activity : BaseColor
+    , break : BaseColor
+    , longBreak : BaseColor
+    , controls : BaseColor
+    , text : BaseColor
+    }
+
+
+washedTomato : BaseColor
 washedTomato =
-    Css.rgb 255 234 230
+    BaseColor 255 234 230 1.0
 
 
-tomato : Color
+tomato : BaseColor
 tomato =
-    Css.rgb 255 99 71
+    BaseColor 255 99 71 1.0
 
 
-purpleBlue : Color
+purpleBlue : BaseColor
 purpleBlue =
-    Css.rgb 45 91 222
+    BaseColor 45 91 222 1.0
 
 
-lightBlue : Color
+lightBlue : BaseColor
 lightBlue =
-    Css.rgb 45 188 224
+    BaseColor 45 188 224 1.0
 
 
 lightTheme : ThemeColors
@@ -54,12 +63,12 @@ themeColors theme =
             darkTheme
 
 
-backgroundColor : Theme -> Color
+backgroundColor : Theme -> BaseColor
 backgroundColor theme =
     theme |> themeColors |> .background
 
 
-intervalToColor : Theme -> Interval -> Color
+intervalToColor : Theme -> Interval -> BaseColor
 intervalToColor theme interval =
     case interval of
         Activity _ ->
@@ -70,3 +79,17 @@ intervalToColor theme interval =
 
         LongBreak _ ->
             theme |> themeColors |> .longBreak
+
+
+toCssColor : BaseColor -> Color
+toCssColor { red, green, blue, alpha } =
+    Css.rgba red green blue alpha
+
+
+toRgbaString : BaseColor -> String
+toRgbaString { red, green, blue, alpha } =
+    [ red, green, blue ]
+        |> List.map String.fromInt
+        |> String.join ","
+        |> Helpers.flip (++) ("," ++ String.fromFloat alpha)
+        |> (\c -> "rgba(" ++ c ++ ")")
