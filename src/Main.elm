@@ -51,7 +51,7 @@ evalElapsedTime now current repeat intervals =
                 intervals |> Model.firstInverval
 
             idx =
-                Model.currentIndex current
+                current.index
 
             nextIdx =
                 idx + 1
@@ -59,16 +59,16 @@ evalElapsedTime now current repeat intervals =
             ( current_, playing ) =
                 case ( intervals |> ListEx.getAt nextIdx, repeat ) of
                     ( Nothing, FullCont ) ->
-                        ( Model.currentBuild 0 (Model.cycleBuild firstInterval (Just now)) 0, True )
+                        ( Current 0 (Model.cycleBuild firstInterval (Just now)) 0, True )
 
                     ( Nothing, _ ) ->
-                        ( Model.currentBuild 0 (Model.cycleBuild firstInterval Nothing) 0, False )
+                        ( Current 0 (Model.cycleBuild firstInterval Nothing) 0, False )
 
                     ( Just nextInterval, NoCont ) ->
-                        ( Model.currentBuild nextIdx (Model.cycleBuild nextInterval Nothing) 0, False )
+                        ( Current nextIdx (Model.cycleBuild nextInterval Nothing) 0, False )
 
                     ( Just nextInterval, _ ) ->
-                        ( Model.currentBuild nextIdx (Model.cycleBuild nextInterval (Just now)) 0, True )
+                        ( Current nextIdx (Model.cycleBuild nextInterval (Just now)) 0, True )
         in
         ( current_, playing, notify () )
 
@@ -112,15 +112,12 @@ update msg model =
 
         Play ->
             let
-                index =
-                    Model.currentIndex model.current
-
-                cycle =
-                    Model.currentCycle model.current
+                { index, cycle, elapsed } =
+                    model.current
 
                 current =
-                    if Model.currentElapsed model.current == 0 then
-                        Model.currentBuild index (Model.cycleStart model.time cycle) 0
+                    if elapsed == 0 then
+                        Current index (Model.cycleStart model.time cycle) 0
 
                     else
                         model.current
@@ -129,8 +126,8 @@ update msg model =
 
         Skip ->
             let
-                index =
-                    Model.currentIndex model.current
+                { index } =
+                    model.current
 
                 ( newIndex, newInterval ) =
                     case ListEx.getAt (index + 1) model.intervals of
@@ -141,7 +138,7 @@ update msg model =
                             ( 0, model.intervals |> Model.firstInverval )
 
                 newCurrent =
-                    Model.currentBuild newIndex (Model.cycleBuild newInterval Nothing) 0
+                    Current newIndex (Model.cycleBuild newInterval Nothing) 0
 
                 newLog =
                     model.log |> Model.cycleLog model.time model.current

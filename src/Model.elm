@@ -6,11 +6,7 @@ module Model exposing
     , Model
     , Page(..)
     , currentAddElapsed
-    , currentBuild
-    , currentCycle
-    , currentElapsed
     , currentElapsedPct
-    , currentIndex
     , currentSecondsLeft
     , cycleBuild
     , cycleLog
@@ -69,8 +65,11 @@ type alias Cycle =
     }
 
 
-type Current
-    = Current Int Cycle Seconds
+type alias Current =
+    { index : Int
+    , cycle : Cycle
+    , elapsed : Seconds
+    }
 
 
 type Continuity
@@ -135,7 +134,7 @@ default =
             firstInverval intervals
 
         current =
-            currentBuild 0 (cycleBuild firstInterval_ Nothing) 0
+            Current 0 (cycleBuild firstInterval_ Nothing) 0
     in
     { zone = Time.utc
     , time = Time.millisToPosix 0
@@ -151,7 +150,7 @@ default =
 
 
 cycleLog : Posix -> Current -> Log -> Log
-cycleLog now (Current _ cycle elapsed) log =
+cycleLog now { cycle, elapsed } log =
     { cycle | end = Just now, seconds = Just elapsed }
         |> List.singleton
         |> (++) log
@@ -175,36 +174,16 @@ intervalSeconds interval =
             s
 
 
-currentIndex : Current -> Int
-currentIndex (Current idx _ _) =
-    idx
-
-
-currentElapsed : Current -> Int
-currentElapsed (Current _ _ elapsed) =
-    elapsed
-
-
-currentCycle : Current -> Cycle
-currentCycle (Current _ cycle _) =
-    cycle
-
-
-currentSecondsLeft : Current -> Int
-currentSecondsLeft (Current _ { interval } elapsed) =
-    intervalSeconds interval - elapsed
+currentSecondsLeft : Current -> Float
+currentSecondsLeft { cycle, elapsed } =
+    intervalSeconds cycle.interval - elapsed |> toFloat
 
 
 currentAddElapsed : Int -> Current -> Current
-currentAddElapsed i (Current idx cycle elapsed) =
-    Current idx cycle (elapsed + i)
+currentAddElapsed i current =
+    { current | elapsed = current.elapsed + i }
 
 
-currentBuild : Int -> Cycle -> Int -> Current
-currentBuild idx cycle elapsed =
-    Current idx cycle elapsed
-
-
-currentElapsedPct : Current -> Int
-currentElapsedPct (Current _ { interval } elapsed) =
-    (toFloat elapsed * 100 / (toFloat <| intervalSeconds interval)) |> truncate
+currentElapsedPct : Current -> Float
+currentElapsedPct { cycle, elapsed } =
+    toFloat elapsed * 100 / (toFloat <| intervalSeconds cycle.interval)
