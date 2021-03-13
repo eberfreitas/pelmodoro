@@ -1,10 +1,10 @@
 module Model exposing
-    ( ColorMode
-    , Continuity(..)
+    ( Continuity(..)
     , Current
-    , Interval
+    , Interval(..)
     , Model
     , Page(..)
+    , Theme(..)
     , currentAddElapsed
     , currentElapsedPct
     , currentSecondsLeft
@@ -30,9 +30,9 @@ type alias Seconds =
     Int
 
 
-type ColorMode
-    = Light
-    | Dark
+type Theme
+    = LightTheme
+    | DarkTheme
 
 
 type alias Settings =
@@ -40,7 +40,7 @@ type alias Settings =
     , activity : Seconds
     , break : Seconds
     , longBreak : Seconds
-    , colorMode : ColorMode
+    , theme : Theme
     }
 
 
@@ -98,7 +98,7 @@ type alias Model =
 
 defaultSettings : Settings
 defaultSettings =
-    Settings 4 (25 * 60) (5 * 60) (15 * 60) Light
+    Settings 4 (25 * 60) (5 * 60) (15 * 60) LightTheme
 
 
 buildIntervals : Settings -> List Interval

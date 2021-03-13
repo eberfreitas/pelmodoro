@@ -1,19 +1,72 @@
-module Colors exposing (..)
+module Colors exposing (backgroundColor, intervalToColor)
 
-import Model exposing (ColorMode, Interval)
+import Css exposing (Color)
+import Model exposing (Interval(..), Theme(..))
 
 
-intervalToColor : ColorMode -> Interval -> String
-intervalToColor mode interval =
-    case ( mode, interval ) of
-        ( Light, Activity _ ) ->
-            "tomato"
+type alias ThemeColors =
+    { background : Color
+    , activity : Color
+    , break : Color
+    , longBreak : Color
+    , controls : Color
+    , text : Color
+    }
 
-        ( Light, Break _ ) ->
-            "#2D5BDE"
 
-        ( Light, LongBreak _ ) ->
-            "#2DBCE0"
+washedTomato : Color
+washedTomato =
+    Css.rgb 255 234 230
 
-        _ ->
-            "TBD"
+
+tomato : Color
+tomato =
+    Css.rgb 255 99 71
+
+
+purpleBlue : Color
+purpleBlue =
+    Css.rgb 45 91 222
+
+
+lightBlue : Color
+lightBlue =
+    Css.rgb 45 188 224
+
+
+lightTheme : ThemeColors
+lightTheme =
+    ThemeColors washedTomato tomato purpleBlue lightBlue tomato tomato
+
+
+darkTheme : ThemeColors
+darkTheme =
+    ThemeColors tomato tomato purpleBlue lightBlue tomato tomato
+
+
+themeColors : Theme -> ThemeColors
+themeColors theme =
+    case theme of
+        LightTheme ->
+            lightTheme
+
+        DarkTheme ->
+            darkTheme
+
+
+backgroundColor : Theme -> Color
+backgroundColor theme =
+    theme |> themeColors |> .background
+
+
+intervalToColor : Theme -> Interval -> Color
+intervalToColor theme interval =
+    case interval of
+        Activity _ ->
+            theme |> themeColors |> .activity
+
+        Break _ ->
+            theme |> themeColors |> .break
+
+        LongBreak _ ->
+            theme |> themeColors |> .longBreak

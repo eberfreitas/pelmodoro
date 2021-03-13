@@ -1,6 +1,7 @@
 port module Main exposing (main)
 
 import Browser
+import Colors
 import Css
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as HtmlAttr
@@ -31,12 +32,13 @@ init () =
 
 
 view : Model -> Html Msg
-view _ =
+view model =
     Html.div
         [ HtmlAttr.css
-            [ Css.width (Css.vw 100.0)
-            , Css.height (Css.vh 100.0)
+            [ Css.width <| Css.vw 100.0
+            , Css.height <| Css.vh 100.0
             , Css.position Css.relative
+            , Css.backgroundColor <| (model.settings.theme |> Colors.backgroundColor)
             ]
         ]
         [ Html.div [] []
