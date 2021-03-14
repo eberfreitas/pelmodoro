@@ -145,9 +145,27 @@ update msg model =
                     Current newIndex (Model.cycleBuild newInterval Nothing) 0
 
                 newLog =
-                    model.log |> Model.cycleLog model.time model.current
+                    if model.current.elapsed /= 0 then
+                        model.log |> Model.cycleLog model.time model.current
+
+                    else
+                        model.log
             in
             done { model | current = newCurrent, playing = False, log = newLog }
+
+        Restart ->
+            let
+                newLog =
+                    if model.current.elapsed /= 0 then
+                        model.log |> Model.cycleLog model.time model.current
+
+                    else
+                        model.log
+
+                newCurrent =
+                    Current 0 (Model.cycleBuild (Model.firstInverval model.intervals) Nothing) 0
+            in
+            done { model | current = newCurrent, log = newLog, playing = False }
 
         SetCont cont ->
             done { model | continuity = cont }

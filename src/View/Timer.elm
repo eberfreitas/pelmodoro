@@ -4,6 +4,7 @@ import Colors
 import Css
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as HtmlAttr
+import Html.Styled.Events as Event
 import Model exposing (Current, Interval, Model, Seconds, Theme)
 import Msg exposing (Msg(..))
 import Svg.Styled as Svg exposing (Svg)
@@ -133,6 +134,38 @@ renderIntervalArcs size theme current intervals =
         |> first
 
 
+renderControls : Theme -> Bool -> Html Msg
+renderControls theme playing =
+    let
+        buttonStyle =
+            Css.batch
+                [ Css.borderStyle Css.none
+                , Css.backgroundColor Css.transparent
+                , Css.width <| Css.rem 3
+                , Css.height <| Css.rem 3
+                , Css.color <| (theme |> Colors.textColor |> Colors.toCssColor)
+                , Css.outline Css.zero
+                ]
+
+        button icon msg =
+            Html.button
+                [ Event.onClick msg, HtmlAttr.css [ buttonStyle ] ]
+                [ Html.span [ HtmlAttr.class "material-icons-round" ] [ Html.text icon ] ]
+    in
+    Html.ul
+        [ HtmlAttr.css [ Css.listStyle Css.none, Css.displayFlex, Css.marginTop <| Css.rem 1.0 ] ]
+        [ Html.li []
+            [ if playing then
+                button "pause" Pause
+
+              else
+                button "play_arrow" Play
+            ]
+        , Html.li [] [ button "skip_next" Skip ]
+        , Html.li [] [ button "restart_alt" Restart ]
+        ]
+
+
 render : Model -> Html Msg
 render model =
     let
@@ -145,6 +178,7 @@ render model =
     Html.div
         [ HtmlAttr.css
             [ Css.displayFlex
+            , Css.flexDirection Css.column
             , Css.alignItems Css.center
             , Css.justifyContent Css.center
             , Css.width <| Css.pct 100.0
@@ -159,6 +193,7 @@ render model =
             (renderIntervalArcs svgBaseSize model.settings.theme model.current model.intervals
                 ++ [ renderTimer model.playing model.uptime model.settings.theme model.current ]
             )
+        , renderControls model.settings.theme model.playing
         ]
 
 

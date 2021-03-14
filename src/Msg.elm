@@ -8,7 +8,8 @@ type Msg
     = NoOp
     | Tick Posix
     | AdjustTimeZone Zone
-    | Pause
     | Play
+    | Pause
     | Skip
+    | Restart
     | SetCont Continuity

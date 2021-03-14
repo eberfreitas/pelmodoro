@@ -1,4 +1,4 @@
-module Colors exposing (backgroundColor, intervalToColor, toCssColor, toRgbaString)
+module Colors exposing (backgroundColor, intervalToColor, textColor, toCssColor, toRgbaString)
 
 import Css exposing (Color)
 import Helpers
@@ -25,7 +25,7 @@ type alias ThemeColors =
 
 washedTomato : BaseColor
 washedTomato =
-    BaseColor 255 234 230 1.0
+    BaseColor 255 243 240 1.0
 
 
 tomato : BaseColor
@@ -64,8 +64,13 @@ themeColors theme =
 
 
 backgroundColor : Theme -> BaseColor
-backgroundColor theme =
-    theme |> themeColors |> .background
+backgroundColor =
+    themeColors >> .background
+
+
+textColor : Theme -> BaseColor
+textColor =
+    themeColors >> .text
 
 
 intervalToColor : Theme -> Interval -> BaseColor
