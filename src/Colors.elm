@@ -61,17 +61,17 @@ lightGrey =
 
 darkPink : BaseColor
 darkPink =
-    BaseColor 105 36 74 1.0
+    BaseColor 141 48 99 1.0
 
 
 darkPurple : BaseColor
 darkPurple =
-    BaseColor 78 38 112 1.0
+    BaseColor 95 46 136 1.0
 
 
 oilBlue : BaseColor
 oilBlue =
-    BaseColor 38 96 112 1.0
+    BaseColor 46 117 137 1.0
 
 
 lightTheme : ThemeColors

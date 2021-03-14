@@ -16,6 +16,7 @@ module Model exposing
     , firstInverval
     , intervalSeconds
     , intervalsTotalRun
+    , mapSettings
     )
 
 import Helpers
@@ -44,6 +45,7 @@ type alias Settings =
     , break : Seconds
     , longBreak : Seconds
     , theme : Theme
+    , continuity : Continuity
     }
 
 
@@ -86,7 +88,6 @@ type alias Model =
     , settings : Settings
     , current : Current
     , playing : Bool
-    , continuity : Continuity
     , intervals : List Interval
     , log : Log
     }
@@ -94,7 +95,7 @@ type alias Model =
 
 defaultSettings : Settings
 defaultSettings =
-    Settings 4 (25 * 60) (5 * 60) (15 * 60) DarkTheme
+    Settings 4 (25 * 60) (5 * 60) (15 * 60) LightTheme NoCont
 
 
 buildIntervals : Settings -> List Interval
@@ -139,7 +140,6 @@ default =
     , settings = defaultSettings
     , current = current
     , playing = False
-    , continuity = NoCont
     , intervals = intervals
     , log = []
     }
@@ -147,9 +147,13 @@ default =
 
 cycleLog : Posix -> Current -> Log -> Log
 cycleLog now { cycle, elapsed } log =
-    { cycle | end = Just now, seconds = Just elapsed }
-        |> List.singleton
-        |> (++) log
+    if elapsed /= 0 then
+        { cycle | end = Just now, seconds = Just elapsed }
+            |> List.singleton
+            |> (++) log
+
+    else
+        log
 
 
 cycleStart : Posix -> Cycle -> Cycle
@@ -188,3 +192,8 @@ currentAddElapsed i current =
 currentElapsedPct : Current -> Float
 currentElapsedPct { cycle, elapsed } =
     toFloat elapsed * 100 / (toFloat <| intervalSeconds cycle.interval)
+
+
+mapSettings : (Settings -> Settings) -> Model -> Model
+mapSettings fn model =
+    { model | settings = fn model.settings }

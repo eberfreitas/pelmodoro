@@ -53,11 +53,8 @@ evalElapsedTime now current repeat intervals =
             firstInterval =
                 intervals |> Model.firstInverval
 
-            idx =
-                current.index
-
             nextIdx =
-                idx + 1
+                current.index + 1
 
             ( current_, playing ) =
                 case ( intervals |> ListEx.getAt nextIdx, repeat ) of
@@ -93,7 +90,7 @@ update msg model =
             if model.playing == True then
                 let
                     ( newCurrent, newPlaying, cmd ) =
-                        evalElapsedTime model.time model.current model.continuity model.intervals
+                        evalElapsedTime model.time model.current model.settings.continuity model.intervals
 
                     newLog =
                         if cmd /= Cmd.none then
@@ -144,22 +141,14 @@ update msg model =
                     Current newIndex (Model.cycleBuild newInterval Nothing) 0
 
                 newLog =
-                    if model.current.elapsed /= 0 then
-                        model.log |> Model.cycleLog model.time model.current
-
-                    else
-                        model.log
+                    model.log |> Model.cycleLog model.time model.current
             in
             done { model | current = newCurrent, playing = False, log = newLog }
 
         Restart ->
             let
                 newLog =
-                    if model.current.elapsed /= 0 then
-                        model.log |> Model.cycleLog model.time model.current
-
-                    else
-                        model.log
+                    model.log |> Model.cycleLog model.time model.current
 
                 newCurrent =
                     Current 0 (Model.cycleBuild (Model.firstInverval model.intervals) Nothing) 0
@@ -167,7 +156,7 @@ update msg model =
             done { model | current = newCurrent, log = newLog, playing = False }
 
         SetCont cont ->
-            done { model | continuity = cont }
+            model |> Model.mapSettings (\s -> { s | continuity = cont }) |> done
 
 
 subs : Model -> Sub Msg

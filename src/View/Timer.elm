@@ -120,7 +120,7 @@ renderIntervalArcs size theme current intervals =
 
                     opacity =
                         if idx >= current.index then
-                            ".25"
+                            ".35"
 
                         else
                             "1"
