@@ -52,14 +52,26 @@ renderTimer playing uptime theme current =
         [ Svg.text <| secondsToDisplay (Model.currentSecondsLeft current |> truncate) ]
 
 
-renderIntervalArcs : Theme -> Current -> List Interval -> List (Svg msg)
-renderIntervalArcs theme current intervals =
+renderIntervalArcs : Int -> Theme -> Current -> List Interval -> List (Svg msg)
+renderIntervalArcs size theme current intervals =
     let
         first ( f, _, _ ) =
             f
 
         totalRun =
             intervals |> Model.intervalsTotalRun |> toFloat
+
+        strokeWidth =
+            8
+
+        centerPoint =
+            toFloat size / 2
+
+        radius =
+            centerPoint - (strokeWidth / 2)
+
+        arcsOffset =
+            3.0
     in
     intervals
         |> List.foldl
@@ -71,19 +83,16 @@ renderIntervalArcs theme current intervals =
                     intervalAngle =
                         360.0 * intervalSecs / totalRun
 
-                    start =
-                        startAngle
-
-                    end =
+                    endAngle =
                         startAngle + intervalAngle
 
                     buildArc interval_ opacity_ start_ end_ =
                         Svg.path
-                            [ SvgAttr.strokeWidth "8"
+                            [ SvgAttr.strokeWidth <| String.fromInt strokeWidth
                             , SvgAttr.strokeLinecap "round"
                             , SvgAttr.fill "none"
                             , SvgAttr.stroke <| (interval_ |> Colors.intervalToColor theme |> Colors.toRgbaString)
-                            , SvgAttr.d (describeArc 130.0 130.0 120.0 (start_ + 3.0) (end_ - 3.0))
+                            , SvgAttr.d (describeArc centerPoint centerPoint radius start_ end_)
                             , SvgAttr.opacity opacity_
                             ]
                             []
@@ -95,9 +104,15 @@ renderIntervalArcs theme current intervals =
                                     Model.currentElapsedPct current
 
                                 elapsedIntervalAngle =
-                                    intervalAngle * elapsedPct / 100.0
+                                    (intervalAngle - arcsOffset * 2) * elapsedPct / 100.0
+
+                                startAngle_ =
+                                    startAngle + arcsOffset
+
+                                endAngle_ =
+                                    startAngle_ + elapsedIntervalAngle
                             in
-                            buildArc interval "1" start (start + elapsedIntervalAngle)
+                            buildArc interval "1" startAngle_ endAngle_
 
                         else
                             Svg.path [] []
@@ -109,9 +124,9 @@ renderIntervalArcs theme current intervals =
                         else
                             "1"
                 in
-                ( buildArc interval opacity start end :: currentArc :: paths
+                ( buildArc interval opacity (startAngle + arcsOffset) (endAngle - arcsOffset) :: currentArc :: paths
                 , idx + 1
-                , end
+                , endAngle
                 )
             )
             ( [], 0, 0 )
@@ -120,6 +135,13 @@ renderIntervalArcs theme current intervals =
 
 render : Model -> Html Msg
 render model =
+    let
+        svgBaseSize =
+            280
+
+        toViewBox =
+            List.repeat 2 >> List.map String.fromInt >> String.join " " >> (++) "0 0 "
+    in
     Html.div
         [ HtmlAttr.css
             [ Css.displayFlex
@@ -130,11 +152,11 @@ render model =
             ]
         ]
         [ Svg.svg
-            [ SvgAttr.width "260"
-            , SvgAttr.height "260"
-            , SvgAttr.viewBox "0 0 260 260"
+            [ SvgAttr.width <| String.fromInt svgBaseSize
+            , SvgAttr.height <| String.fromInt svgBaseSize
+            , SvgAttr.viewBox <| toViewBox svgBaseSize
             ]
-            (renderIntervalArcs model.settings.theme model.current model.intervals
+            (renderIntervalArcs svgBaseSize model.settings.theme model.current model.intervals
                 ++ [ renderTimer model.playing model.uptime model.settings.theme model.current ]
             )
         ]

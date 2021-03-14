@@ -94,7 +94,7 @@ type alias Model =
 
 defaultSettings : Settings
 defaultSettings =
-    Settings 4 (5 * 60) (2 * 60) (10 * 60) LightTheme
+    Settings 4 (25 * 60) (5 * 60) (15 * 60) LightTheme
 
 
 buildIntervals : Settings -> List Interval
@@ -138,8 +138,8 @@ default =
     , uptime = 0
     , settings = defaultSettings
     , current = current
-    , playing = True
-    , continuity = SimpleCont
+    , playing = False
+    , continuity = NoCont
     , intervals = intervals
     , log = []
     }
