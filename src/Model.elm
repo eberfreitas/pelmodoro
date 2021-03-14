@@ -12,7 +12,9 @@ module Model exposing
     , cycleBuild
     , cycleLog
     , cycleStart
+    , decodeCurrent
     , default
+    , encodeCurrent
     , firstInverval
     , intervalSeconds
     , intervalsTotalRun
@@ -20,6 +22,9 @@ module Model exposing
     )
 
 import Helpers
+import Json.Decode as D
+import Json.Decode.Pipeline as Pipeline
+import Json.Encode as E
 import Time exposing (Posix, Zone)
 
 
@@ -197,3 +202,81 @@ currentElapsedPct { cycle, elapsed } =
 mapSettings : (Settings -> Settings) -> Model -> Model
 mapSettings fn model =
     { model | settings = fn model.settings }
+
+
+encodeInterval : Interval -> E.Value
+encodeInterval interval =
+    case interval of
+        Activity s ->
+            E.object
+                [ ( "type", E.string "activity" )
+                , ( "secs", E.int s )
+                ]
+
+        Break s ->
+            E.object
+                [ ( "type", E.string "break" )
+                , ( "secs", E.int s )
+                ]
+
+        LongBreak s ->
+            E.object
+                [ ( "type", E.string "longbreak" )
+                , ( "secs", E.int s )
+                ]
+
+
+encodeCycle : Cycle -> E.Value
+encodeCycle { interval, start, end, seconds } =
+    E.object
+        [ ( "interval", encodeInterval interval )
+        , ( "start", Helpers.encodeMaybe Helpers.encodePosix start )
+        , ( "end", Helpers.encodeMaybe Helpers.encodePosix end )
+        , ( "secs", Helpers.encodeMaybe E.int seconds )
+        ]
+
+
+encodeCurrent : Current -> E.Value
+encodeCurrent { index, cycle, elapsed } =
+    E.object
+        [ ( "index", E.int index )
+        , ( "cycle", encodeCycle cycle )
+        , ( "elapsed", E.int elapsed )
+        ]
+
+
+decodeInterval : D.Decoder Interval
+decodeInterval =
+    D.field "type" D.string
+        |> D.andThen
+            (\type_ ->
+                case type_ of
+                    "activity" ->
+                        D.map Activity <| D.field "secs" D.int
+
+                    "break" ->
+                        D.map Break <| D.field "secs" D.int
+
+                    "longbreak" ->
+                        D.map LongBreak <| D.field "secs" D.int
+
+                    _ ->
+                        D.fail <| "Can't decode interval of type: " ++ type_
+            )
+
+
+decodeCycle : D.Decoder Cycle
+decodeCycle =
+    D.succeed Cycle
+        |> Pipeline.required "interval" decodeInterval
+        |> Pipeline.required "start" (D.nullable Helpers.decodePosix)
+        |> Pipeline.required "end" (D.nullable Helpers.decodePosix)
+        |> Pipeline.required "secs" (D.nullable D.int)
+
+
+decodeCurrent : D.Decoder Current
+decodeCurrent =
+    D.succeed Current
+        |> Pipeline.required "index" D.int
+        |> Pipeline.required "cycle" decodeCycle
+        |> Pipeline.required "elapsed" D.int

@@ -3,8 +3,11 @@ port module Main exposing (main)
 import Browser
 import Colors
 import Css
+import Helpers
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as HtmlAttr
+import Json.Decode as D
+import Json.Encode as E
 import List.Extra as ListEx
 import Model exposing (Continuity(..), Current, Interval, Model, Page(..))
 import Msg exposing (Msg(..))
@@ -17,9 +20,28 @@ import View.Timer as Timer
 port notify : () -> Cmd msg
 
 
-init : () -> ( Model, Cmd Msg )
-init () =
-    ( Model.default, Task.perform AdjustTimeZone Time.here )
+port persistCurrent : E.Value -> Cmd msg
+
+
+type alias Flags =
+    { current : D.Value }
+
+
+init : Flags -> ( Model, Cmd Msg )
+init { current } =
+    let
+        baseModel =
+            Model.default
+
+        newCurrent =
+            case D.decodeValue Model.decodeCurrent current of
+                Ok curr ->
+                    curr
+
+                Err _ ->
+                    baseModel.current
+    in
+    ( { baseModel | current = newCurrent }, Task.perform AdjustTimeZone Time.here )
 
 
 view : Model -> Html Msg
@@ -81,12 +103,24 @@ update msg model =
     let
         done m =
             ( m, Cmd.none )
+
+        persistCurrent_ cmds model_ =
+            model.current
+                |> Model.encodeCurrent
+                |> persistCurrent
+                |> Helpers.flip (::) cmds
+                |> Cmd.batch
+                |> Tuple.pair model_
     in
     case msg of
         NoOp ->
             done model
 
         Tick posix ->
+            let
+                updateTime model_ =
+                    { model_ | time = posix, uptime = model_.uptime + 1 }
+            in
             if model.playing == True then
                 let
                     ( newCurrent, newPlaying, cmd ) =
@@ -99,10 +133,12 @@ update msg model =
                         else
                             model.log
                 in
-                ( { model | current = newCurrent, playing = newPlaying, time = posix, uptime = model.uptime + 1, log = newLog }, cmd )
+                { model | current = newCurrent, playing = newPlaying, log = newLog }
+                    |> updateTime
+                    |> persistCurrent_ [ cmd ]
 
             else
-                done { model | time = posix, uptime = model.uptime + 1 }
+                model |> updateTime |> done
 
         AdjustTimeZone newZone ->
             done { model | zone = newZone }
@@ -115,14 +151,14 @@ update msg model =
                 { index, cycle, elapsed } =
                     model.current
 
-                current =
+                newCurrent =
                     if elapsed == 0 then
                         Current index (Model.cycleStart model.time cycle) 0
 
                     else
                         model.current
             in
-            done { model | playing = True, current = current }
+            { model | playing = True, current = newCurrent } |> persistCurrent_ [ Cmd.none ]
 
         Skip ->
             let
@@ -143,7 +179,7 @@ update msg model =
                 newLog =
                     model.log |> Model.cycleLog model.time model.current
             in
-            done { model | current = newCurrent, playing = False, log = newLog }
+            { model | current = newCurrent, playing = False, log = newLog } |> persistCurrent_ [ Cmd.none ]
 
         Restart ->
             let
@@ -153,7 +189,7 @@ update msg model =
                 newCurrent =
                     Current 0 (Model.cycleBuild (Model.firstInverval model.intervals) Nothing) 0
             in
-            done { model | current = newCurrent, log = newLog, playing = False }
+            { model | current = newCurrent, log = newLog, playing = False } |> persistCurrent_ [ Cmd.none ]
 
         SetCont cont ->
             model |> Model.mapSettings (\s -> { s | continuity = cont }) |> done
@@ -164,7 +200,7 @@ subs _ =
     Time.every 1000 Tick
 
 
-main : Program () Model Msg
+main : Program Flags Model Msg
 main =
     Browser.element
         { init = init
