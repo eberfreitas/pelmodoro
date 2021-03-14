@@ -1,4 +1,10 @@
-module Colors exposing (backgroundColor, intervalToColor, textColor, toCssColor, toRgbaString)
+module Colors exposing
+    ( backgroundColor
+    , controlsColor
+    , intervalToColor
+    , toCssColor
+    , toRgbaString
+    )
 
 import Css exposing (Color)
 import Helpers
@@ -43,6 +49,31 @@ lightBlue =
     BaseColor 45 188 224 1.0
 
 
+darkGrey : BaseColor
+darkGrey =
+    BaseColor 34 34 34 1.0
+
+
+lightGrey : BaseColor
+lightGrey =
+    BaseColor 62 62 62 1.0
+
+
+darkPink : BaseColor
+darkPink =
+    BaseColor 105 36 74 1.0
+
+
+darkPurple : BaseColor
+darkPurple =
+    BaseColor 78 38 112 1.0
+
+
+oilBlue : BaseColor
+oilBlue =
+    BaseColor 38 96 112 1.0
+
+
 lightTheme : ThemeColors
 lightTheme =
     ThemeColors washedTomato tomato purpleBlue lightBlue tomato tomato
@@ -50,7 +81,7 @@ lightTheme =
 
 darkTheme : ThemeColors
 darkTheme =
-    ThemeColors tomato tomato purpleBlue lightBlue tomato tomato
+    ThemeColors darkGrey darkPink darkPurple oilBlue lightGrey lightGrey
 
 
 themeColors : Theme -> ThemeColors
@@ -68,9 +99,9 @@ backgroundColor =
     themeColors >> .background
 
 
-textColor : Theme -> BaseColor
-textColor =
-    themeColors >> .text
+controlsColor : Theme -> BaseColor
+controlsColor =
+    themeColors >> .controls
 
 
 intervalToColor : Theme -> Interval -> BaseColor

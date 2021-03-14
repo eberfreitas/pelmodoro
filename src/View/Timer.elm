@@ -143,8 +143,9 @@ renderControls theme playing =
                 , Css.backgroundColor Css.transparent
                 , Css.width <| Css.rem 3
                 , Css.height <| Css.rem 3
-                , Css.color <| (theme |> Colors.textColor |> Colors.toCssColor)
+                , Css.color <| (theme |> Colors.controlsColor |> Colors.toCssColor)
                 , Css.outline Css.zero
+                , Css.cursor Css.pointer
                 ]
 
         button icon msg =

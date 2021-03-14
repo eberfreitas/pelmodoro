@@ -94,7 +94,7 @@ type alias Model =
 
 defaultSettings : Settings
 defaultSettings =
-    Settings 4 (25 * 60) (5 * 60) (15 * 60) LightTheme
+    Settings 4 (25 * 60) (5 * 60) (15 * 60) DarkTheme
 
 
 buildIntervals : Settings -> List Interval
