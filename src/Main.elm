@@ -9,7 +9,6 @@ import List.Extra as ListEx
 import Model exposing (Continuity(..), Current, Interval, Model, Page(..))
 import Msg exposing (Msg(..))
 import Platform exposing (Program)
-import Svg.Styled as Svg
 import Task
 import Time exposing (Posix)
 import View.Timer as Timer
