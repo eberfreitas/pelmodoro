@@ -105,7 +105,7 @@ update msg model =
             ( m, Cmd.none )
 
         persistCurrent_ cmds model_ =
-            model.current
+            model_.current
                 |> Model.encodeCurrent
                 |> persistCurrent
                 |> Helpers.flip (::) cmds
