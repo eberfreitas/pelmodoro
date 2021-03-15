@@ -7,6 +7,7 @@ module Model exposing
     , Seconds
     , Settings
     , Theme(..)
+    , buildIntervals
     , currentAddElapsed
     , currentElapsedPct
     , currentSecondsLeft

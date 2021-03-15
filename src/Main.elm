@@ -117,19 +117,21 @@ update msg model =
         done m =
             ( m, Cmd.none )
 
-        persistCurrent_ cmds model_ =
+        persistCurrent_ : ( Model, Cmd msg ) -> ( Model, Cmd msg )
+        persistCurrent_ ( model_, cmd ) =
             model_.current
                 |> Model.encodeCurrent
                 |> persistCurrent
-                |> Helpers.flip (::) cmds
+                |> Helpers.flip (::) [ cmd ]
                 |> Cmd.batch
                 |> Tuple.pair model_
 
-        persistSettings_ cmds model_ =
+        persistSettings_ : ( Model, Cmd msg ) -> ( Model, Cmd msg )
+        persistSettings_ ( model_, cmd ) =
             model_.settings
                 |> Model.encodeSettings
                 |> persistSettings
-                |> Helpers.flip (::) cmds
+                |> Helpers.flip (::) [ cmd ]
                 |> Cmd.batch
                 |> Tuple.pair model_
     in
@@ -156,7 +158,8 @@ update msg model =
                 in
                 { model | current = newCurrent, playing = newPlaying, log = newLog }
                     |> updateTime
-                    |> persistCurrent_ [ cmd ]
+                    |> Helpers.flip Tuple.pair cmd
+                    |> persistCurrent_
 
             else
                 model |> updateTime |> done
@@ -179,7 +182,7 @@ update msg model =
                     else
                         model.current
             in
-            { model | playing = True, current = newCurrent } |> persistCurrent_ [ Cmd.none ]
+            { model | playing = True, current = newCurrent } |> done |> persistCurrent_
 
         Skip ->
             let
@@ -200,7 +203,7 @@ update msg model =
                 newLog =
                     model.log |> Model.cycleLog model.time model.current
             in
-            { model | current = newCurrent, playing = False, log = newLog } |> persistCurrent_ [ Cmd.none ]
+            { model | current = newCurrent, playing = False, log = newLog } |> done |> persistCurrent_
 
         Restart ->
             let
@@ -210,13 +213,35 @@ update msg model =
                 newCurrent =
                     Current 0 (Model.cycleBuild (Model.firstInverval model.intervals) Nothing) 0
             in
-            { model | current = newCurrent, log = newLog, playing = False } |> persistCurrent_ [ Cmd.none ]
+            { model | current = newCurrent, log = newLog, playing = False } |> done |> persistCurrent_
 
         SetCont cont ->
-            model |> Model.mapSettings (\s -> { s | continuity = cont }) |> done
+            model
+                |> Model.mapSettings (\s -> { s | continuity = cont })
+                |> done
+                |> persistSettings_
 
-        ChangeSettings settings ->
-            { model | settings = settings } |> persistSettings_ [ Cmd.none ]
+        SetTheme newTheme ->
+            model
+                |> Model.mapSettings (\s -> { s | theme = newTheme })
+                |> done
+                |> persistSettings_
+
+        ChangeSettings newSettings ->
+            let
+                newIntervals =
+                    Model.buildIntervals newSettings
+
+                newCurrent =
+                    Current 0 (Model.cycleBuild (Model.firstInverval newIntervals) Nothing) 0
+
+                newLog =
+                    model.log |> Model.cycleLog model.time model.current
+            in
+            { model | settings = newSettings, current = newCurrent, log = newLog }
+                |> done
+                |> persistSettings_
+                |> persistCurrent_
 
 
 subs : Model -> Sub Msg
