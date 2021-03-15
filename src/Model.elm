@@ -19,7 +19,7 @@ module Model exposing
     , default
     , encodeCurrent
     , encodeSettings
-    , firstInverval
+    , firstInterval
     , intervalSeconds
     , intervalsTotalRun
     , mapSettings
@@ -29,6 +29,7 @@ import Helpers
 import Json.Decode as D
 import Json.Decode.Pipeline as Pipeline
 import Json.Encode as E
+import List.Extra as ListEx
 import Time exposing (Posix, Zone)
 
 
@@ -107,18 +108,42 @@ defaultSettings =
     Settings 4 (25 * 60) (5 * 60) (15 * 60) LightTheme NoCont
 
 
-buildIntervals : Settings -> List Interval
-buildIntervals settings =
-    settings.activity
-        |> Activity
-        |> List.repeat settings.rounds
-        |> List.intersperse (Break settings.break)
-        |> Helpers.flip (++) [ LongBreak settings.longBreak ]
-
-
-firstInverval : List Interval -> Interval
-firstInverval =
+firstInterval : List Interval -> Interval
+firstInterval =
     List.head >> Maybe.withDefault (Activity (25 * 60))
+
+
+buildIntervals : Settings -> Maybe Current -> ( List Interval, Current )
+buildIntervals settings current =
+    let
+        intervals =
+            settings.activity
+                |> Activity
+                |> List.repeat settings.rounds
+                |> List.intersperse (Break settings.break)
+                |> Helpers.flip (++) [ LongBreak settings.longBreak ]
+
+        baseCurrent =
+            Current 0 (cycleBuild (firstInterval intervals) Nothing) 0
+
+        newCurrent =
+            current
+                |> Maybe.map
+                    (\({ index, cycle } as curr) ->
+                        case ListEx.getAt index intervals of
+                            Just i ->
+                                if i == cycle.interval then
+                                    curr
+
+                                else
+                                    baseCurrent
+
+                            Nothing ->
+                                baseCurrent
+                    )
+                |> Maybe.withDefault baseCurrent
+    in
+    ( intervals, newCurrent )
 
 
 cycleBuild : Interval -> Maybe Posix -> Cycle
@@ -133,14 +158,8 @@ cycleBuild interval start =
 default : Model
 default =
     let
-        intervals =
-            buildIntervals defaultSettings
-
-        firstInterval_ =
-            firstInverval intervals
-
-        current =
-            Current 0 (cycleBuild firstInterval_ Nothing) 0
+        ( intervals, current ) =
+            buildIntervals defaultSettings Nothing
     in
     { zone = Time.utc
     , time = Time.millisToPosix 0

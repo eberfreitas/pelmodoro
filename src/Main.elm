@@ -53,8 +53,13 @@ init { current, settings } =
 
                 Err _ ->
                     baseModel.settings
+
+        ( newIntervals, newCurrent_ ) =
+            Model.buildIntervals newSettings (Just newCurrent)
     in
-    ( { baseModel | current = newCurrent, settings = newSettings }, Task.perform AdjustTimeZone Time.here )
+    ( { baseModel | current = newCurrent_, settings = newSettings, intervals = newIntervals }
+    , Task.perform AdjustTimeZone Time.here
+    )
 
 
 view : Model -> Html Msg
@@ -86,7 +91,7 @@ evalElapsedTime now current repeat intervals =
     if Model.currentSecondsLeft current == 0 then
         let
             firstInterval =
-                intervals |> Model.firstInverval
+                intervals |> Model.firstInterval
 
             nextIdx =
                 current.index + 1
@@ -195,7 +200,7 @@ update msg model =
                             ( index + 1, next )
 
                         Nothing ->
-                            ( 0, model.intervals |> Model.firstInverval )
+                            ( 0, model.intervals |> Model.firstInterval )
 
                 newCurrent =
                     Current newIndex (Model.cycleBuild newInterval Nothing) 0
@@ -211,7 +216,7 @@ update msg model =
                     model.log |> Model.cycleLog model.time model.current
 
                 newCurrent =
-                    Current 0 (Model.cycleBuild (Model.firstInverval model.intervals) Nothing) 0
+                    Current 0 (Model.cycleBuild (Model.firstInterval model.intervals) Nothing) 0
             in
             { model | current = newCurrent, log = newLog, playing = False } |> done |> persistCurrent_
 
@@ -229,16 +234,13 @@ update msg model =
 
         ChangeSettings newSettings ->
             let
-                newIntervals =
-                    Model.buildIntervals newSettings
-
-                newCurrent =
-                    Current 0 (Model.cycleBuild (Model.firstInverval newIntervals) Nothing) 0
+                ( newIntervals, newCurrent ) =
+                    Model.buildIntervals newSettings (Just model.current)
 
                 newLog =
                     model.log |> Model.cycleLog model.time model.current
             in
-            { model | settings = newSettings, current = newCurrent, log = newLog }
+            { model | settings = newSettings, current = newCurrent, log = newLog, intervals = newIntervals, playing = False }
                 |> done
                 |> persistSettings_
                 |> persistCurrent_
