@@ -5,6 +5,7 @@ module Model exposing
     , Model
     , Page(..)
     , Seconds
+    , Settings
     , Theme(..)
     , currentAddElapsed
     , currentElapsedPct
@@ -13,8 +14,10 @@ module Model exposing
     , cycleLog
     , cycleStart
     , decodeCurrent
+    , decodeSettings
     , default
     , encodeCurrent
+    , encodeSettings
     , firstInverval
     , intervalSeconds
     , intervalsTotalRun
@@ -245,6 +248,41 @@ encodeCurrent { index, cycle, elapsed } =
         ]
 
 
+encodeContinuity : Continuity -> E.Value
+encodeContinuity cont =
+    case cont of
+        NoCont ->
+            E.string "nocont"
+
+        SimpleCont ->
+            E.string "simplecont"
+
+        FullCont ->
+            E.string "fullcont"
+
+
+encodeTheme : Theme -> E.Value
+encodeTheme theme =
+    case theme of
+        LightTheme ->
+            E.string "light"
+
+        DarkTheme ->
+            E.string "dark"
+
+
+encodeSettings : Settings -> E.Value
+encodeSettings { rounds, activity, break, longBreak, theme, continuity } =
+    E.object
+        [ ( "rounds", E.int rounds )
+        , ( "activity", E.int activity )
+        , ( "break", E.int break )
+        , ( "longBreak", E.int longBreak )
+        , ( "theme", encodeTheme theme )
+        , ( "continuity", encodeContinuity continuity )
+        ]
+
+
 decodeInterval : D.Decoder Interval
 decodeInterval =
     D.field "type" D.string
@@ -280,3 +318,51 @@ decodeCurrent =
         |> Pipeline.required "index" D.int
         |> Pipeline.required "cycle" decodeCycle
         |> Pipeline.required "elapsed" D.int
+
+
+decodeTheme : D.Decoder Theme
+decodeTheme =
+    D.string
+        |> D.andThen
+            (\theme ->
+                case theme of
+                    "light" ->
+                        D.succeed LightTheme
+
+                    "dark" ->
+                        D.succeed DarkTheme
+
+                    _ ->
+                        D.fail <| "Could not find theme: " ++ theme
+            )
+
+
+decodeContinuity : D.Decoder Continuity
+decodeContinuity =
+    D.string
+        |> D.andThen
+            (\cont ->
+                case cont of
+                    "nocont" ->
+                        D.succeed NoCont
+
+                    "simplecont" ->
+                        D.succeed SimpleCont
+
+                    "fullcont" ->
+                        D.succeed FullCont
+
+                    _ ->
+                        D.fail <| "Could not find continuity type: " ++ cont
+            )
+
+
+decodeSettings : D.Decoder Settings
+decodeSettings =
+    D.succeed Settings
+        |> Pipeline.required "rounds" D.int
+        |> Pipeline.required "activity" D.int
+        |> Pipeline.required "break" D.int
+        |> Pipeline.required "longBreak" D.int
+        |> Pipeline.required "theme" decodeTheme
+        |> Pipeline.required "continuity" decodeContinuity

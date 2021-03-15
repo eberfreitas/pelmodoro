@@ -1,6 +1,6 @@
 module Msg exposing (Msg(..))
 
-import Model exposing (Continuity)
+import Model exposing (Continuity, Settings)
 import Time exposing (Posix, Zone)
 
 
@@ -13,3 +13,4 @@ type Msg
     | Skip
     | Restart
     | SetCont Continuity
+    | ChangeSettings Settings

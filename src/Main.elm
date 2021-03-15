@@ -23,12 +23,17 @@ port notify : () -> Cmd msg
 port persistCurrent : E.Value -> Cmd msg
 
 
+port persistSettings : E.Value -> Cmd msg
+
+
 type alias Flags =
-    { current : D.Value }
+    { current : D.Value
+    , settings : D.Value
+    }
 
 
 init : Flags -> ( Model, Cmd Msg )
-init { current } =
+init { current, settings } =
     let
         baseModel =
             Model.default
@@ -40,8 +45,16 @@ init { current } =
 
                 Err _ ->
                     baseModel.current
+
+        newSettings =
+            case D.decodeValue Model.decodeSettings settings of
+                Ok settings_ ->
+                    settings_
+
+                Err _ ->
+                    baseModel.settings
     in
-    ( { baseModel | current = newCurrent }, Task.perform AdjustTimeZone Time.here )
+    ( { baseModel | current = newCurrent, settings = newSettings }, Task.perform AdjustTimeZone Time.here )
 
 
 view : Model -> Html Msg
@@ -108,6 +121,14 @@ update msg model =
             model_.current
                 |> Model.encodeCurrent
                 |> persistCurrent
+                |> Helpers.flip (::) cmds
+                |> Cmd.batch
+                |> Tuple.pair model_
+
+        persistSettings_ cmds model_ =
+            model_.settings
+                |> Model.encodeSettings
+                |> persistSettings
                 |> Helpers.flip (::) cmds
                 |> Cmd.batch
                 |> Tuple.pair model_
@@ -193,6 +214,9 @@ update msg model =
 
         SetCont cont ->
             model |> Model.mapSettings (\s -> { s | continuity = cont }) |> done
+
+        ChangeSettings settings ->
+            { model | settings = settings } |> persistSettings_ [ Cmd.none ]
 
 
 subs : Model -> Sub Msg
