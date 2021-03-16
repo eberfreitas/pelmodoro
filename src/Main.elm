@@ -6,14 +6,16 @@ import Css
 import Helpers
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as HtmlAttr
+import Html.Styled.Events as Event
 import Json.Decode as D
 import Json.Encode as E
 import List.Extra as ListEx
-import Model exposing (Continuity(..), Current, Interval, Model, Page(..))
+import Model exposing (Continuity(..), Current, Interval, Model, Page(..), Theme)
 import Msg exposing (Msg(..))
 import Platform exposing (Program)
 import Task
 import Time exposing (Posix)
+import View.Settings as Settings
 import View.Timer as Timer
 
 
@@ -70,20 +72,89 @@ view model =
             , Css.height <| Css.vh 100.0
             , Css.position Css.relative
             , Css.backgroundColor <| (model.settings.theme |> Colors.backgroundColor |> Colors.toCssColor)
+            , Css.fontFamilies [ "Montserrat" ]
+            , Css.color (model.settings.theme |> Colors.textColor |> Colors.toCssColor)
             ]
         ]
         [ renderPage model
+        , renderNav model.settings.theme model.page
+        ]
+
+
+renderNav : Theme -> Page -> Html Msg
+renderNav theme page =
+    let
+        pages =
+            [ ( TimerPage, "timer" )
+            , ( SettingsPage, "settings" )
+            ]
+
+        buttonStyle =
+            Css.batch
+                [ Css.borderStyle Css.none
+                , Css.backgroundColor Css.transparent
+                , Css.width <| Css.rem 3
+                , Css.height <| Css.rem 3
+                , Css.color <| (theme |> Colors.backgroundColor |> Colors.toCssColor)
+                , Css.outline Css.zero
+                , Css.cursor Css.pointer
+                ]
+    in
+    Html.div
+        [ HtmlAttr.css
+            [ Css.position Css.absolute
+            , Css.bottom <| Css.px 0
+            , Css.left <| Css.px 0
+            , Css.right <| Css.px 0
+            , Css.backgroundColor <| (theme |> Colors.foregroundColor |> Colors.toCssColor)
+            , Css.color <| (theme |> Colors.foregroundColor |> Colors.toCssColor)
+            , Css.displayFlex
+            , Css.justifyContent Css.center
+            , Css.padding <| Css.rem 0.25
+            ]
+        ]
+        [ Html.ul
+            [ HtmlAttr.css
+                [ Css.displayFlex
+                , Css.justifyContent Css.center
+                , Css.listStyle Css.none
+                ]
+            ]
+            (pages
+                |> List.map
+                    (\( page_, icon ) ->
+                        Html.li []
+                            [ Html.button
+                                [ Event.onClick <| ChangePage page_
+                                , HtmlAttr.css
+                                    [ buttonStyle
+                                    , if page_ == page then
+                                        Css.opacity <| Css.num 1
+
+                                      else
+                                        Css.opacity <| Css.num 0.4
+                                    ]
+                                ]
+                                [ Helpers.icon icon ]
+                            ]
+                    )
+            )
         ]
 
 
 renderPage : Model -> Html Msg
 renderPage model =
-    case model.page of
-        TimerPage ->
-            Timer.render model
+    Html.div [ HtmlAttr.css [ Css.height (Css.calc (Css.pct 100) Css.minus (Css.rem 3.5)) ] ]
+        [ case model.page of
+            TimerPage ->
+                Timer.render model
 
-        _ ->
-            Html.text "other pages"
+            SettingsPage ->
+                Settings.render model
+
+            _ ->
+                Html.text "other pages"
+        ]
 
 
 evalElapsedTime : Posix -> Current -> Continuity -> List Interval -> ( Current, Bool, Cmd msg )
@@ -139,6 +210,19 @@ update msg model =
                 |> Helpers.flip (::) [ cmd ]
                 |> Cmd.batch
                 |> Tuple.pair model_
+
+        updateSettings model_ =
+            let
+                ( newIntervals, newCurrent ) =
+                    Model.buildIntervals model_.settings (Just model_.current)
+
+                newLog =
+                    model.log |> Model.cycleLog model.time model.current
+            in
+            { model_ | current = newCurrent, log = newLog, intervals = newIntervals, playing = False }
+                |> done
+                |> persistSettings_
+                |> persistCurrent_
     in
     case msg of
         NoOp ->
@@ -232,18 +316,28 @@ update msg model =
                 |> done
                 |> persistSettings_
 
-        ChangeSettings newSettings ->
-            let
-                ( newIntervals, newCurrent ) =
-                    Model.buildIntervals newSettings (Just model.current)
+        ChangeRounds rounds ->
+            model
+                |> Model.mapSettings (\s -> { s | rounds = rounds })
+                |> updateSettings
 
-                newLog =
-                    model.log |> Model.cycleLog model.time model.current
-            in
-            { model | settings = newSettings, current = newCurrent, log = newLog, intervals = newIntervals, playing = False }
-                |> done
-                |> persistSettings_
-                |> persistCurrent_
+        ChangeActivity mins ->
+            model
+                |> Model.mapSettings (\s -> { s | activity = mins * 60 })
+                |> updateSettings
+
+        ChangeBreak mins ->
+            model
+                |> Model.mapSettings (\s -> { s | break = mins * 60 })
+                |> updateSettings
+
+        ChangeLongBreak mins ->
+            model
+                |> Model.mapSettings (\s -> { s | longBreak = mins * 60 })
+                |> updateSettings
+
+        ChangePage page ->
+            done { model | page = page }
 
 
 subs : Model -> Sub Msg

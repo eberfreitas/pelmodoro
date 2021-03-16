@@ -1,6 +1,6 @@
 module Msg exposing (Msg(..))
 
-import Model exposing (Continuity, Settings, Theme)
+import Model exposing (Continuity, Page, Theme)
 import Time exposing (Posix, Zone)
 
 
@@ -14,4 +14,8 @@ type Msg
     | Restart
     | SetCont Continuity
     | SetTheme Theme
-    | ChangeSettings Settings
+    | ChangePage Page
+    | ChangeRounds Int
+    | ChangeActivity Int
+    | ChangeBreak Int
+    | ChangeLongBreak Int

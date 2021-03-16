@@ -1,7 +1,10 @@
 module Colors exposing
     ( backgroundColor
-    , controlsColor
-    , intervalToColor
+    , contrastColor
+    , foregroundColor
+    , intervalColor
+    , setAlpha
+    , textColor
     , toCssColor
     , toRgbaString
     )
@@ -24,7 +27,8 @@ type alias ThemeColors =
     , activity : BaseColor
     , break : BaseColor
     , longBreak : BaseColor
-    , controls : BaseColor
+    , foreground : BaseColor
+    , contrast : BaseColor
     , text : BaseColor
     }
 
@@ -74,14 +78,19 @@ oilBlue =
     BaseColor 46 117 137 1.0
 
 
+white : BaseColor
+white =
+    BaseColor 255 255 255 1.0
+
+
 lightTheme : ThemeColors
 lightTheme =
-    ThemeColors washedTomato tomato purpleBlue lightBlue tomato tomato
+    ThemeColors washedTomato tomato purpleBlue lightBlue tomato white darkGrey
 
 
 darkTheme : ThemeColors
 darkTheme =
-    ThemeColors darkGrey darkPink darkPurple oilBlue lightGrey lightGrey
+    ThemeColors darkGrey darkPink darkPurple oilBlue lightGrey white lightGrey
 
 
 themeColors : Theme -> ThemeColors
@@ -99,13 +108,23 @@ backgroundColor =
     themeColors >> .background
 
 
-controlsColor : Theme -> BaseColor
-controlsColor =
-    themeColors >> .controls
+foregroundColor : Theme -> BaseColor
+foregroundColor =
+    themeColors >> .foreground
 
 
-intervalToColor : Theme -> Interval -> BaseColor
-intervalToColor theme interval =
+textColor : Theme -> BaseColor
+textColor =
+    themeColors >> .text
+
+
+contrastColor : Theme -> BaseColor
+contrastColor =
+    themeColors >> .contrast
+
+
+intervalColor : Theme -> Interval -> BaseColor
+intervalColor theme interval =
     case interval of
         Activity _ ->
             theme |> themeColors |> .activity
@@ -129,3 +148,8 @@ toRgbaString { red, green, blue, alpha } =
         |> String.join ","
         |> Helpers.flip (++) ("," ++ String.fromFloat alpha)
         |> (\c -> "rgba(" ++ c ++ ")")
+
+
+setAlpha : Float -> BaseColor -> BaseColor
+setAlpha alpha color =
+    { color | alpha = alpha }

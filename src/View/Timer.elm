@@ -2,6 +2,7 @@ module View.Timer exposing (render)
 
 import Colors
 import Css
+import Helpers
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as HtmlAttr
 import Html.Styled.Events as Event
@@ -45,7 +46,7 @@ renderTimer playing uptime theme current =
         [ SvgAttr.x "50%"
         , SvgAttr.y "55%"
         , SvgAttr.textAnchor "middle"
-        , SvgAttr.fill <| (current.cycle.interval |> Colors.intervalToColor theme |> Colors.toRgbaString)
+        , SvgAttr.fill (current.cycle.interval |> Colors.intervalColor theme |> Colors.toRgbaString)
         , SvgAttr.fontFamily "Montserrat"
         , SvgAttr.fontSize "36px"
         , SvgAttr.opacity timerOpacity
@@ -92,7 +93,7 @@ renderIntervalArcs size theme current intervals =
                             [ SvgAttr.strokeWidth <| String.fromInt strokeWidth
                             , SvgAttr.strokeLinecap "round"
                             , SvgAttr.fill "none"
-                            , SvgAttr.stroke <| (interval_ |> Colors.intervalToColor theme |> Colors.toRgbaString)
+                            , SvgAttr.stroke (interval_ |> Colors.intervalColor theme |> Colors.toRgbaString)
                             , SvgAttr.d (describeArc centerPoint centerPoint radius start_ end_)
                             , SvgAttr.opacity opacity_
                             ]
@@ -143,7 +144,7 @@ renderControls theme playing =
                 , Css.backgroundColor Css.transparent
                 , Css.width <| Css.rem 3
                 , Css.height <| Css.rem 3
-                , Css.color <| (theme |> Colors.controlsColor |> Colors.toCssColor)
+                , Css.color (theme |> Colors.foregroundColor |> Colors.toCssColor)
                 , Css.outline Css.zero
                 , Css.cursor Css.pointer
                 ]
@@ -151,7 +152,7 @@ renderControls theme playing =
         button icon msg =
             Html.button
                 [ Event.onClick msg, HtmlAttr.css [ buttonStyle ] ]
-                [ Html.span [ HtmlAttr.class "material-icons-round" ] [ Html.text icon ] ]
+                [ Helpers.icon icon ]
     in
     Html.ul
         [ HtmlAttr.css [ Css.listStyle Css.none, Css.displayFlex, Css.marginTop <| Css.rem 1.0 ] ]
