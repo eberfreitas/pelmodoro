@@ -336,6 +336,26 @@ update msg model =
                 |> Model.mapSettings (\s -> { s | longBreak = mins * 60 })
                 |> updateSettings
 
+        ChangeContinuity cont ->
+            case Model.continuityFromString cont of
+                Just c ->
+                    model
+                        |> Model.mapSettings (\s -> { s | continuity = c })
+                        |> updateSettings
+
+                Nothing ->
+                    done model
+
+        ChangeTheme theme ->
+            case Model.themeFromString theme of
+                Just t ->
+                    model
+                        |> Model.mapSettings (\s -> { s | theme = t })
+                        |> updateSettings
+
+                Nothing ->
+                    done model
+
         ChangePage page ->
             done { model | page = page }
 

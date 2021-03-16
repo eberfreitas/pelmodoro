@@ -6,7 +6,7 @@ import Helpers
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as HtmlAttr
 import Html.Styled.Events as Event
-import Model exposing (Model)
+import Model exposing (Continuity(..), Model, Theme(..))
 import Msg exposing (Msg(..))
 import View.MiniTimer as MiniTimer
 
@@ -58,6 +58,12 @@ render ({ settings } as model) =
 
         inMinutes seconds =
             seconds // 60
+
+        continuityList =
+            [ NoCont, SimpleCont, FullCont ]
+
+        themesList =
+            [ LightTheme, DarkTheme ]
     in
     Html.div []
         [ MiniTimer.render model
@@ -118,6 +124,56 @@ render ({ settings } as model) =
                         [ HtmlAttr.css [ settingDisplayStyle ] ]
                         [ Html.text (settings.longBreak |> inMinutes |> String.fromInt) ]
                     , Html.button [ HtmlAttr.css [ buttonStyle ], Event.onClick (inMinutes settings.longBreak + 1 |> atMost 59 |> ChangeLongBreak) ] [ Helpers.icon "add" ]
+                    ]
+                ]
+            , Html.div [ HtmlAttr.css [ Css.marginBottom <| Css.rem 2 ] ]
+                [ Html.div [ HtmlAttr.css [ labelStyle ] ] [ Html.text "Rounds continuity" ]
+                , Html.div
+                    []
+                    [ Html.select
+                        [ HtmlAttr.css
+                            [ Css.property "appearance" "none"
+                            , Css.borderStyle Css.none
+                            , Css.fontFamilies [ "Montserrat" ]
+                            , Css.fontSize <| Css.rem 1
+                            , Css.padding <| Css.rem 1
+                            , Css.width <| Css.pct 100
+                            ]
+                        , Event.onInput ChangeContinuity
+                        ]
+                        (continuityList
+                            |> List.map
+                                (\cont ->
+                                    Html.option
+                                        [ HtmlAttr.value <| Model.continuityToString cont, HtmlAttr.selected (cont == settings.continuity) ]
+                                        [ Html.text <| Model.continuityToString cont ]
+                                )
+                        )
+                    ]
+                ]
+            , Html.div [ HtmlAttr.css [ Css.marginBottom <| Css.rem 2 ] ]
+                [ Html.div [ HtmlAttr.css [ labelStyle ] ] [ Html.text "Color theme" ]
+                , Html.div
+                    []
+                    [ Html.select
+                        [ HtmlAttr.css
+                            [ Css.property "appearance" "none"
+                            , Css.borderStyle Css.none
+                            , Css.fontFamilies [ "Montserrat" ]
+                            , Css.fontSize <| Css.rem 1
+                            , Css.padding <| Css.rem 1
+                            , Css.width <| Css.pct 100
+                            ]
+                        , Event.onInput ChangeTheme
+                        ]
+                        (themesList
+                            |> List.map
+                                (\theme ->
+                                    Html.option
+                                        [ HtmlAttr.value <| Model.themeToString theme, HtmlAttr.selected (theme == settings.theme) ]
+                                        [ Html.text <| Model.themeToString theme ]
+                                )
+                        )
                     ]
                 ]
             ]

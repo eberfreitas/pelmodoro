@@ -19,3 +19,5 @@ type Msg
     | ChangeActivity Int
     | ChangeBreak Int
     | ChangeLongBreak Int
+    | ChangeContinuity String
+    | ChangeTheme String
