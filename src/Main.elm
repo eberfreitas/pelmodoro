@@ -67,7 +67,8 @@ init { current, settings } =
 view : Model -> Html Msg
 view model =
     Html.div
-        [ HtmlAttr.css
+        [ HtmlAttr.class "container"
+        , HtmlAttr.css
             [ Css.width <| Css.vw 100.0
             , Css.height <| Css.vh 100.0
             , Css.position Css.relative
@@ -144,7 +145,7 @@ renderNav theme page =
 
 renderPage : Model -> Html Msg
 renderPage model =
-    Html.div [ HtmlAttr.css [ Css.height (Css.calc (Css.pct 100) Css.minus (Css.rem 3.5)) ] ]
+    Html.div [ HtmlAttr.css [ Css.height (Css.calc (Css.pct 100) Css.minus (Css.rem 3.5)), Css.overflow Css.auto ] ]
         [ case model.page of
             TimerPage ->
                 Timer.render model
