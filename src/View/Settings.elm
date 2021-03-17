@@ -75,12 +75,6 @@ render ({ settings } as model) =
 
         inMinutes seconds =
             seconds // 60
-
-        continuityList =
-            [ NoCont, SimpleCont, FullCont ]
-
-        themesList =
-            [ LightTheme, DarkTheme ]
     in
     Html.div []
         [ MiniTimer.render model
@@ -118,7 +112,7 @@ render ({ settings } as model) =
                     , Html.div
                         [ HtmlAttr.css [ settingDisplayStyle ] ]
                         [ Html.text (settings.activity |> inMinutes |> String.fromInt) ]
-                    , Html.button [ HtmlAttr.css [ buttonStyle ], Event.onClick (inMinutes settings.activity + 1 |> atMost 59 |> ChangeActivity) ] [ Helpers.icon "add" ]
+                    , Html.button [ HtmlAttr.css [ buttonStyle ], Event.onClick (inMinutes settings.activity + 1 |> atMost 60 |> ChangeActivity) ] [ Helpers.icon "add" ]
                     ]
                 ]
             , Html.div [ HtmlAttr.css [ Css.marginBottom <| Css.rem 2 ] ]
@@ -129,7 +123,7 @@ render ({ settings } as model) =
                     , Html.div
                         [ HtmlAttr.css [ settingDisplayStyle ] ]
                         [ Html.text (settings.break |> inMinutes |> String.fromInt) ]
-                    , Html.button [ HtmlAttr.css [ buttonStyle ], Event.onClick (inMinutes settings.break + 1 |> atMost 59 |> ChangeBreak) ] [ Helpers.icon "add" ]
+                    , Html.button [ HtmlAttr.css [ buttonStyle ], Event.onClick (inMinutes settings.break + 1 |> atMost 60 |> ChangeBreak) ] [ Helpers.icon "add" ]
                     ]
                 ]
             , Html.div [ HtmlAttr.css [ Css.marginBottom <| Css.rem 2 ] ]
@@ -140,41 +134,33 @@ render ({ settings } as model) =
                     , Html.div
                         [ HtmlAttr.css [ settingDisplayStyle ] ]
                         [ Html.text (settings.longBreak |> inMinutes |> String.fromInt) ]
-                    , Html.button [ HtmlAttr.css [ buttonStyle ], Event.onClick (inMinutes settings.longBreak + 1 |> atMost 59 |> ChangeLongBreak) ] [ Helpers.icon "add" ]
+                    , Html.button [ HtmlAttr.css [ buttonStyle ], Event.onClick (inMinutes settings.longBreak + 1 |> atMost 60 |> ChangeLongBreak) ] [ Helpers.icon "add" ]
                     ]
                 ]
             , Html.div [ HtmlAttr.css [ Css.marginBottom <| Css.rem 2 ] ]
                 [ Html.div [ HtmlAttr.css [ labelStyle ] ] [ Html.text "Rounds continuity" ]
-                , Html.div
-                    []
-                    [ Html.select
-                        [ HtmlAttr.css [ selectStyle ]
-                        , Event.onInput ChangeContinuity
-                        ]
-                        (continuityList
+                , Html.div []
+                    [ Html.select [ HtmlAttr.css [ selectStyle ], Event.onInput ChangeContinuity ]
+                        (Model.continuityPairs
                             |> List.map
-                                (\cont ->
+                                (\( cont, contStr ) ->
                                     Html.option
-                                        [ HtmlAttr.value <| Model.continuityToString cont, HtmlAttr.selected (cont == settings.continuity) ]
-                                        [ Html.text <| Model.continuityToString cont ]
+                                        [ HtmlAttr.value contStr, HtmlAttr.selected (cont == settings.continuity) ]
+                                        [ Html.text contStr ]
                                 )
                         )
                     ]
                 ]
             , Html.div [ HtmlAttr.css [ Css.marginBottom <| Css.rem 2 ] ]
                 [ Html.div [ HtmlAttr.css [ labelStyle ] ] [ Html.text "Color theme" ]
-                , Html.div
-                    []
-                    [ Html.select
-                        [ HtmlAttr.css [ selectStyle ]
-                        , Event.onInput ChangeTheme
-                        ]
-                        (themesList
+                , Html.div []
+                    [ Html.select [ HtmlAttr.css [ selectStyle ], Event.onInput ChangeTheme ]
+                        (Model.themePairs
                             |> List.map
-                                (\theme ->
+                                (\( theme, themeStr ) ->
                                     Html.option
-                                        [ HtmlAttr.value <| Model.themeToString theme, HtmlAttr.selected (theme == settings.theme) ]
-                                        [ Html.text <| Model.themeToString theme ]
+                                        [ HtmlAttr.value themeStr, HtmlAttr.selected (theme == settings.theme) ]
+                                        [ Html.text themeStr ]
                                 )
                         )
                     ]

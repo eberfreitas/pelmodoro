@@ -164,7 +164,7 @@ renderControls theme playing =
                 button "play_arrow" Play
             ]
         , Html.li [] [ button "skip_next" Skip ]
-        , Html.li [] [ button "restart_alt" Restart ]
+        , Html.li [] [ button "restart_alt" Reset ]
         ]
 
 

@@ -294,7 +294,7 @@ update msg model =
             in
             { model | current = newCurrent, playing = False, log = newLog } |> done |> persistCurrent_
 
-        Restart ->
+        Reset ->
             let
                 newLog =
                     model.log |> Model.cycleLog model.time model.current
@@ -307,12 +307,6 @@ update msg model =
         SetCont cont ->
             model
                 |> Model.mapSettings (\s -> { s | continuity = cont })
-                |> done
-                |> persistSettings_
-
-        SetTheme newTheme ->
-            model
-                |> Model.mapSettings (\s -> { s | theme = newTheme })
                 |> done
                 |> persistSettings_
 

@@ -11,9 +11,8 @@ type Msg
     | Play
     | Pause
     | Skip
-    | Restart
+    | Reset
     | SetCont Continuity
-    | SetTheme Theme
     | ChangePage Page
     | ChangeRounds Int
     | ChangeActivity Int

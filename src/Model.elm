@@ -9,7 +9,7 @@ module Model exposing
     , Theme(..)
     , buildIntervals
     , continuityFromString
-    , continuityToString
+    , continuityPairs
     , currentAddElapsed
     , currentElapsedPct
     , currentSecondsLeft
@@ -26,7 +26,7 @@ module Model exposing
     , intervalsTotalRun
     , mapSettings
     , themeFromString
-    , themeToString
+    , themePairs
     )
 
 import Helpers
@@ -231,33 +231,33 @@ mapSettings fn model =
     { model | settings = fn model.settings }
 
 
-continuityToString : Continuity -> String
-continuityToString cont =
-    case cont of
-        NoCont ->
-            "No continuity"
-
-        SimpleCont ->
-            "Simple continuity"
-
-        FullCont ->
-            "Full continuity"
+continuityPairs : List ( Continuity, String )
+continuityPairs =
+    [ ( NoCont, "No continuity" )
+    , ( SimpleCont, "Simple continuity" )
+    , ( FullCont, "Full continuity" )
+    ]
 
 
 continuityFromString : String -> Maybe Continuity
 continuityFromString cont =
-    case cont of
-        "No continuity" ->
-            Just NoCont
+    continuityPairs
+        |> ListEx.find (Tuple.second >> (==) cont)
+        |> Maybe.map Tuple.first
 
-        "Simple continuity" ->
-            Just SimpleCont
 
-        "Full continuity" ->
-            Just FullCont
+themePairs : List ( Theme, String )
+themePairs =
+    [ ( LightTheme, "Light" )
+    , ( DarkTheme, "Dark" )
+    ]
 
-        _ ->
-            Nothing
+
+themeFromString : String -> Maybe Theme
+themeFromString theme =
+    themePairs
+        |> ListEx.find (Tuple.second >> (==) theme)
+        |> Maybe.map Tuple.first
 
 
 encodeInterval : Interval -> E.Value
@@ -280,29 +280,6 @@ encodeInterval interval =
                 [ ( "type", E.string "longbreak" )
                 , ( "secs", E.int s )
                 ]
-
-
-themeToString : Theme -> String
-themeToString theme =
-    case theme of
-        LightTheme ->
-            "Light"
-
-        DarkTheme ->
-            "Dark"
-
-
-themeFromString : String -> Maybe Theme
-themeFromString theme =
-    case theme of
-        "Light" ->
-            Just LightTheme
-
-        "Dark" ->
-            Just DarkTheme
-
-        _ ->
-            Nothing
 
 
 encodeCycle : Cycle -> E.Value
