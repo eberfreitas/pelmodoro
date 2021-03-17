@@ -63,6 +63,11 @@ lightGrey =
     BaseColor 62 62 62 1.0
 
 
+lighterGrey : BaseColor
+lighterGrey =
+    BaseColor 82 82 82 1.0
+
+
 darkPink : BaseColor
 darkPink =
     BaseColor 141 48 99 1.0
@@ -83,6 +88,11 @@ white =
     BaseColor 255 255 255 1.0
 
 
+dirtyWhite : BaseColor
+dirtyWhite =
+    BaseColor 202 202 202 1.0
+
+
 lightTheme : ThemeColors
 lightTheme =
     ThemeColors washedTomato tomato purpleBlue lightBlue tomato white darkGrey
@@ -90,7 +100,7 @@ lightTheme =
 
 darkTheme : ThemeColors
 darkTheme =
-    ThemeColors darkGrey darkPink darkPurple oilBlue lightGrey white lightGrey
+    ThemeColors darkGrey darkPink darkPurple oilBlue lightGrey dirtyWhite lighterGrey
 
 
 themeColors : Theme -> ThemeColors

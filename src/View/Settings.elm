@@ -42,6 +42,23 @@ render ({ settings } as model) =
                 , Css.textAlign Css.center
                 ]
 
+        selectStyle =
+            Css.batch
+                [ Css.property "appearance" "none"
+                , Css.borderStyle Css.none
+                , Css.fontFamilies [ "Montserrat" ]
+                , Css.fontSize <| Css.rem 1
+                , Css.padding <| Css.rem 1
+                , Css.width <| Css.pct 100
+                , Css.cursor Css.pointer
+                , Css.color (settings.theme |> Colors.textColor |> Colors.toCssColor)
+                , Css.backgroundColor (settings.theme |> Colors.contrastColor |> Colors.toCssColor)
+                , Css.backgroundRepeat Css.noRepeat
+                , Css.backgroundPosition2 (Css.pct 95) (Css.pct 50)
+                , Css.property "background-image"
+                    "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' height='24px' viewBox='0 0 24 24' width='24px' fill='%23000000'><path d='M0 0h24v24H0V0z' fill='none'/><path d='M8.71 11.71l2.59 2.59c.39.39 1.02.39 1.41 0l2.59-2.59c.63-.63.18-1.71-.71-1.71H9.41c-.89 0-1.33 1.08-.7 1.71z'/></svg>\")"
+                ]
+
         atLeast target num =
             if num < target then
                 target
@@ -76,7 +93,7 @@ render ({ settings } as model) =
             [ Html.h1
                 [ HtmlAttr.css
                     [ Css.fontSize <| Css.rem 2
-                    , Css.color (settings.theme |> Colors.foregroundColor |> Colors.toCssColor)
+                    , Css.color (settings.theme |> Colors.textColor |> Colors.toCssColor)
                     , Css.marginBottom <| Css.rem 2
                     , Css.textAlign Css.center
                     ]
@@ -131,14 +148,7 @@ render ({ settings } as model) =
                 , Html.div
                     []
                     [ Html.select
-                        [ HtmlAttr.css
-                            [ Css.property "appearance" "none"
-                            , Css.borderStyle Css.none
-                            , Css.fontFamilies [ "Montserrat" ]
-                            , Css.fontSize <| Css.rem 1
-                            , Css.padding <| Css.rem 1
-                            , Css.width <| Css.pct 100
-                            ]
+                        [ HtmlAttr.css [ selectStyle ]
                         , Event.onInput ChangeContinuity
                         ]
                         (continuityList
@@ -156,14 +166,7 @@ render ({ settings } as model) =
                 , Html.div
                     []
                     [ Html.select
-                        [ HtmlAttr.css
-                            [ Css.property "appearance" "none"
-                            , Css.borderStyle Css.none
-                            , Css.fontFamilies [ "Montserrat" ]
-                            , Css.fontSize <| Css.rem 1
-                            , Css.padding <| Css.rem 1
-                            , Css.width <| Css.pct 100
-                            ]
+                        [ HtmlAttr.css [ selectStyle ]
                         , Event.onInput ChangeTheme
                         ]
                         (themesList
