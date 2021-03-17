@@ -70,7 +70,6 @@ view model =
         [ HtmlAttr.class "container"
         , HtmlAttr.css
             [ Css.width <| Css.vw 100.0
-            , Css.height <| Css.vh 100.0
             , Css.position Css.relative
             , Css.backgroundColor <| (model.settings.theme |> Colors.backgroundColor |> Colors.toCssColor)
             , Css.fontFamilies [ "Montserrat" ]
