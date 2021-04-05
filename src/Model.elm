@@ -6,6 +6,7 @@ module Model exposing
     , Page(..)
     , Seconds
     , Settings
+    , Spotify(..)
     , Theme(..)
     , buildIntervals
     , continuityFromString
@@ -18,6 +19,7 @@ module Model exposing
     , cycleStart
     , decodeCurrent
     , decodeSettings
+    , decodeSpotify
     , default
     , encodeCurrent
     , encodeSettings
@@ -53,6 +55,17 @@ type Theme
     | DarkTheme
 
 
+type alias SpotifyPlaylist =
+    ( String, String )
+
+
+type Spotify
+    = NotConnected String
+    | ConnectionError String
+    | Connected (List SpotifyPlaylist) (Maybe SpotifyPlaylist)
+    | Uninitialized
+
+
 type alias Settings =
     { rounds : Int
     , activity : Seconds
@@ -60,6 +73,7 @@ type alias Settings =
     , longBreak : Seconds
     , theme : Theme
     , continuity : Continuity
+    , spotify : Spotify
     }
 
 
@@ -109,7 +123,7 @@ type alias Model =
 
 defaultSettings : Settings
 defaultSettings =
-    Settings 4 (25 * 60) (5 * 60) (15 * 60) LightTheme NoCont
+    Settings 4 (25 * 60) (5 * 60) (15 * 60) LightTheme NoCont Uninitialized
 
 
 firstInterval : List Interval -> Interval
@@ -324,8 +338,43 @@ encodeTheme theme =
             E.string "dark"
 
 
+encodeSpotifyPlaylist : SpotifyPlaylist -> E.Value
+encodeSpotifyPlaylist ( uri, title ) =
+    E.object
+        [ ( "uri", E.string uri )
+        , ( "title", E.string title )
+        ]
+
+
+encodeSpotify : Spotify -> E.Value
+encodeSpotify spotify =
+    case spotify of
+        NotConnected url ->
+            E.object
+                [ ( "type", E.string "notconnected" )
+                , ( "url", E.string url )
+                ]
+
+        ConnectionError url ->
+            E.object
+                [ ( "type", E.string "connectionerror" )
+                , ( "url", E.string url )
+                ]
+
+        Connected playlists playlist ->
+            E.object
+                [ ( "type", E.string "connected" )
+                , ( "playlists", E.list encodeSpotifyPlaylist playlists )
+                , ( "playlist", Helpers.encodeMaybe encodeSpotifyPlaylist playlist )
+                ]
+
+        Uninitialized ->
+            E.object
+                [ ( "type", E.string "uninitialized" ) ]
+
+
 encodeSettings : Settings -> E.Value
-encodeSettings { rounds, activity, break, longBreak, theme, continuity } =
+encodeSettings { rounds, activity, break, longBreak, theme, continuity, spotify } =
     E.object
         [ ( "rounds", E.int rounds )
         , ( "activity", E.int activity )
@@ -333,6 +382,7 @@ encodeSettings { rounds, activity, break, longBreak, theme, continuity } =
         , ( "longBreak", E.int longBreak )
         , ( "theme", encodeTheme theme )
         , ( "continuity", encodeContinuity continuity )
+        , ( "spotify", encodeSpotify spotify )
         ]
 
 
@@ -410,6 +460,38 @@ decodeContinuity =
             )
 
 
+decodeSpotifyPlaylist : D.Decoder SpotifyPlaylist
+decodeSpotifyPlaylist =
+    D.map2 Tuple.pair
+        (D.field "uri" D.string)
+        (D.field "title" D.string)
+
+
+decodeSpotify : D.Decoder Spotify
+decodeSpotify =
+    D.field "type" D.string
+        |> D.andThen
+            (\type_ ->
+                case type_ of
+                    "uninitialized" ->
+                        D.succeed Uninitialized
+
+                    "notconnected" ->
+                        D.map NotConnected <| D.field "url" D.string
+
+                    "connectionerror" ->
+                        D.map ConnectionError <| D.field "url" D.string
+
+                    "connected" ->
+                        D.map2 Connected
+                            (D.field "playlists" (D.list decodeSpotifyPlaylist))
+                            (D.field "playlist" (D.nullable decodeSpotifyPlaylist))
+
+                    _ ->
+                        D.fail <| "Invalid spotify state of: " ++ type_
+            )
+
+
 decodeSettings : D.Decoder Settings
 decodeSettings =
     D.succeed Settings
@@ -419,3 +501,4 @@ decodeSettings =
         |> Pipeline.required "longBreak" D.int
         |> Pipeline.required "theme" decodeTheme
         |> Pipeline.required "continuity" decodeContinuity
+        |> Pipeline.required "spotify" decodeSpotify

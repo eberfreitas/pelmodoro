@@ -1,6 +1,7 @@
 module Msg exposing (Msg(..))
 
-import Model exposing (Continuity, Page, Theme)
+import Json.Decode exposing (Value)
+import Model exposing (Continuity, Page)
 import Time exposing (Posix, Zone)
 
 
@@ -20,3 +21,4 @@ type Msg
     | ChangeLongBreak Int
     | ChangeContinuity String
     | ChangeTheme String
+    | GotSpotifyState Value

@@ -6,7 +6,7 @@ import Helpers
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as HtmlAttr
 import Html.Styled.Events as Event
-import Model exposing (Continuity(..), Model, Theme(..))
+import Model exposing (Continuity(..), Model, Spotify(..), Theme(..))
 import Msg exposing (Msg(..))
 import View.MiniTimer as MiniTimer
 
@@ -164,6 +164,32 @@ render ({ settings } as model) =
                                 )
                         )
                     ]
+                ]
+            , Html.div [ HtmlAttr.css [ Css.marginBottom <| Css.rem 2 ] ]
+                [ Html.div [ HtmlAttr.css [ labelStyle ] ] [ Html.text "Spotify" ]
+                , Html.div []
+                    (case settings.spotify of
+                        NotConnected url ->
+                            [ Html.a
+                                [ HtmlAttr.href url
+                                , HtmlAttr.css
+                                    [ buttonStyle
+                                    , Css.display Css.block
+                                    , Css.width <| Css.pct 100
+                                    , Css.textAlign Css.center
+                                    , Css.textDecoration Css.none
+                                    , Css.paddingTop <| Css.rem 1
+                                    ]
+                                ]
+                                [ Html.text "Connect to Spotify" ]
+                            ]
+
+                        Connected playlists current ->
+                            [ Html.text "Got it" ]
+
+                        _ ->
+                            [ Html.text "Don't connect" ]
+                    )
                 ]
             ]
         ]

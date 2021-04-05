@@ -13,6 +13,7 @@ import List.Extra as ListEx
 import Model exposing (Continuity(..), Current, Interval, Model, Page(..), Theme)
 import Msg exposing (Msg(..))
 import Platform exposing (Program)
+import Platform.Sub as Sub
 import Task
 import Time exposing (Posix)
 import View.Settings as Settings
@@ -26,6 +27,9 @@ port persistCurrent : E.Value -> Cmd msg
 
 
 port persistSettings : E.Value -> Cmd msg
+
+
+port gotSpotifyState : (D.Value -> msg) -> Sub msg
 
 
 type alias Flags =
@@ -353,10 +357,23 @@ update msg model =
         ChangePage page ->
             done { model | page = page }
 
+        GotSpotifyState raw ->
+            case D.decodeValue Model.decodeSpotify raw of
+                Ok sptf ->
+                    model
+                        |> Model.mapSettings (\s -> { s | spotify = sptf })
+                        |> updateSettings
+
+                Err _ ->
+                    done model
+
 
 subs : Model -> Sub Msg
 subs _ =
-    Time.every 1000 Tick
+    Sub.batch
+        [ Time.every 1000 Tick
+        , gotSpotifyState GotSpotifyState
+        ]
 
 
 main : Program Flags Model Msg
