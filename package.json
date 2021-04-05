@@ -4,14 +4,15 @@
     "elm-hot": "^1.1.6",
     "node-elm-compiler": "^5.0.5",
     "parcel-bundler": "^1.12.3",
-    "parcel-plugin-static-files-copy": "^2.5.1",
-    "typescript": "^4.2.3"
+    "parcel-plugin-static-files-copy": "^2.5.1"
   },
   "scripts": {
     "dev": "parcel ./index.html --https",
     "build": "parcel build ./index.html"
   },
   "dependencies": {
+    "@sentry/browser": "^6.2.5",
+    "@sentry/tracing": "^6.2.5",
     "crypto-random-string": "^3.3.1",
     "helpers": "^0.0.6",
     "howler": "^2.2.1",
