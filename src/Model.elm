@@ -62,7 +62,7 @@ type alias SpotifyPlaylist =
 type Spotify
     = NotConnected String
     | ConnectionError String
-    | Connected (List SpotifyPlaylist) (Maybe SpotifyPlaylist)
+    | Connected (List SpotifyPlaylist) (Maybe String)
     | Uninitialized
 
 
@@ -365,7 +365,7 @@ encodeSpotify spotify =
             E.object
                 [ ( "type", E.string "connected" )
                 , ( "playlists", E.list encodeSpotifyPlaylist playlists )
-                , ( "playlist", Helpers.encodeMaybe encodeSpotifyPlaylist playlist )
+                , ( "playlist", Helpers.encodeMaybe E.string playlist )
                 ]
 
         Uninitialized ->
@@ -485,7 +485,7 @@ decodeSpotify =
                     "connected" ->
                         D.map2 Connected
                             (D.field "playlists" (D.list decodeSpotifyPlaylist))
-                            (D.field "playlist" (D.nullable decodeSpotifyPlaylist))
+                            (D.field "playlist" (D.nullable D.string))
 
                     _ ->
                         D.fail <| "Invalid spotify state of: " ++ type_

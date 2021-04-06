@@ -10,7 +10,7 @@ import Html.Styled.Events as Event
 import Json.Decode as D
 import Json.Encode as E
 import List.Extra as ListEx
-import Model exposing (Continuity(..), Current, Interval, Model, Page(..), Theme)
+import Model exposing (Continuity(..), Current, Interval(..), Model, Page(..), Spotify(..), Theme)
 import Msg exposing (Msg(..))
 import Platform exposing (Program)
 import Platform.Sub as Sub
@@ -27,6 +27,12 @@ port persistCurrent : E.Value -> Cmd msg
 
 
 port persistSettings : E.Value -> Cmd msg
+
+
+port spotifyPlay : String -> Cmd msg
+
+
+port spotifyPause : () -> Cmd msg
 
 
 port gotSpotifyState : (D.Value -> msg) -> Sub msg
@@ -161,8 +167,8 @@ renderPage model =
         ]
 
 
-evalElapsedTime : Posix -> Current -> Continuity -> List Interval -> ( Current, Bool, Cmd msg )
-evalElapsedTime now current repeat intervals =
+evalElapsedTime : Posix -> Spotify -> Current -> Continuity -> List Interval -> ( Current, Bool, Cmd msg )
+evalElapsedTime now spotify current repeat intervals =
     if Model.currentSecondsLeft current == 0 then
         let
             firstInterval =
@@ -170,6 +176,17 @@ evalElapsedTime now current repeat intervals =
 
             nextIdx =
                 current.index + 1
+
+            cmdFnByInterval interval =
+                case ( interval, spotify ) of
+                    ( Activity _, Connected _ (Just uri) ) ->
+                        spotifyPlay uri
+
+                    ( _, Connected _ (Just _) ) ->
+                        spotifyPause ()
+
+                    _ ->
+                        Cmd.none
 
             ( current_, playing ) =
                 case ( intervals |> ListEx.getAt nextIdx, repeat ) of
@@ -185,7 +202,7 @@ evalElapsedTime now current repeat intervals =
                     ( Just nextInterval, _ ) ->
                         ( Current nextIdx (Model.cycleBuild nextInterval (Just now)) 0, True )
         in
-        ( current_, playing, notify () )
+        ( current_, playing, Cmd.batch [ notify (), cmdFnByInterval current_.cycle.interval ] )
 
     else
         ( Model.currentAddElapsed 1 current, True, Cmd.none )
@@ -197,7 +214,18 @@ update msg model =
         done m =
             ( m, Cmd.none )
 
-        persistCurrent_ : ( Model, Cmd msg ) -> ( Model, Cmd msg )
+        playPlaylist uri ( model_, cmd ) =
+            spotifyPlay uri
+                |> Helpers.flip (::) [ cmd ]
+                |> Cmd.batch
+                |> Tuple.pair model_
+
+        pausePlaylist ( model_, cmd ) =
+            spotifyPause ()
+                |> Helpers.flip (::) [ cmd ]
+                |> Cmd.batch
+                |> Tuple.pair model_
+
         persistCurrent_ ( model_, cmd ) =
             model_.current
                 |> Model.encodeCurrent
@@ -206,7 +234,6 @@ update msg model =
                 |> Cmd.batch
                 |> Tuple.pair model_
 
-        persistSettings_ : ( Model, Cmd msg ) -> ( Model, Cmd msg )
         persistSettings_ ( model_, cmd ) =
             model_.settings
                 |> Model.encodeSettings
@@ -227,6 +254,7 @@ update msg model =
                 |> done
                 |> persistSettings_
                 |> persistCurrent_
+                |> pausePlaylist
     in
     case msg of
         NoOp ->
@@ -240,7 +268,11 @@ update msg model =
             if model.playing == True then
                 let
                     ( newCurrent, newPlaying, cmd ) =
-                        evalElapsedTime model.time model.current model.settings.continuity model.intervals
+                        evalElapsedTime model.time
+                            model.settings.spotify
+                            model.current
+                            model.settings.continuity
+                            model.intervals
 
                     newLog =
                         if cmd /= Cmd.none then
@@ -261,7 +293,7 @@ update msg model =
             done { model | zone = newZone }
 
         Pause ->
-            done { model | playing = False }
+            done { model | playing = False } |> pausePlaylist
 
         Play ->
             let
@@ -274,8 +306,16 @@ update msg model =
 
                     else
                         model.current
+
+                cmdFn =
+                    case ( model.settings.spotify, newCurrent.cycle.interval ) of
+                        ( Connected _ (Just uri), Activity _ ) ->
+                            playPlaylist uri
+
+                        _ ->
+                            identity
             in
-            { model | playing = True, current = newCurrent } |> done |> persistCurrent_
+            { model | playing = True, current = newCurrent } |> done |> persistCurrent_ |> cmdFn
 
         Skip ->
             let
@@ -296,7 +336,10 @@ update msg model =
                 newLog =
                     model.log |> Model.cycleLog model.time model.current
             in
-            { model | current = newCurrent, playing = False, log = newLog } |> done |> persistCurrent_
+            { model | current = newCurrent, playing = False, log = newLog }
+                |> done
+                |> persistCurrent_
+                |> pausePlaylist
 
         Reset ->
             let
@@ -306,7 +349,10 @@ update msg model =
                 newCurrent =
                     Current 0 (Model.cycleBuild (Model.firstInterval model.intervals) Nothing) 0
             in
-            { model | current = newCurrent, log = newLog, playing = False } |> done |> persistCurrent_
+            { model | current = newCurrent, log = newLog, playing = False }
+                |> done
+                |> persistCurrent_
+                |> pausePlaylist
 
         SetCont cont ->
             model
@@ -357,11 +403,48 @@ update msg model =
         ChangePage page ->
             done { model | page = page }
 
+        ChangePlaylist uri ->
+            model
+                |> Model.mapSettings
+                    (\s ->
+                        let
+                            newSpotify =
+                                case s.spotify of
+                                    Connected playlists _ ->
+                                        Connected
+                                            playlists
+                                            (ListEx.find (Tuple.first >> (==) uri) playlists |> Maybe.map Tuple.first)
+
+                                    _ ->
+                                        s.spotify
+                        in
+                        { s | spotify = newSpotify }
+                    )
+                |> updateSettings
+
         GotSpotifyState raw ->
             case D.decodeValue Model.decodeSpotify raw of
-                Ok sptf ->
+                Ok newState ->
                     model
-                        |> Model.mapSettings (\s -> { s | spotify = sptf })
+                        |> Model.mapSettings
+                            (\s ->
+                                let
+                                    newSpotify =
+                                        case ( s.spotify, newState ) of
+                                            ( Connected _ (Just current), Connected playlists _ ) ->
+                                                let
+                                                    newCurrent =
+                                                        playlists
+                                                            |> ListEx.find (Tuple.first >> (==) current)
+                                                            |> Maybe.map Tuple.first
+                                                in
+                                                Connected playlists newCurrent
+
+                                            _ ->
+                                                newState
+                                in
+                                { s | spotify = newSpotify }
+                            )
                         |> updateSettings
 
                 Err _ ->

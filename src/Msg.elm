@@ -21,4 +21,5 @@ type Msg
     | ChangeLongBreak Int
     | ChangeContinuity String
     | ChangeTheme String
+    | ChangePlaylist String
     | GotSpotifyState Value

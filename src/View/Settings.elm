@@ -184,11 +184,40 @@ render ({ settings } as model) =
                                 [ Html.text "Connect to Spotify" ]
                             ]
 
-                        Connected playlists current ->
-                            [ Html.text "Got it" ]
+                        ConnectionError url ->
+                            [ Html.p [ HtmlAttr.css [ Css.marginBottom <| Css.rem 1 ] ]
+                                [ Html.text "There was an error trying to connect. Please, try again!" ]
+                            , Html.a
+                                [ HtmlAttr.href url
+                                , HtmlAttr.css
+                                    [ buttonStyle
+                                    , Css.display Css.block
+                                    , Css.width <| Css.pct 100
+                                    , Css.textAlign Css.center
+                                    , Css.textDecoration Css.none
+                                    , Css.paddingTop <| Css.rem 1
+                                    ]
+                                ]
+                                [ Html.text "Connect to Spotify" ]
+                            ]
 
-                        _ ->
-                            [ Html.text "Don't connect" ]
+                        Connected playlists current ->
+                            [ Html.select [ HtmlAttr.css [ selectStyle ], Event.onInput ChangePlaylist ]
+                                (playlists
+                                    |> List.sortBy Tuple.second
+                                    |> List.map
+                                        (\( uri, title ) ->
+                                            Html.option
+                                                [ HtmlAttr.value uri, HtmlAttr.selected (current == Just uri) ]
+                                                [ Html.text title ]
+                                        )
+                                    |> (::) (Html.option [ HtmlAttr.value "" ] [ Html.text "--" ])
+                                    |> (::) (Html.option [ HtmlAttr.value "", HtmlAttr.selected (current == Nothing) ] [ Html.text "Don't play anything" ])
+                                )
+                            ]
+
+                        Uninitialized ->
+                            [ Html.text "Can't connect to Spotify" ]
                     )
                 ]
             ]
