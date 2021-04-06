@@ -8,6 +8,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
     <link rel="stylesheet" href="/style.css">
+    <script src="https://sdk.scdn.co/spotify-player.js"></script>
+    <script src="./src/js/monit.js"></script>
+    <script>
+        window.spotifyPlayerLoaded = false;
+
+        window.onSpotifyWebPlaybackSDKReady = () => {
+            window.spotifyPlayerLoaded = true;
+        };
+    </script>
 </head>
 
 <body>

@@ -7,13 +7,27 @@
     "parcel-plugin-static-files-copy": "^2.5.1"
   },
   "scripts": {
-    "dev": "parcel ./index.html",
+    "dev": "parcel ./index.html --https",
     "build": "parcel build ./index.html"
   },
   "dependencies": {
-    "howler": "^2.2.1"
+    "@sentry/browser": "^6.2.5",
+    "@sentry/tracing": "^6.2.5",
+    "crypto-random-string": "^3.3.1",
+    "helpers": "^0.0.6",
+    "howler": "^2.2.1",
+    "pkce-challenge": "^2.1.0"
   },
   "staticFiles": {
-    "staticPath": ["wind-chimes.wav"]
-   }
+    "staticPath": [
+      "wind-chimes.wav",
+      "_redirects"
+    ]
+  },
+  "browserslist": [
+    "last 1 Chrome version",
+    "last 1 Firefox version",
+    "last 1 Edge version",
+    "last 1 Safari version"
+  ]
 }

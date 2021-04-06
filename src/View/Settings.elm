@@ -6,7 +6,7 @@ import Helpers
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as HtmlAttr
 import Html.Styled.Events as Event
-import Model exposing (Continuity(..), Model, Theme(..))
+import Model exposing (Continuity(..), Model, Spotify(..), Theme(..))
 import Msg exposing (Msg(..))
 import View.MiniTimer as MiniTimer
 
@@ -30,6 +30,17 @@ render ({ settings } as model) =
                 , Css.color <| (settings.theme |> Colors.backgroundColor |> Colors.toCssColor)
                 , Css.outline Css.zero
                 , Css.cursor Css.pointer
+                ]
+
+        largeButtonStyle =
+            Css.batch
+                [ buttonStyle
+                , Css.display Css.block
+                , Css.width <| Css.pct 100
+                , Css.textAlign Css.center
+                , Css.textDecoration Css.none
+                , Css.paddingTop <| Css.rem 1
+                , Css.fontSize <| Css.rem 1
                 ]
 
         settingDisplayStyle =
@@ -164,6 +175,64 @@ render ({ settings } as model) =
                                 )
                         )
                     ]
+                ]
+            , Html.div [ HtmlAttr.css [ Css.marginBottom <| Css.rem 2 ] ]
+                [ Html.div [ HtmlAttr.css [ labelStyle ] ] [ Html.text "Spotify" ]
+                , Html.div []
+                    (case settings.spotify of
+                        NotConnected url ->
+                            [ Html.a
+                                [ HtmlAttr.href url
+                                , HtmlAttr.css
+                                    [ buttonStyle
+                                    , Css.display Css.block
+                                    , Css.width <| Css.pct 100
+                                    , Css.textAlign Css.center
+                                    , Css.textDecoration Css.none
+                                    , Css.paddingTop <| Css.rem 1
+                                    ]
+                                ]
+                                [ Html.text "Connect to Spotify" ]
+                            ]
+
+                        ConnectionError url ->
+                            [ Html.p [ HtmlAttr.css [ Css.marginBottom <| Css.rem 1 ] ]
+                                [ Html.text "There was an error trying to connect. Please, try again!" ]
+                            , Html.a
+                                [ HtmlAttr.href url
+                                , HtmlAttr.css [ largeButtonStyle ]
+                                ]
+                                [ Html.text "Connect to Spotify" ]
+                            ]
+
+                        Connected playlists current ->
+                            [ Html.select [ HtmlAttr.css [ selectStyle ], Event.onInput ChangePlaylist ]
+                                (playlists
+                                    |> List.sortBy Tuple.second
+                                    |> List.map
+                                        (\( uri, title ) ->
+                                            Html.option
+                                                [ HtmlAttr.value uri, HtmlAttr.selected (current == Just uri) ]
+                                                [ Html.text title ]
+                                        )
+                                    |> (::) (Html.option [ HtmlAttr.value "" ] [ Html.text "--" ])
+                                    |> (::) (Html.option [ HtmlAttr.value "", HtmlAttr.selected (current == Nothing) ] [ Html.text "Don't play anything" ])
+                                )
+                            , Html.button
+                                [ Event.onClick SpotifyRefresh
+                                , HtmlAttr.css [ largeButtonStyle, Css.marginTop <| Css.rem 1, Css.paddingTop <| Css.zero ]
+                                ]
+                                [ Html.text "Refresh playlists" ]
+                            , Html.button
+                                [ Event.onClick SpotifyDisconnect
+                                , HtmlAttr.css [ largeButtonStyle, Css.marginTop <| Css.rem 1, Css.paddingTop <| Css.zero ]
+                                ]
+                                [ Html.text "Disconnect" ]
+                            ]
+
+                        Uninitialized ->
+                            [ Html.text "Can't connect to Spotify" ]
+                    )
                 ]
             ]
         ]
