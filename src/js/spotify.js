@@ -248,10 +248,10 @@ const play = (token, uri) => {
 
   const deviceId = window.spotify.deviceId;
 
-  let lastState = storage.get("spotifyLastState", {});
+  let lastState = storage.get("spotifyLastState", { context: { uri: null } });
   let body = { context_uri: uri };
 
-  if (lastState.context?.uri == uri) {
+  if (lastState.context.uri == uri) {
     body = { ...body, position_ms: lastState.progress_ms }
   }
 
