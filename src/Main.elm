@@ -35,6 +35,12 @@ port spotifyPlay : String -> Cmd msg
 port spotifyPause : () -> Cmd msg
 
 
+port spotifyRefresh : () -> Cmd msg
+
+
+port spotifyDisconnect : () -> Cmd msg
+
+
 port gotSpotifyState : (D.Value -> msg) -> Sub msg
 
 
@@ -449,6 +455,12 @@ update msg model =
 
                 Err _ ->
                     done model
+
+        SpotifyRefresh ->
+            ( model, spotifyRefresh () )
+
+        SpotifyDisconnect ->
+            ( model, spotifyDisconnect () )
 
 
 subs : Model -> Sub Msg

@@ -17,3 +17,7 @@ export const get = (key, defVal) => {
 export const set = (key, data) => {
   return window.localStorage.setItem(key, JSON.stringify(data));
 };
+
+export const del = key => {
+  return window.localStorage.removeItem(key);
+};

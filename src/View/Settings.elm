@@ -32,6 +32,17 @@ render ({ settings } as model) =
                 , Css.cursor Css.pointer
                 ]
 
+        largeButtonStyle =
+            Css.batch
+                [ buttonStyle
+                , Css.display Css.block
+                , Css.width <| Css.pct 100
+                , Css.textAlign Css.center
+                , Css.textDecoration Css.none
+                , Css.paddingTop <| Css.rem 1
+                , Css.fontSize <| Css.rem 1
+                ]
+
         settingDisplayStyle =
             Css.batch
                 [ Css.height <| Css.rem 3
@@ -189,14 +200,7 @@ render ({ settings } as model) =
                                 [ Html.text "There was an error trying to connect. Please, try again!" ]
                             , Html.a
                                 [ HtmlAttr.href url
-                                , HtmlAttr.css
-                                    [ buttonStyle
-                                    , Css.display Css.block
-                                    , Css.width <| Css.pct 100
-                                    , Css.textAlign Css.center
-                                    , Css.textDecoration Css.none
-                                    , Css.paddingTop <| Css.rem 1
-                                    ]
+                                , HtmlAttr.css [ largeButtonStyle ]
                                 ]
                                 [ Html.text "Connect to Spotify" ]
                             ]
@@ -214,6 +218,16 @@ render ({ settings } as model) =
                                     |> (::) (Html.option [ HtmlAttr.value "" ] [ Html.text "--" ])
                                     |> (::) (Html.option [ HtmlAttr.value "", HtmlAttr.selected (current == Nothing) ] [ Html.text "Don't play anything" ])
                                 )
+                            , Html.button
+                                [ Event.onClick SpotifyRefresh
+                                , HtmlAttr.css [ largeButtonStyle, Css.marginTop <| Css.rem 1, Css.paddingTop <| Css.zero ]
+                                ]
+                                [ Html.text "Refresh playlists" ]
+                            , Html.button
+                                [ Event.onClick SpotifyDisconnect
+                                , HtmlAttr.css [ largeButtonStyle, Css.marginTop <| Css.rem 1, Css.paddingTop <| Css.zero ]
+                                ]
+                                [ Html.text "Disconnect" ]
                             ]
 
                         Uninitialized ->

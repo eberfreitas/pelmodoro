@@ -20,7 +20,8 @@
   },
   "staticFiles": {
     "staticPath": [
-      "wind-chimes.wav"
+      "wind-chimes.wav",
+      "_redirects"
     ]
   },
   "browserslist": [

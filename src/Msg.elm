@@ -23,3 +23,5 @@ type Msg
     | ChangeTheme String
     | ChangePlaylist String
     | GotSpotifyState Value
+    | SpotifyRefresh
+    | SpotifyDisconnect

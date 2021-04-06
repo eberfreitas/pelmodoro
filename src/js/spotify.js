@@ -5,12 +5,12 @@ import * as storage from "./helpers/local-storage.js";
 
 const clientId = process.env.SPOTIFY_CLIENT_ID;
 const redirectUri = process.env.SPOTIFY_REDIRECT_URL;
+const redirectUrl = new URL(redirectUri);
 
 let player;
 
-window.spotifyUserConnected = false;
-
 window.spotify = {
+  connected: false,
   canPlay: false,
   deviceId: null,
   playing: false,
@@ -93,7 +93,7 @@ const authRequest = body => {
   })
     .then(promiseByStatus)
     .then(authData => {
-      window.spotifyUserConnected = true;
+      window.spotify.connected = true;
 
       return Promise.resolve(processAuthData(authData));
     });
@@ -154,6 +154,8 @@ const connectionCallback = app => {
     getAuthToken(code, state)
       .then(data => init(app, data.access_token))
       .catch(() => connectionError(app));
+
+    history.pushState({}, "", redirectUrl.pathname);
   }
 };
 
@@ -162,7 +164,7 @@ const initPlayer = (app, token, retries) => {
     return false;
   }
 
-  if (window.spotifyPlayerLoaded == false || window.spotifyUserConnected == false) {
+  if (window.spotifyPlayerLoaded == false || window.spotify.connected == false) {
     return setTimeout(() => initPlayer(app, token, retries + 1), 1000);
   }
 
@@ -208,7 +210,7 @@ const initApp = app => {
 
       setTimeout(() => initApp(app), timeout);
 
-      window.spotifyUserConnected = true;
+      window.spotify.connected = true;
 
       init(app, authData.access_token);
     }
@@ -287,17 +289,33 @@ const checkState = token => {
   }, 30 * 1000);
 };
 
+const disconnect = app => {
+  storage.del("spotifyLastState");
+  storage.del("spotifyAuthData");
+  storage.del("spotifyConnectData");
+
+  window.spotify.connected = false;
+  window.spotify.canPlay = false;
+  window.spotify.deviceId = null;
+  window.spotify.playing = false;
+
+  player.disconnect();
+  notConnected(app);
+};
+
 const init = (app, token) => {
-  setupPlaylists(app, token);
   initPlayer(app, token, 0);
+  setupPlaylists(app, token);
   checkState(token);
 
   app.ports.spotifyPlay.subscribe((uri) => play(token, uri));
   app.ports.spotifyPause.subscribe(() => pause(token));
+  app.ports.spotifyDisconnect.subscribe(() => disconnect(app));
+  app.ports.spotifyRefresh.subscribe(() => setupPlaylists(app, token));
 };
 
 export default function (app) {
-  if (window.location.pathname == "/settings") {
+  if (window.location.pathname == redirectUrl.pathname) {
     connectionCallback(app);
   } else {
     initApp(app);
