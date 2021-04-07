@@ -14,7 +14,6 @@
     "@sentry/browser": "^6.2.5",
     "@sentry/tracing": "^6.2.5",
     "crypto-random-string": "^3.3.1",
-    "helpers": "^0.0.6",
     "howler": "^2.2.1",
     "pkce-challenge": "^2.1.0"
   },
