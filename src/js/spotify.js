@@ -145,18 +145,12 @@ const setupPlaylists = (app, token) => {
     .then(playlists => connected(app, playlists));
 };
 
-const connectionCallback = app => {
-  const query = new URLSearchParams(window.location.search);
-  const code = query.get("code") || "";
-  const state = query.get("state") || "";
+const connectionCallback = (app, code, state) => {
+  getAuthToken(code, state)
+    .then(data => init(app, data.access_token))
+    .catch(() => connectionError(app));
 
-  if (code && state) {
-    getAuthToken(code, state)
-      .then(data => init(app, data.access_token))
-      .catch(() => connectionError(app));
-
-    history.pushState({}, "", redirectUrl.pathname);
-  }
+  history.pushState({}, "", redirectUrl.pathname);
 };
 
 const initPlayer = (app, token, retries) => {
@@ -169,9 +163,9 @@ const initPlayer = (app, token, retries) => {
   }
 
   player = new Spotify.Player({
-    name: "Pelmodoro Player",
+    name: "Pelmodoro",
     getOAuthToken: cb => { cb(token) },
-    volume: 0.8
+    volume: 1
   });
 
   player.addListener("ready", ({ device_id }) => {
@@ -241,6 +235,10 @@ const pause = (token) => {
   }
 };
 
+const shuffle = (token, deviceId) => {
+  return fetch(`https://api.spotify.com/v1/me/player/shuffle?state=true&device_id=${deviceId}`, apiReqParams(token));
+};
+
 const play = (token, uri) => {
   if (window.spotify.canPlay == false) {
     return false;
@@ -263,6 +261,8 @@ const play = (token, uri) => {
       if (res.status != 204) {
         window.spotify.playing = false;
 
+        shuffle(token, deviceId);
+
         return false;
       }
 
@@ -284,7 +284,13 @@ const checkState = token => {
     if (window.spotify.playing == true) {
       checkStateReq(token)
         .then(promiseByStatus)
-        .then(state => storage.set("spotifyLastState", state));
+        .then(state => {
+          if (state.shuffle_state == false) {
+            shuffle(token, window.spotify.deviceId);
+          }
+
+          storage.set("spotifyLastState", state);
+        });
     }
   }, 30 * 1000);
 };
@@ -315,8 +321,12 @@ const init = (app, token) => {
 };
 
 export default function (app) {
-  if (window.location.pathname == redirectUrl.pathname) {
-    connectionCallback(app);
+  const query = new URLSearchParams(window.location.search);
+  const code = query.get("code");
+  const state = query.get("state");
+
+  if (window.location.pathname == redirectUrl.pathname && code && state) {
+    connectionCallback(app, code, state);
   } else {
     initApp(app);
   }
