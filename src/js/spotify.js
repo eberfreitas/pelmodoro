@@ -164,7 +164,7 @@ const initPlayer = (app, token, retries) => {
 
   player = new Spotify.Player({
     name: "Pelmodoro",
-    getOAuthToken: cb => { cb(token) },
+    getOAuthToken: cb => cb(token),
     volume: 1
   });
 
@@ -260,8 +260,6 @@ const play = (token, uri) => {
     .then(res => {
       if (res.status != 204) {
         window.spotify.playing = false;
-
-        shuffle(token, deviceId);
 
         return false;
       }
