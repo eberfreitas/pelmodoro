@@ -36,7 +36,6 @@ import Types
         , Current
         , Cycle
         , Interval(..)
-        , Log
         , Page(..)
         , Seconds
         , Settings
@@ -58,7 +57,6 @@ type alias Model =
     , current : Current
     , playing : Bool
     , intervals : List Interval
-    , log : Log
     }
 
 
@@ -128,21 +126,18 @@ default =
     , current = current
     , playing = False
     , intervals = intervals
-    , log = []
     }
 
 
-cycleLog : Posix -> Current -> Log -> ( Log, Cmd Msg )
-cycleLog now { cycle, elapsed } log =
+cycleLog : Posix -> Current -> Cmd Msg
+cycleLog now { cycle, elapsed } =
     if elapsed /= 0 then
         { cycle | end = Just now, seconds = Just elapsed }
-            |> (\c -> ( c, c ))
-            |> Tuple.mapBoth
-                (List.singleton >> (++) log)
-                (encodeCycle >> logCycle)
+            |> encodeCycle
+            |> logCycle
 
     else
-        ( log, Cmd.none )
+        Cmd.none
 
 
 cycleStart : Posix -> Cycle -> Cycle

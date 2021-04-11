@@ -253,12 +253,9 @@ update msg model =
             let
                 ( newIntervals, newCurrent ) =
                     Model.buildIntervals model_.settings (Just model_.current)
-
-                ( newLog, logCmd ) =
-                    model.log |> Model.cycleLog model.time model.current
             in
-            { model_ | current = newCurrent, log = newLog, intervals = newIntervals, playing = False }
-                |> Helpers.flip Tuple.pair logCmd
+            { model_ | current = newCurrent, intervals = newIntervals, playing = False }
+                |> Helpers.flip Tuple.pair (Model.cycleLog model.time model.current)
                 |> persistSettings_
                 |> persistCurrent_
                 |> pausePlaylist
@@ -281,14 +278,14 @@ update msg model =
                             model.settings.continuity
                             model.intervals
 
-                    ( newLog, logCmd ) =
+                    logCmd =
                         if cmd /= Cmd.none then
-                            model.log |> Model.cycleLog model.time model.current
+                            Model.cycleLog model.time model.current
 
                         else
-                            ( model.log, Cmd.none )
+                            Cmd.none
                 in
-                { model | current = newCurrent, playing = newPlaying, log = newLog }
+                { model | current = newCurrent, playing = newPlaying }
                     |> updateTime
                     |> Helpers.flip Tuple.pair (Cmd.batch [ cmd, logCmd ])
                     |> persistCurrent_
@@ -339,25 +336,19 @@ update msg model =
 
                 newCurrent =
                     Current newIndex (Model.cycleBuild newInterval Nothing) 0
-
-                ( newLog, logCmd ) =
-                    model.log |> Model.cycleLog model.time model.current
             in
-            { model | current = newCurrent, playing = False, log = newLog }
-                |> Helpers.flip Tuple.pair logCmd
+            { model | current = newCurrent, playing = False }
+                |> Helpers.flip Tuple.pair (Model.cycleLog model.time model.current)
                 |> persistCurrent_
                 |> pausePlaylist
 
         Reset ->
             let
-                ( newLog, logCmd ) =
-                    model.log |> Model.cycleLog model.time model.current
-
                 newCurrent =
                     Current 0 (Model.cycleBuild (Model.firstInterval model.intervals) Nothing) 0
             in
-            { model | current = newCurrent, log = newLog, playing = False }
-                |> Helpers.flip Tuple.pair logCmd
+            { model | current = newCurrent, playing = False }
+                |> Helpers.flip Tuple.pair (Model.cycleLog model.time model.current)
                 |> persistCurrent_
                 |> pausePlaylist
 

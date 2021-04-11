@@ -3,7 +3,6 @@ module Types exposing
     , Current
     , Cycle
     , Interval(..)
-    , Log
     , Page(..)
     , Seconds
     , Settings
@@ -15,10 +14,25 @@ module Types exposing
 import Time exposing (Posix)
 
 
+type LogDay
+    = Today
+    | SelectedDay ( Int, Int, Int )
+
+
+type alias LogSummary =
+    { something : Int, somethingElse : Int }
+
+
+type StatState
+    = Loading
+    | Loaded LogDay LogSummary Log
+    | Error String
+
+
 type Page
     = TimerPage
     | SettingsPage
-    | StatsPage
+    | StatsPage StatState
     | CreditsPage
 
 

@@ -29,9 +29,9 @@ encodeMaybe fn value =
 
 encodePosix : Posix -> E.Value
 encodePosix =
-    Time.posixToMillis >> toFloat >> (\x -> x / 1000) >> E.float
+    Time.posixToMillis >> E.int
 
 
 decodePosix : D.Decoder Posix
 decodePosix =
-    D.map (truncate >> (*) 1000 >> Time.millisToPosix) D.float
+    D.map Time.millisToPosix D.int
