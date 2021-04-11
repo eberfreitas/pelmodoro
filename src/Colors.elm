@@ -11,7 +11,7 @@ module Colors exposing
 
 import Css exposing (Color)
 import Helpers
-import Model exposing (Interval(..), Theme(..))
+import Types exposing (Interval(..), Theme(..))
 
 
 type alias BaseColor =

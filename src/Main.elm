@@ -10,12 +10,13 @@ import Html.Styled.Events as Event
 import Json.Decode as D
 import Json.Encode as E
 import List.Extra as ListEx
-import Model exposing (Continuity(..), Current, Interval(..), Model, Page(..), Spotify(..), Theme)
+import Model exposing (Model)
 import Msg exposing (Msg(..))
 import Platform exposing (Program)
 import Platform.Sub as Sub
 import Task
 import Time exposing (Posix)
+import Types exposing (Continuity(..), Current, Interval(..), Page(..), Spotify(..), Theme)
 import View.Settings as Settings
 import View.Timer as Timer
 
@@ -214,7 +215,7 @@ evalElapsedTime now spotify current repeat intervals =
         ( Model.currentAddElapsed 1 current, True, Cmd.none )
 
 
-update : Msg -> Model -> ( Model, Cmd msg )
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
         done m =
@@ -253,11 +254,11 @@ update msg model =
                 ( newIntervals, newCurrent ) =
                     Model.buildIntervals model_.settings (Just model_.current)
 
-                newLog =
+                ( newLog, logCmd ) =
                     model.log |> Model.cycleLog model.time model.current
             in
             { model_ | current = newCurrent, log = newLog, intervals = newIntervals, playing = False }
-                |> done
+                |> Helpers.flip Tuple.pair logCmd
                 |> persistSettings_
                 |> persistCurrent_
                 |> pausePlaylist
@@ -280,16 +281,16 @@ update msg model =
                             model.settings.continuity
                             model.intervals
 
-                    newLog =
+                    ( newLog, logCmd ) =
                         if cmd /= Cmd.none then
                             model.log |> Model.cycleLog model.time model.current
 
                         else
-                            model.log
+                            ( model.log, Cmd.none )
                 in
                 { model | current = newCurrent, playing = newPlaying, log = newLog }
                     |> updateTime
-                    |> Helpers.flip Tuple.pair cmd
+                    |> Helpers.flip Tuple.pair (Cmd.batch [ cmd, logCmd ])
                     |> persistCurrent_
 
             else
@@ -339,24 +340,24 @@ update msg model =
                 newCurrent =
                     Current newIndex (Model.cycleBuild newInterval Nothing) 0
 
-                newLog =
+                ( newLog, logCmd ) =
                     model.log |> Model.cycleLog model.time model.current
             in
             { model | current = newCurrent, playing = False, log = newLog }
-                |> done
+                |> Helpers.flip Tuple.pair logCmd
                 |> persistCurrent_
                 |> pausePlaylist
 
         Reset ->
             let
-                newLog =
+                ( newLog, logCmd ) =
                     model.log |> Model.cycleLog model.time model.current
 
                 newCurrent =
                     Current 0 (Model.cycleBuild (Model.firstInterval model.intervals) Nothing) 0
             in
             { model | current = newCurrent, log = newLog, playing = False }
-                |> done
+                |> Helpers.flip Tuple.pair logCmd
                 |> persistCurrent_
                 |> pausePlaylist
 

@@ -6,8 +6,9 @@ import Helpers
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as HtmlAttr
 import Html.Styled.Events as Event
-import Model exposing (Continuity(..), Model, Spotify(..), Theme(..))
+import Model exposing (Model)
 import Msg exposing (Msg(..))
+import Types exposing (Continuity(..), Spotify(..), Theme(..))
 import View.MiniTimer as MiniTimer
 
 

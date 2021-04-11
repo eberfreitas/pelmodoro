@@ -178,7 +178,7 @@ const initPlayer = (app, token, retries) => {
     window.spotify.deviceId = device_id;
   });
 
-  player.addListener("authentication_error", () => notconnected(app));
+  player.addListener("authentication_error", () => notConnected(app));
   player.addListener("account_error", () => connectionError(app));
 
   player.connect();

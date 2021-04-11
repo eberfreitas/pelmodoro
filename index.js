@@ -4,6 +4,7 @@ import * as storage from "./src/js/helpers/local-storage.js";
 import viewportFix from "./src/js/viewport-fix.js";
 import notify from "./src/js/notify.js";
 import spotify from "./src/js/spotify.js";
+import logs from "./src/js/logs.js";
 
 const current = storage.get("current", {});
 const settings = storage.get("settings", {});
@@ -22,3 +23,4 @@ app.ports.persistSettings.subscribe(settings => storage.set("settings", settings
 viewportFix();
 notify(app);
 spotify(app);
+logs(app);

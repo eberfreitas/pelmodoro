@@ -1,13 +1,5 @@
-module Model exposing
-    ( Continuity(..)
-    , Current
-    , Interval(..)
-    , Model
-    , Page(..)
-    , Seconds
-    , Settings
-    , Spotify(..)
-    , Theme(..)
+port module Model exposing
+    ( Model
     , buildIntervals
     , continuityFromString
     , continuityPairs
@@ -36,76 +28,25 @@ import Json.Decode as D
 import Json.Decode.Pipeline as Pipeline
 import Json.Encode as E
 import List.Extra as ListEx
+import Msg exposing (Msg)
 import Time exposing (Posix, Zone)
+import Types
+    exposing
+        ( Continuity(..)
+        , Current
+        , Cycle
+        , Interval(..)
+        , Log
+        , Page(..)
+        , Seconds
+        , Settings
+        , Spotify(..)
+        , SpotifyPlaylist
+        , Theme(..)
+        )
 
 
-type Page
-    = TimerPage
-    | SettingsPage
-    | StatsPage
-    | CreditsPage
-
-
-type alias Seconds =
-    Int
-
-
-type Theme
-    = LightTheme
-    | DarkTheme
-
-
-type alias SpotifyPlaylist =
-    ( String, String )
-
-
-type Spotify
-    = NotConnected String
-    | ConnectionError String
-    | Connected (List SpotifyPlaylist) (Maybe String)
-    | Uninitialized
-
-
-type alias Settings =
-    { rounds : Int
-    , activity : Seconds
-    , break : Seconds
-    , longBreak : Seconds
-    , theme : Theme
-    , continuity : Continuity
-    , spotify : Spotify
-    }
-
-
-type Interval
-    = Activity Int
-    | Break Int
-    | LongBreak Int
-
-
-type alias Cycle =
-    { interval : Interval
-    , start : Maybe Posix
-    , end : Maybe Posix
-    , seconds : Maybe Seconds
-    }
-
-
-type alias Current =
-    { index : Int
-    , cycle : Cycle
-    , elapsed : Seconds
-    }
-
-
-type Continuity
-    = NoCont
-    | SimpleCont
-    | FullCont
-
-
-type alias Log =
-    List Cycle
+port logCycle : E.Value -> Cmd msg
 
 
 type alias Model =
@@ -191,15 +132,17 @@ default =
     }
 
 
-cycleLog : Posix -> Current -> Log -> Log
+cycleLog : Posix -> Current -> Log -> ( Log, Cmd Msg )
 cycleLog now { cycle, elapsed } log =
     if elapsed /= 0 then
         { cycle | end = Just now, seconds = Just elapsed }
-            |> List.singleton
-            |> (++) log
+            |> (\c -> ( c, c ))
+            |> Tuple.mapBoth
+                (List.singleton >> (++) log)
+                (encodeCycle >> logCycle)
 
     else
-        log
+        ( log, Cmd.none )
 
 
 cycleStart : Posix -> Cycle -> Cycle

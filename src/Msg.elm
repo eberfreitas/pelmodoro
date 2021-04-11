@@ -1,8 +1,8 @@
 module Msg exposing (Msg(..))
 
 import Json.Decode exposing (Value)
-import Model exposing (Continuity, Page)
 import Time exposing (Posix, Zone)
+import Types exposing (Continuity, Page)
 
 
 type Msg
