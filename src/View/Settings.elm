@@ -8,7 +8,9 @@ import Html.Styled.Attributes as HtmlAttr
 import Html.Styled.Events as Event
 import Model exposing (Model)
 import Msg exposing (Msg(..))
+import Tuple.Trio as Trio
 import Types exposing (Continuity(..), Spotify(..), Theme(..))
+import View.Common as Common
 import View.MiniTimer as MiniTimer
 
 
@@ -85,8 +87,37 @@ render ({ settings } as model) =
             else
                 num
 
-        inMinutes seconds =
-            seconds // 60
+        inputContainer label input =
+            Html.div [ HtmlAttr.css [ Css.marginBottom <| Css.rem 2 ] ]
+                [ Html.div [ HtmlAttr.css [ labelStyle ] ] [ Html.text label ]
+                , input
+                ]
+
+        numberInput min max msg num =
+            Html.div
+                [ HtmlAttr.css [ Css.displayFlex ] ]
+                [ Html.button [ HtmlAttr.css [ buttonStyle ], Event.onClick (num - 1 |> atLeast min |> msg) ] [ Helpers.icon "remove" ]
+                , Html.div
+                    [ HtmlAttr.css [ settingDisplayStyle ] ]
+                    [ Html.text <| String.fromInt settings.rounds ]
+                , Html.button [ HtmlAttr.css [ buttonStyle ], Event.onClick (num + 1 |> atMost max |> msg) ] [ Helpers.icon "add" ]
+                ]
+
+        selectInput fn msg pairs =
+            Html.div []
+                [ Html.select [ HtmlAttr.css [ selectStyle ], Event.onInput msg ]
+                    (pairs
+                        |> List.map
+                            (\(( _, v, l ) as def) ->
+                                Html.option
+                                    [ HtmlAttr.value v, HtmlAttr.selected (fn def) ]
+                                    [ Html.text l ]
+                            )
+                    )
+                ]
+
+        toTrio ( a, b ) =
+            ( a, b, b )
     in
     Html.div []
         [ MiniTimer.render model
@@ -96,87 +127,21 @@ render ({ settings } as model) =
                 , Css.width <| Css.px 280
                 ]
             ]
-            [ Html.h1
-                [ HtmlAttr.css
-                    [ Css.fontSize <| Css.rem 2
-                    , Css.color (settings.theme |> Colors.textColor |> Colors.toCssColor)
-                    , Css.marginBottom <| Css.rem 2
-                    , Css.textAlign Css.center
-                    ]
-                ]
-                [ Html.text "Settings" ]
-            , Html.div [ HtmlAttr.css [ Css.marginBottom <| Css.rem 2 ] ]
-                [ Html.div [ HtmlAttr.css [ labelStyle ] ] [ Html.text "Rounds" ]
-                , Html.div
-                    [ HtmlAttr.css [ Css.displayFlex ] ]
-                    [ Html.button [ HtmlAttr.css [ buttonStyle ], Event.onClick (settings.rounds - 1 |> atLeast 1 |> ChangeRounds) ] [ Helpers.icon "remove" ]
-                    , Html.div
-                        [ HtmlAttr.css [ settingDisplayStyle ] ]
-                        [ Html.text <| String.fromInt settings.rounds ]
-                    , Html.button [ HtmlAttr.css [ buttonStyle ], Event.onClick (settings.rounds + 1 |> atMost 8 |> ChangeRounds) ] [ Helpers.icon "add" ]
-                    ]
-                ]
-            , Html.div [ HtmlAttr.css [ Css.marginBottom <| Css.rem 2 ] ]
-                [ Html.div [ HtmlAttr.css [ labelStyle ] ] [ Html.text "Session duration" ]
-                , Html.div
-                    [ HtmlAttr.css [ Css.displayFlex ] ]
-                    [ Html.button [ HtmlAttr.css [ buttonStyle ], Event.onClick (inMinutes settings.activity - 1 |> atLeast 1 |> ChangeActivity) ] [ Helpers.icon "remove" ]
-                    , Html.div
-                        [ HtmlAttr.css [ settingDisplayStyle ] ]
-                        [ Html.text (settings.activity |> inMinutes |> String.fromInt) ]
-                    , Html.button [ HtmlAttr.css [ buttonStyle ], Event.onClick (inMinutes settings.activity + 1 |> atMost 60 |> ChangeActivity) ] [ Helpers.icon "add" ]
-                    ]
-                ]
-            , Html.div [ HtmlAttr.css [ Css.marginBottom <| Css.rem 2 ] ]
-                [ Html.div [ HtmlAttr.css [ labelStyle ] ] [ Html.text "Break duration" ]
-                , Html.div
-                    [ HtmlAttr.css [ Css.displayFlex ] ]
-                    [ Html.button [ HtmlAttr.css [ buttonStyle ], Event.onClick (inMinutes settings.break - 1 |> atLeast 1 |> ChangeBreak) ] [ Helpers.icon "remove" ]
-                    , Html.div
-                        [ HtmlAttr.css [ settingDisplayStyle ] ]
-                        [ Html.text (settings.break |> inMinutes |> String.fromInt) ]
-                    , Html.button [ HtmlAttr.css [ buttonStyle ], Event.onClick (inMinutes settings.break + 1 |> atMost 60 |> ChangeBreak) ] [ Helpers.icon "add" ]
-                    ]
-                ]
-            , Html.div [ HtmlAttr.css [ Css.marginBottom <| Css.rem 2 ] ]
-                [ Html.div [ HtmlAttr.css [ labelStyle ] ] [ Html.text "Long break duration" ]
-                , Html.div
-                    [ HtmlAttr.css [ Css.displayFlex ] ]
-                    [ Html.button [ HtmlAttr.css [ buttonStyle ], Event.onClick (inMinutes settings.longBreak - 1 |> atLeast 1 |> ChangeLongBreak) ] [ Helpers.icon "remove" ]
-                    , Html.div
-                        [ HtmlAttr.css [ settingDisplayStyle ] ]
-                        [ Html.text (settings.longBreak |> inMinutes |> String.fromInt) ]
-                    , Html.button [ HtmlAttr.css [ buttonStyle ], Event.onClick (inMinutes settings.longBreak + 1 |> atMost 60 |> ChangeLongBreak) ] [ Helpers.icon "add" ]
-                    ]
-                ]
-            , Html.div [ HtmlAttr.css [ Css.marginBottom <| Css.rem 2 ] ]
-                [ Html.div [ HtmlAttr.css [ labelStyle ] ] [ Html.text "Rounds continuity" ]
-                , Html.div []
-                    [ Html.select [ HtmlAttr.css [ selectStyle ], Event.onInput ChangeContinuity ]
-                        (Model.continuityPairs
-                            |> List.map
-                                (\( cont, contStr ) ->
-                                    Html.option
-                                        [ HtmlAttr.value contStr, HtmlAttr.selected (cont == settings.continuity) ]
-                                        [ Html.text contStr ]
-                                )
-                        )
-                    ]
-                ]
-            , Html.div [ HtmlAttr.css [ Css.marginBottom <| Css.rem 2 ] ]
-                [ Html.div [ HtmlAttr.css [ labelStyle ] ] [ Html.text "Color theme" ]
-                , Html.div []
-                    [ Html.select [ HtmlAttr.css [ selectStyle ], Event.onInput ChangeTheme ]
-                        (Model.themePairs
-                            |> List.map
-                                (\( theme, themeStr ) ->
-                                    Html.option
-                                        [ HtmlAttr.value themeStr, HtmlAttr.selected (theme == settings.theme) ]
-                                        [ Html.text themeStr ]
-                                )
-                        )
-                    ]
-                ]
+            [ Common.header settings.theme "Settings"
+            , inputContainer "Rounds" <| numberInput 1 8 ChangeRounds settings.rounds
+            , inputContainer "Session duration" <| numberInput 1 60 ChangeActivity settings.activity
+            , inputContainer "Break duration" <| numberInput 1 60 ChangeBreak settings.break
+            , inputContainer "Long break duration" <| numberInput 1 60 ChangeLongBreak settings.longBreak
+            , inputContainer "Rounds continuity" <|
+                selectInput
+                    (Trio.first >> (==) settings.continuity)
+                    ChangeContinuity
+                    (Model.continuityPairs |> List.map toTrio)
+            , inputContainer "Color theme" <|
+                selectInput
+                    (Trio.first >> (==) settings.theme)
+                    ChangeTheme
+                    (Model.themePairs |> List.map toTrio)
             , Html.div [ HtmlAttr.css [ Css.marginBottom <| Css.rem 2 ] ]
                 [ Html.div [ HtmlAttr.css [ labelStyle ] ] [ Html.text "Spotify" ]
                 , Html.div []
@@ -184,14 +149,7 @@ render ({ settings } as model) =
                         NotConnected url ->
                             [ Html.a
                                 [ HtmlAttr.href url
-                                , HtmlAttr.css
-                                    [ buttonStyle
-                                    , Css.display Css.block
-                                    , Css.width <| Css.pct 100
-                                    , Css.textAlign Css.center
-                                    , Css.textDecoration Css.none
-                                    , Css.paddingTop <| Css.rem 1
-                                    ]
+                                , HtmlAttr.css [ largeButtonStyle ]
                                 ]
                                 [ Html.text "Connect to Spotify" ]
                             ]

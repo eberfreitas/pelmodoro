@@ -16,8 +16,9 @@ import Platform exposing (Program)
 import Platform.Sub as Sub
 import Task
 import Time exposing (Posix)
-import Types exposing (Continuity(..), Current, Interval(..), Page(..), Spotify(..), Theme)
+import Types exposing (Continuity(..), Current, Interval(..), Page(..), Spotify(..), StatState(..), Theme)
 import View.Settings as Settings
+import View.Stats as Stats
 import View.Timer as Timer
 
 
@@ -104,6 +105,7 @@ renderNav theme page =
         pages =
             [ ( TimerPage, "timer" )
             , ( SettingsPage, "settings" )
+            , ( StatsPage Loading, "leaderboard" )
             ]
 
         buttonStyle =
@@ -168,6 +170,9 @@ renderPage model =
 
             SettingsPage ->
                 Settings.render model
+
+            StatsPage _ ->
+                Stats.render model
 
             _ ->
                 Html.text "other pages"

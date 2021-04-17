@@ -8,6 +8,7 @@ module Types exposing
     , Settings
     , Spotify(..)
     , SpotifyPlaylist
+    , StatState(..)
     , Theme(..)
     )
 
