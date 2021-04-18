@@ -96,11 +96,11 @@ render ({ settings } as model) =
         numberInput min max msg num =
             Html.div
                 [ HtmlAttr.css [ Css.displayFlex ] ]
-                [ Html.button [ HtmlAttr.css [ buttonStyle ], Event.onClick (num - 1 |> atLeast min |> msg) ] [ Helpers.icon "remove" ]
+                [ Html.button [ HtmlAttr.css [ buttonStyle ], Event.onClick (num - 1 |> atLeast min |> msg) ] [ Common.icon "remove" ]
                 , Html.div
                     [ HtmlAttr.css [ settingDisplayStyle ] ]
                     [ Html.text <| String.fromInt settings.rounds ]
-                , Html.button [ HtmlAttr.css [ buttonStyle ], Event.onClick (num + 1 |> atMost max |> msg) ] [ Helpers.icon "add" ]
+                , Html.button [ HtmlAttr.css [ buttonStyle ], Event.onClick (num + 1 |> atMost max |> msg) ] [ Common.icon "add" ]
                 ]
 
         selectInput fn msg pairs =

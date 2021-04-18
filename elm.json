@@ -16,13 +16,13 @@
             "elm/svg": "1.0.1",
             "elm/time": "1.0.0",
             "elm-community/list-extra": "8.3.0",
+            "justinmimbs/date": "3.2.1",
             "rtfeldman/elm-css": "16.1.0"
         },
         "indirect": {
             "elm/parser": "1.1.0",
             "elm/url": "1.0.0",
             "elm/virtual-dom": "1.0.2",
-            "justinmimbs/date": "3.2.1",
             "rtfeldman/elm-hex": "1.0.0"
         }
     },

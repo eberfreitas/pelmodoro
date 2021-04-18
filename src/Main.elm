@@ -3,6 +3,7 @@ port module Main exposing (main)
 import Browser
 import Colors
 import Css
+import Date
 import Helpers
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as HtmlAttr
@@ -15,8 +16,9 @@ import Msg exposing (Msg(..))
 import Platform exposing (Program)
 import Platform.Sub as Sub
 import Task
-import Time exposing (Posix)
+import Time exposing (Posix, Zone)
 import Types exposing (Continuity(..), Current, Interval(..), Page(..), Spotify(..), StatState(..), Theme)
+import View.Common as Common
 import View.Settings as Settings
 import View.Stats as Stats
 import View.Timer as Timer
@@ -29,6 +31,9 @@ port persistCurrent : E.Value -> Cmd msg
 
 
 port persistSettings : E.Value -> Cmd msg
+
+
+port fetchLogs : E.Value -> Cmd msg
 
 
 port spotifyPlay : String -> Cmd msg
@@ -95,17 +100,25 @@ view model =
             ]
         ]
         [ renderPage model
-        , renderNav model.settings.theme model.page
+        , renderNav model.zone model.time model.settings.theme model.page
         ]
 
 
-renderNav : Theme -> Page -> Html Msg
-renderNav theme page =
+renderNav : Zone -> Posix -> Theme -> Page -> Html Msg
+renderNav zone now theme page =
     let
+        today =
+            now |> Date.fromPosix zone
+
+        statsState =
+            { logDate = today
+            , navDate = today
+            }
+
         pages =
             [ ( TimerPage, "timer" )
             , ( SettingsPage, "settings" )
-            , ( StatsPage Loading, "leaderboard" )
+            , ( StatsPage <| Loaded statsState, "leaderboard" )
             ]
 
         buttonStyle =
@@ -118,6 +131,23 @@ renderNav theme page =
                 , Css.outline Css.zero
                 , Css.cursor Css.pointer
                 ]
+
+        isSelected page_ current =
+            case ( page_, current ) of
+                ( TimerPage, TimerPage ) ->
+                    Css.opacity <| Css.num 1
+
+                ( SettingsPage, SettingsPage ) ->
+                    Css.opacity <| Css.num 1
+
+                ( StatsPage _, StatsPage _ ) ->
+                    Css.opacity <| Css.num 1
+
+                ( CreditsPage, CreditsPage ) ->
+                    Css.opacity <| Css.num 1
+
+                _ ->
+                    Css.opacity <| Css.num 0.4
     in
     Html.div
         [ HtmlAttr.css
@@ -147,14 +177,10 @@ renderNav theme page =
                                 [ Event.onClick <| ChangePage page_
                                 , HtmlAttr.css
                                     [ buttonStyle
-                                    , if page_ == page then
-                                        Css.opacity <| Css.num 1
-
-                                      else
-                                        Css.opacity <| Css.num 0.4
+                                    , isSelected page_ page
                                     ]
                                 ]
-                                [ Helpers.icon icon ]
+                                [ Common.icon icon ]
                             ]
                     )
             )
@@ -404,6 +430,15 @@ update msg model =
                     done model
 
         ChangePage page ->
+            -- case page of
+            --     StatsPage _ ->
+            --         let
+            --             today =
+            --                 Date.fromPosix model.zone model.time
+            --         in
+            --         ( { model | page = page }, Cmd.none )
+            --     _ ->
+            --         done { model | page = page }
             done { model | page = page }
 
         ChangePlaylist uri ->
@@ -458,6 +493,18 @@ update msg model =
 
         SpotifyDisconnect ->
             ( model, spotifyDisconnect () )
+
+        ChangeNavDate newDate ->
+            case model.page of
+                StatsPage (Loaded def) ->
+                    let
+                        newDef =
+                            { def | navDate = newDate }
+                    in
+                    done { model | page = StatsPage (Loaded newDef) }
+
+                _ ->
+                    done model
 
 
 subs : Model -> Sub Msg

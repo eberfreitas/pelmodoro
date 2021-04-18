@@ -1,5 +1,6 @@
 module Msg exposing (Msg(..))
 
+import Date exposing (Date)
 import Json.Decode exposing (Value)
 import Time exposing (Posix, Zone)
 import Types exposing (Continuity, Page)
@@ -25,3 +26,4 @@ type Msg
     | GotSpotifyState Value
     | SpotifyRefresh
     | SpotifyDisconnect
+    | ChangeNavDate Date

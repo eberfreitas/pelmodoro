@@ -9,24 +9,31 @@ module Types exposing
     , Spotify(..)
     , SpotifyPlaylist
     , StatState(..)
+    , StatsDef
     , Theme(..)
     )
 
+import Date exposing (Date)
 import Time exposing (Posix)
 
 
-type LogDay
-    = Today
-    | SelectedDay ( Int, Int, Int )
+
+-- type alias LogSummary =
+--     { something : Int, somethingElse : Int }
 
 
-type alias LogSummary =
-    { something : Int, somethingElse : Int }
+type alias StatsDef =
+    { navDate : Date
+    , logDate : Date
+
+    -- , summary : LogSummary
+    -- , log : List Cycle
+    }
 
 
 type StatState
     = Loading
-    | Loaded LogDay LogSummary Log
+    | Loaded StatsDef
     | Error String
 
 
@@ -93,7 +100,3 @@ type Continuity
     = NoCont
     | SimpleCont
     | FullCont
-
-
-type alias Log =
-    List Cycle

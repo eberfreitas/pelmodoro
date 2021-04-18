@@ -1,15 +1,8 @@
-module Helpers exposing (decodePosix, encodeMaybe, encodePosix, flip, icon)
+module Helpers exposing (decodePosix, encodeMaybe, encodePosix, flip)
 
-import Html.Styled as Html exposing (Html)
-import Html.Styled.Attributes as HtmlAttr
 import Json.Decode as D
 import Json.Encode as E
 import Time exposing (Posix)
-
-
-icon : String -> Html msg
-icon desc =
-    Html.span [ HtmlAttr.class "material-icons-round" ] [ Html.text desc ]
 
 
 flip : (b -> a -> c) -> a -> b -> c
