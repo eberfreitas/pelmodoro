@@ -10,6 +10,7 @@ port module Model exposing
     , cycleLog
     , cycleStart
     , decodeCurrent
+    , decodeLog
     , decodeSettings
     , decodeSpotify
     , default
@@ -351,6 +352,13 @@ decodeCycle =
         |> Pipeline.required "start" (D.nullable Helpers.decodePosix)
         |> Pipeline.required "end" (D.nullable Helpers.decodePosix)
         |> Pipeline.required "secs" (D.nullable D.int)
+
+
+decodeLog : D.Decoder { ts : Int, log : List Cycle }
+decodeLog =
+    D.succeed (\ts log -> { ts = ts, log = log })
+        |> Pipeline.required "ts" D.int
+        |> Pipeline.required "log" (D.list decodeCycle)
 
 
 decodeCurrent : D.Decoder Current

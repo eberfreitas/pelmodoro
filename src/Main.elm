@@ -16,8 +16,8 @@ import Msg exposing (Msg(..))
 import Platform exposing (Program)
 import Platform.Sub as Sub
 import Task
-import Time exposing (Posix, Zone)
-import Types exposing (Continuity(..), Current, Interval(..), Page(..), Spotify(..), StatState(..), Theme)
+import Time exposing (Posix)
+import Types exposing (Continuity(..), Current, Interval(..), Page(..), Spotify(..), StatState(..), StatsDef, Theme)
 import View.Common as Common
 import View.Settings as Settings
 import View.Stats as Stats
@@ -33,7 +33,7 @@ port persistCurrent : E.Value -> Cmd msg
 port persistSettings : E.Value -> Cmd msg
 
 
-port fetchLogs : E.Value -> Cmd msg
+port fetchLogs : Int -> Cmd msg
 
 
 port spotifyPlay : String -> Cmd msg
@@ -49,6 +49,9 @@ port spotifyDisconnect : () -> Cmd msg
 
 
 port gotSpotifyState : (D.Value -> msg) -> Sub msg
+
+
+port gotStatsLogs : (D.Value -> msg) -> Sub msg
 
 
 type alias Flags =
@@ -100,25 +103,17 @@ view model =
             ]
         ]
         [ renderPage model
-        , renderNav model.zone model.time model.settings.theme model.page
+        , renderNav model.settings.theme model.page
         ]
 
 
-renderNav : Zone -> Posix -> Theme -> Page -> Html Msg
-renderNav zone now theme page =
+renderNav : Theme -> Page -> Html Msg
+renderNav theme page =
     let
-        today =
-            now |> Date.fromPosix zone
-
-        statsState =
-            { logDate = today
-            , navDate = today
-            }
-
         pages =
             [ ( TimerPage, "timer" )
+            , ( StatsPage Loading, "leaderboard" )
             , ( SettingsPage, "settings" )
-            , ( StatsPage <| Loaded statsState, "leaderboard" )
             ]
 
         buttonStyle =
@@ -286,7 +281,7 @@ update msg model =
                     Model.buildIntervals model_.settings (Just model_.current)
             in
             { model_ | current = newCurrent, intervals = newIntervals, playing = False }
-                |> Helpers.flip Tuple.pair (Model.cycleLog model.time model.current)
+                |> done
                 |> persistSettings_
                 |> persistCurrent_
                 |> pausePlaylist
@@ -430,16 +425,12 @@ update msg model =
                     done model
 
         ChangePage page ->
-            -- case page of
-            --     StatsPage _ ->
-            --         let
-            --             today =
-            --                 Date.fromPosix model.zone model.time
-            --         in
-            --         ( { model | page = page }, Cmd.none )
-            --     _ ->
-            --         done { model | page = page }
-            done { model | page = page }
+            case page of
+                StatsPage _ ->
+                    ( { model | page = page }, fetchLogs <| Time.posixToMillis model.time )
+
+                _ ->
+                    done { model | page = page }
 
         ChangePlaylist uri ->
             model
@@ -506,12 +497,32 @@ update msg model =
                 _ ->
                     done model
 
+        GotStatsLogs raw ->
+            case ( model.page, D.decodeValue Model.decodeLog raw ) of
+                ( StatsPage Loading, Ok { ts, log } ) ->
+                    let
+                        date =
+                            ts |> Time.millisToPosix |> Date.fromPosix model.zone
+                    in
+                    done { model | page = StatsPage (Loaded (StatsDef date date log)) }
+
+                ( StatsPage (Loaded def), Ok { ts, log } ) ->
+                    let
+                        newDef =
+                            { def | logDate = ts |> Time.millisToPosix |> Date.fromPosix model.zone, log = log }
+                    in
+                    done { model | page = StatsPage (Loaded newDef) }
+
+                ( _, _ ) ->
+                    done model
+
 
 subs : Model -> Sub Msg
 subs _ =
     Sub.batch
         [ Time.every 1000 Tick
         , gotSpotifyState GotSpotifyState
+        , gotStatsLogs GotStatsLogs
         ]
 
 

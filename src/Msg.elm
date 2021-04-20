@@ -27,3 +27,4 @@ type Msg
     | SpotifyRefresh
     | SpotifyDisconnect
     | ChangeNavDate Date
+    | GotStatsLogs Value

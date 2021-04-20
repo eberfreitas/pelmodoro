@@ -10,7 +10,7 @@ import Html.Styled.Attributes as HtmlAttr
 import Html.Styled.Events as Event
 import Model exposing (Model)
 import Msg exposing (Msg(..))
-import Types exposing (Page(..), StatState(..), StatsDef, Theme)
+import Types exposing (Cycle, Page(..), StatState(..), StatsDef, Theme)
 import View.Common as Common
 import View.MiniTimer as MiniTimer
 
@@ -22,10 +22,10 @@ render ({ settings } as model) =
         , Html.div
             [ HtmlAttr.css
                 [ Css.margin2 (Css.rem 2) Css.auto
-                , Css.width <| Css.px 280
+                , Css.maxWidth <| Css.px 340
                 ]
             ]
-            [ Common.header settings.theme "Statistics"
+            [ Common.h1 settings.theme "Statistics"
             , case model.page of
                 StatsPage (Loaded def) ->
                     renderLoaded settings.theme def
@@ -40,7 +40,15 @@ renderLoaded : Theme -> StatsDef -> Html Msg
 renderLoaded theme def =
     Html.div []
         [ renderCalendar theme def.navDate def.logDate
+        , renderLogs theme def.log
         ]
+
+
+renderLogs : Theme -> List Cycle -> Html Msg
+renderLogs _ _ =
+    Html.div
+        []
+        []
 
 
 renderCalendar : Theme -> Date -> Date -> Html Msg
@@ -55,28 +63,34 @@ renderCalendar theme navDate logDate =
                 ]
 
         buildDay _ day =
-            Html.div
-                [ HtmlAttr.css [ cellStyle ] ]
-                [ Html.button
-                    [ HtmlAttr.css
+            let
+                style =
+                    Css.batch
                         [ Css.borderStyle Css.none
                         , Css.display Css.block
                         , Css.width <| Css.pct 100
                         , Css.height <| Css.pct 100
-                        , Css.cursor Css.pointer
                         , Css.backgroundColor Css.transparent
                         , Css.fontSize <| Css.rem 0.75
                         , Css.color (theme |> Colors.textColor |> Colors.toCssColor)
                         ]
-                    ]
-                    [ Html.text day.dayDisplay ]
-                ]
+
+                renderFn d =
+                    if d.dayDisplay == "  " then
+                        Html.div [ HtmlAttr.css [ style ] ]
+
+                    else
+                        Html.button [ HtmlAttr.css [ style, Css.cursor Css.pointer ] ]
+            in
+            Html.div
+                [ HtmlAttr.css [ cellStyle ] ]
+                [ renderFn day [ Html.text day.dayDisplay ] ]
 
         calendar =
             navDate
                 |> Calendar.fromDate Nothing
-                |> List.map (\week -> week |> List.map (buildDay logDate))
                 |> List.concat
+                |> List.map (buildDay logDate)
 
         arrowStyle =
             Css.batch
@@ -101,18 +115,17 @@ renderCalendar theme navDate logDate =
         nextMonth =
             navDate |> Date.add Months 1
     in
-    Html.div []
+    Html.div
+        [ HtmlAttr.css
+            [ Css.margin2 (Css.rem 2) Css.auto
+            , Css.maxWidth <| Css.px 280
+            ]
+        ]
         [ Html.div
             [ HtmlAttr.css [ Css.position Css.relative, Css.marginBottom <| Css.rem 1 ] ]
-            [ Html.h2
-                [ HtmlAttr.css
-                    [ Css.fontSize <| Css.rem 1.5
-                    , Css.textAlign <| Css.center
-                    , Css.color (theme |> Colors.textColor |> Colors.toCssColor)
-                    ]
-                ]
-                [ Html.text (navDate |> Date.format "MMM / y")
-                , arrow prevMonth Css.left "chevron_left"
+            [ Common.h2 theme
+                (navDate |> Date.format "MMM / y")
+                [ arrow prevMonth Css.left "chevron_left"
                 , arrow nextMonth Css.right "chevron_right"
                 ]
             ]

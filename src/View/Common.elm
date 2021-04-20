@@ -1,4 +1,4 @@
-module View.Common exposing (header, icon)
+module View.Common exposing (h1, h2, icon)
 
 import Colors
 import Css
@@ -12,8 +12,8 @@ icon desc =
     Html.span [ HtmlAttr.class "material-icons-round" ] [ Html.text desc ]
 
 
-header : Theme -> String -> Html msg
-header theme label =
+h1 : Theme -> String -> Html msg
+h1 theme label =
     Html.h1
         [ HtmlAttr.css
             [ Css.fontSize <| Css.rem 2
@@ -23,3 +23,15 @@ header theme label =
             ]
         ]
         [ Html.text label ]
+
+
+h2 : Theme -> String -> List (Html msg) -> Html msg
+h2 theme label children =
+    Html.h2
+        [ HtmlAttr.css
+            [ Css.fontSize <| Css.rem 1.5
+            , Css.textAlign <| Css.center
+            , Css.color (theme |> Colors.textColor |> Colors.toCssColor)
+            ]
+        ]
+        (Html.text label :: children)

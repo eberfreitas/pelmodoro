@@ -2,7 +2,6 @@ module View.Settings exposing (render)
 
 import Colors
 import Css
-import Helpers
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as HtmlAttr
 import Html.Styled.Events as Event
@@ -87,6 +86,9 @@ render ({ settings } as model) =
             else
                 num
 
+        inMinutes seconds =
+            seconds // 60
+
         inputContainer label input =
             Html.div [ HtmlAttr.css [ Css.marginBottom <| Css.rem 2 ] ]
                 [ Html.div [ HtmlAttr.css [ labelStyle ] ] [ Html.text label ]
@@ -99,7 +101,7 @@ render ({ settings } as model) =
                 [ Html.button [ HtmlAttr.css [ buttonStyle ], Event.onClick (num - 1 |> atLeast min |> msg) ] [ Common.icon "remove" ]
                 , Html.div
                     [ HtmlAttr.css [ settingDisplayStyle ] ]
-                    [ Html.text <| String.fromInt settings.rounds ]
+                    [ Html.text <| String.fromInt num ]
                 , Html.button [ HtmlAttr.css [ buttonStyle ], Event.onClick (num + 1 |> atMost max |> msg) ] [ Common.icon "add" ]
                 ]
 
@@ -127,11 +129,11 @@ render ({ settings } as model) =
                 , Css.width <| Css.px 280
                 ]
             ]
-            [ Common.header settings.theme "Settings"
+            [ Common.h1 settings.theme "Settings"
             , inputContainer "Rounds" <| numberInput 1 8 ChangeRounds settings.rounds
-            , inputContainer "Session duration" <| numberInput 1 60 ChangeActivity settings.activity
-            , inputContainer "Break duration" <| numberInput 1 60 ChangeBreak settings.break
-            , inputContainer "Long break duration" <| numberInput 1 60 ChangeLongBreak settings.longBreak
+            , inputContainer "Session duration" <| numberInput 1 60 ChangeActivity <| inMinutes settings.activity
+            , inputContainer "Break duration" <| numberInput 1 60 ChangeBreak <| inMinutes settings.break
+            , inputContainer "Long break duration" <| numberInput 1 60 ChangeLongBreak <| inMinutes settings.longBreak
             , inputContainer "Rounds continuity" <|
                 selectInput
                     (Trio.first >> (==) settings.continuity)
