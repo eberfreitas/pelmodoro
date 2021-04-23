@@ -3,6 +3,7 @@ module Colors exposing
     , contrastColor
     , foregroundColor
     , intervalColor
+    , longBreakColor
     , setAlpha
     , textColor
     , toCssColor
@@ -131,6 +132,11 @@ textColor =
 contrastColor : Theme -> BaseColor
 contrastColor =
     themeColors >> .contrast
+
+
+longBreakColor : Theme -> BaseColor
+longBreakColor =
+    themeColors >> .longBreak
 
 
 intervalColor : Theme -> Interval -> BaseColor

@@ -8,6 +8,7 @@ import Helpers
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as HtmlAttr
 import Html.Styled.Events as Event
+import Iso8601
 import Json.Decode as D
 import Json.Encode as E
 import List.Extra as ListEx
@@ -46,6 +47,9 @@ port spotifyRefresh : () -> Cmd msg
 
 
 port spotifyDisconnect : () -> Cmd msg
+
+
+port deleteCycle : Int -> Cmd msg
 
 
 port gotSpotifyState : (D.Value -> msg) -> Sub msg
@@ -497,24 +501,42 @@ update msg model =
                 _ ->
                     done model
 
+        ChangeLogDate newDate ->
+            case newDate |> Date.add Date.Days 1 |> Date.toIsoString |> Iso8601.toTime of
+                Ok posix ->
+                    ( model, fetchLogs <| Time.posixToMillis posix )
+
+                _ ->
+                    done model
+
         GotStatsLogs raw ->
             case ( model.page, D.decodeValue Model.decodeLog raw ) of
-                ( StatsPage Loading, Ok { ts, log } ) ->
+                ( StatsPage Loading, Ok { ts, daily, monthly } ) ->
                     let
                         date =
                             ts |> Time.millisToPosix |> Date.fromPosix model.zone
                     in
-                    done { model | page = StatsPage (Loaded (StatsDef date date log)) }
+                    done { model | page = StatsPage (Loaded (StatsDef date date daily monthly)) }
 
-                ( StatsPage (Loaded def), Ok { ts, log } ) ->
+                ( StatsPage (Loaded def), Ok { ts, daily, monthly } ) ->
                     let
                         newDef =
-                            { def | logDate = ts |> Time.millisToPosix |> Date.fromPosix model.zone, log = log }
+                            { def
+                                | logDate =
+                                    ts
+                                        |> Time.millisToPosix
+                                        |> Date.fromPosix model.zone
+                                , daily = daily
+                                , monthly = monthly
+                            }
                     in
                     done { model | page = StatsPage (Loaded newDef) }
 
                 ( _, _ ) ->
                     done model
+
+        DeleteCycle start ->
+            ( model, deleteCycle start )
 
 
 subs : Model -> Sub Msg

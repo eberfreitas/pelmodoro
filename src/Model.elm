@@ -17,6 +17,7 @@ port module Model exposing
     , encodeCurrent
     , encodeSettings
     , firstInterval
+    , intervalIsActivity
     , intervalSeconds
     , intervalsTotalRun
     , mapSettings
@@ -162,6 +163,16 @@ intervalSeconds interval =
 intervalsTotalRun : List Interval -> Seconds
 intervalsTotalRun intervals =
     intervals |> List.foldl (\i t -> i |> intervalSeconds |> (+) t) 0
+
+
+intervalIsActivity : Interval -> Bool
+intervalIsActivity interval =
+    case interval of
+        Activity _ ->
+            True
+
+        _ ->
+            False
 
 
 currentSecondsLeft : Current -> Float
@@ -354,11 +365,12 @@ decodeCycle =
         |> Pipeline.required "secs" (D.nullable D.int)
 
 
-decodeLog : D.Decoder { ts : Int, log : List Cycle }
+decodeLog : D.Decoder { ts : Int, daily : List Cycle, monthly : List Cycle }
 decodeLog =
-    D.succeed (\ts log -> { ts = ts, log = log })
+    D.succeed (\ts d m -> { ts = ts, daily = d, monthly = m })
         |> Pipeline.required "ts" D.int
-        |> Pipeline.required "log" (D.list decodeCycle)
+        |> Pipeline.required "daily" (D.list decodeCycle)
+        |> Pipeline.required "monthly" (D.list decodeCycle)
 
 
 decodeCurrent : D.Decoder Current

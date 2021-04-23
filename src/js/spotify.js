@@ -12,8 +12,8 @@ let player;
 window.spotify = {
   connected: false,
   canPlay: false,
-  deviceId: null,
   playing: false,
+  deviceId: null,
 };
 
 const connectData = () => {
@@ -223,7 +223,7 @@ const apiReqParams = token => {
   }
 };
 
-const pause = (token) => {
+const pause = token => {
   if (window.spotify.playing == true) {
     checkStateReq(token)
       .then(promiseByStatus)
@@ -300,8 +300,8 @@ const disconnect = app => {
 
   window.spotify.connected = false;
   window.spotify.canPlay = false;
-  window.spotify.deviceId = null;
   window.spotify.playing = false;
+  window.spotify.deviceId = null;
 
   player.disconnect();
   notConnected(app);
@@ -312,7 +312,7 @@ const init = (app, token) => {
   setupPlaylists(app, token);
   checkState(token);
 
-  app.ports.spotifyPlay.subscribe((uri) => play(token, uri));
+  app.ports.spotifyPlay.subscribe(uri => play(token, uri));
   app.ports.spotifyPause.subscribe(() => pause(token));
   app.ports.spotifyDisconnect.subscribe(() => disconnect(app));
   app.ports.spotifyRefresh.subscribe(() => setupPlaylists(app, token));

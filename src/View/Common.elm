@@ -2,7 +2,7 @@ module View.Common exposing (h1, h2, icon)
 
 import Colors
 import Css
-import Html.Styled as Html exposing (Html)
+import Html.Styled as Html exposing (Attribute, Html)
 import Html.Styled.Attributes as HtmlAttr
 import Types exposing (Theme)
 
@@ -25,13 +25,15 @@ h1 theme label =
         [ Html.text label ]
 
 
-h2 : Theme -> String -> List (Html msg) -> Html msg
-h2 theme label children =
+h2 : Theme -> String -> List (Attribute msg) -> List (Html msg) -> Html msg
+h2 theme label props children =
     Html.h2
-        [ HtmlAttr.css
+        ([ HtmlAttr.css
             [ Css.fontSize <| Css.rem 1.5
             , Css.textAlign <| Css.center
             , Css.color (theme |> Colors.textColor |> Colors.toCssColor)
             ]
-        ]
+         ]
+            ++ props
+        )
         (Html.text label :: children)
