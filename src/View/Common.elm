@@ -28,12 +28,11 @@ h1 theme label =
 h2 : Theme -> String -> List (Attribute msg) -> List (Html msg) -> Html msg
 h2 theme label props children =
     Html.h2
-        ([ HtmlAttr.css
+        (HtmlAttr.css
             [ Css.fontSize <| Css.rem 1.5
             , Css.textAlign <| Css.center
             , Css.color (theme |> Colors.textColor |> Colors.toCssColor)
             ]
-         ]
-            ++ props
+            :: props
         )
         (Html.text label :: children)

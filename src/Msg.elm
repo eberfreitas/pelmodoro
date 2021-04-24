@@ -30,3 +30,4 @@ type Msg
     | GotStatsLogs Value
     | DeleteCycle Int
     | ChangeLogDate Date
+    | GotNavLogs Value

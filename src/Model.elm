@@ -11,6 +11,7 @@ port module Model exposing
     , cycleStart
     , decodeCurrent
     , decodeLog
+    , decodeNavLog
     , decodeSettings
     , decodeSpotify
     , default
@@ -371,6 +372,13 @@ decodeLog =
         |> Pipeline.required "ts" D.int
         |> Pipeline.required "daily" (D.list decodeCycle)
         |> Pipeline.required "monthly" (D.list decodeCycle)
+
+
+decodeNavLog : D.Decoder { ts : Int, log : List Cycle }
+decodeNavLog =
+    D.succeed (\ts l -> { ts = ts, log = l })
+        |> Pipeline.required "ts" D.int
+        |> Pipeline.required "log" (D.list decodeCycle)
 
 
 decodeCurrent : D.Decoder Current

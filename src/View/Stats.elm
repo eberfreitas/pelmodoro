@@ -70,7 +70,7 @@ renderDailyLogs zone theme selected log =
                     interval |> Colors.intervalColor theme
 
                 dimmed =
-                    intervalColor |> Colors.setAlpha 0.8 |> Colors.toRgbaString
+                    intervalColor |> Colors.setAlpha 0.5 |> Colors.toRgbaString
 
                 full =
                     intervalColor |> Colors.toRgbaString
@@ -129,7 +129,7 @@ renderDailyLogs zone theme selected log =
                 [] ->
                     Html.div
                         [ HtmlAttr.css [ Css.textAlign Css.center ] ]
-                        [ Html.text "Nothing logged today. Go get some work done!" ]
+                        [ Html.text "No logs" ]
 
                 log_ ->
                     log_
@@ -151,37 +151,28 @@ renderDailyLogs zone theme selected log =
 monthlyAverages : Zone -> List Cycle -> List ( Date, Float )
 monthlyAverages zone log =
     let
+        aggregate cycle agg start =
+            let
+                date =
+                    start |> Date.fromPosix zone
+            in
+            case ( agg |> ListEx.findIndex (Tuple.first >> (==) date), cycle.seconds ) of
+                ( Just idx, Just secs ) ->
+                    agg |> ListEx.updateAt idx (\( d, s ) -> ( d, s + secs ))
+
+                ( Nothing, Just secs ) ->
+                    ( date, secs ) :: agg
+
+                _ ->
+                    agg
+
         firstPass =
             log
                 |> List.filter (.interval >> Model.intervalIsActivity)
-                |> List.foldl
-                    (\cycle agg ->
-                        cycle.start
-                            |> Maybe.map
-                                (\start ->
-                                    let
-                                        date =
-                                            start |> Date.fromPosix zone
-                                    in
-                                    case ( agg |> ListEx.findIndex (Tuple.first >> (==) date), cycle.seconds ) of
-                                        ( Just idx, Just secs ) ->
-                                            agg |> ListEx.updateAt idx (\( d, s ) -> ( d, s + secs ))
-
-                                        ( Nothing, Just secs ) ->
-                                            ( date, secs ) :: agg
-
-                                        _ ->
-                                            agg
-                                )
-                            |> Maybe.withDefault []
-                    )
-                    []
+                |> List.foldl (\cycle agg -> cycle.start |> Maybe.map (aggregate cycle agg) |> Maybe.withDefault []) []
 
         max =
-            firstPass
-                |> ListEx.maximumBy Tuple.second
-                |> Maybe.map Tuple.second
-                |> Maybe.withDefault 0
+            firstPass |> ListEx.maximumBy Tuple.second |> Maybe.map Tuple.second |> Maybe.withDefault 0
     in
     firstPass |> List.map (\( date, seconds ) -> ( date, (toFloat seconds * 100) / toFloat max ))
 

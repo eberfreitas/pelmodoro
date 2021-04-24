@@ -27,6 +27,8 @@ const fetch = (app, millis) => {
   });
 };
 
+const fetchNav = (app, millis) => monthlyLogs(millis).then(log => app.ports.gotNavLogs.send({ ts: millis, log: log}));
+
 const del = (app, start) => {
   db.cycles.where("start").equals(start).delete().then(count => {
     if (count > 0) {
@@ -41,4 +43,5 @@ export default function (app) {
   app.ports.logCycle.subscribe(insert);
   app.ports.fetchLogs.subscribe(millis => fetch(app, millis));
   app.ports.deleteCycle.subscribe(start => del(app, start));
+  app.ports.fetchNavLog.subscribe(millis => fetchNav(app, millis));
 }

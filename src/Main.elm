@@ -37,6 +37,9 @@ port persistSettings : E.Value -> Cmd msg
 port fetchLogs : Int -> Cmd msg
 
 
+port fetchNavLog : Int -> Cmd msg
+
+
 port spotifyPlay : String -> Cmd msg
 
 
@@ -56,6 +59,9 @@ port gotSpotifyState : (D.Value -> msg) -> Sub msg
 
 
 port gotStatsLogs : (D.Value -> msg) -> Sub msg
+
+
+port gotNavLogs : (D.Value -> msg) -> Sub msg
 
 
 type alias Flags =
@@ -490,13 +496,9 @@ update msg model =
             ( model, spotifyDisconnect () )
 
         ChangeNavDate newDate ->
-            case model.page of
-                StatsPage (Loaded def) ->
-                    let
-                        newDef =
-                            { def | navDate = newDate }
-                    in
-                    done { model | page = StatsPage (Loaded newDef) }
+            case newDate |> Date.add Date.Days 1 |> Date.toIsoString |> Iso8601.toTime of
+                Ok posix ->
+                    ( model, fetchNavLog <| Time.posixToMillis posix )
 
                 _ ->
                     done model
@@ -532,7 +534,19 @@ update msg model =
                     in
                     done { model | page = StatsPage (Loaded newDef) }
 
-                ( _, _ ) ->
+                _ ->
+                    done model
+
+        GotNavLogs raw ->
+            case ( model.page, D.decodeValue Model.decodeNavLog raw ) of
+                ( StatsPage (Loaded def), Ok { ts, log } ) ->
+                    let
+                        newDef =
+                            { def | navDate = ts |> Time.millisToPosix |> Date.fromPosix model.zone, monthly = log }
+                    in
+                    done { model | page = StatsPage (Loaded newDef) }
+
+                _ ->
                     done model
 
         DeleteCycle start ->
@@ -545,6 +559,7 @@ subs _ =
         [ Time.every 1000 Tick
         , gotSpotifyState GotSpotifyState
         , gotStatsLogs GotStatsLogs
+        , gotNavLogs GotNavLogs
         ]
 
 
