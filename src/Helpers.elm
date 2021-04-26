@@ -1,4 +1,4 @@
-module Helpers exposing (decodePosix, encodeMaybe, encodePosix, flip)
+module Helpers exposing (decodePosix, encodeMaybe, encodePosix, flip, maybeTrio)
 
 import Json.Decode as D
 import Json.Encode as E
@@ -28,3 +28,13 @@ encodePosix =
 decodePosix : D.Decoder Posix
 decodePosix =
     D.map Time.millisToPosix D.int
+
+
+maybeTrio : ( Maybe a, Maybe b, Maybe c ) -> Maybe ( a, b, c )
+maybeTrio ( a, b, c ) =
+    case ( a, b, c ) of
+        ( Just a_, Just b_, Just c_ ) ->
+            Just ( a_, b_, c_ )
+
+        _ ->
+            Nothing

@@ -8,6 +8,7 @@ port module Model exposing
     , currentSecondsLeft
     , cycleBuild
     , cycleLog
+    , cycleMaterialized
     , cycleStart
     , decodeCurrent
     , decodeLog
@@ -146,6 +147,20 @@ cycleLog now { cycle, elapsed } =
 cycleStart : Posix -> Cycle -> Cycle
 cycleStart now cycle =
     { cycle | start = Just now }
+
+
+cycleMaterialized : Cycle -> Maybe { interval : Interval, start : Posix, end : Posix, seconds : Seconds }
+cycleMaterialized { interval, start, end, seconds } =
+    ( start, end, seconds )
+        |> Helpers.maybeTrio
+        |> Maybe.map
+            (\( start_, end_, secs_ ) ->
+                { interval = interval
+                , start = start_
+                , end = end_
+                , seconds = secs_
+                }
+            )
 
 
 intervalSeconds : Interval -> Seconds

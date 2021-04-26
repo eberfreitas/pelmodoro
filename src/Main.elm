@@ -52,9 +52,6 @@ port spotifyRefresh : () -> Cmd msg
 port spotifyDisconnect : () -> Cmd msg
 
 
-port deleteCycle : Int -> Cmd msg
-
-
 port gotSpotifyState : (D.Value -> msg) -> Sub msg
 
 
@@ -548,9 +545,6 @@ update msg model =
 
                 _ ->
                     done model
-
-        DeleteCycle start ->
-            ( model, deleteCycle start )
 
 
 subs : Model -> Sub Msg

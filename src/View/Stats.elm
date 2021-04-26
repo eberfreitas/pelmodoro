@@ -4,7 +4,6 @@ import Calendar
 import Colors
 import Css
 import Date exposing (Date, Unit(..))
-import Dict exposing (Dict)
 import Helpers
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as HtmlAttr
@@ -14,6 +13,7 @@ import List.Extra as ListEx
 import Model exposing (Model)
 import Msg exposing (Msg(..))
 import Time exposing (Zone)
+import Tuple.Trio as Trio
 import Types exposing (Cycle, Page(..), StatState(..), StatsDef, Theme)
 import View.Common as Common
 import View.MiniTimer as MiniTimer
@@ -44,7 +44,93 @@ renderLoaded : Zone -> Theme -> StatsDef -> Html Msg
 renderLoaded zone theme def =
     Html.div []
         [ renderCalendar zone theme def.monthly def.navDate def.logDate
+        , renderHourlyAverages zone theme def.monthly
         , renderDailyLogs zone theme def.logDate def.daily
+        ]
+
+
+renderHourlyAverages : Zone -> Theme -> List Cycle -> Html msg
+renderHourlyAverages zone theme log =
+    let
+        averages =
+            hourlyAverages zone log
+
+        hours =
+            List.range 0 23
+
+        inMinutes x =
+            x // 60
+    in
+    Html.div [ HtmlAttr.css [ Css.marginBottom <| Css.rem 2 ] ]
+        [ Common.h2 theme "Most productive hours" [ HtmlAttr.css [ Css.marginBottom <| Css.rem 2 ] ] []
+        , hours
+            |> List.map
+                (\h ->
+                    averages
+                        |> ListEx.find (Trio.first >> (==) h)
+                        |> Maybe.map
+                            (\( _, secs, pct ) ->
+                                Html.div
+                                    [ HtmlAttr.css
+                                        [ Css.width <| Css.pct 4.16666
+                                        , Css.height <| Css.pct pct
+                                        , Css.backgroundColor (theme |> Colors.longBreakColor |> Colors.toCssColor)
+                                        , Css.margin2 Css.zero (Css.rem 0.25)
+                                        ]
+                                    , HtmlAttr.title (inMinutes secs |> String.fromInt)
+                                    ]
+                                    []
+                            )
+                        |> Maybe.withDefault
+                            (Html.div
+                                [ HtmlAttr.css
+                                    [ Css.width <| Css.pct 4.16666
+                                    , Css.margin2 Css.zero (Css.rem 0.25)
+                                    ]
+                                ]
+                                [ Html.text "" ]
+                            )
+                )
+            |> Html.div
+                [ HtmlAttr.css
+                    [ Css.displayFlex
+                    , Css.alignItems Css.flexEnd
+                    , Css.height <| Css.rem 5
+                    , Css.width <| Css.pct 100
+                    ]
+                ]
+        , Html.div
+            [ HtmlAttr.css
+                [ Css.borderTop <| Css.px 1
+                , Css.borderStyle Css.solid
+                , Css.borderRight Css.zero
+                , Css.borderBottom Css.zero
+                , Css.borderLeft Css.zero
+                , Css.paddingTop <| Css.rem 0.35
+                , Css.fontSize <| Css.rem 0.5
+                , Css.color (theme |> Colors.textColor |> Colors.toCssColor)
+                ]
+            ]
+            (hours
+                |> List.map
+                    (\h ->
+                        Html.div
+                            [ HtmlAttr.css
+                                [ Css.width <| Css.pct 4.16666
+                                , Css.margin2 Css.zero (Css.rem 0.25)
+                                , Css.textAlign Css.center
+                                ]
+                            ]
+                            [ Html.text (h |> String.fromInt |> String.padLeft 2 '0') ]
+                    )
+                |> Html.div
+                    [ HtmlAttr.css
+                        [ Css.displayFlex
+                        , Css.width <| Css.pct 100
+                        ]
+                    ]
+                |> List.singleton
+            )
         ]
 
 
@@ -99,25 +185,7 @@ renderDailyLogs zone theme selected log =
                         )
                     ]
                 ]
-                [ Html.div []
-                    [ Html.text (formatToHour start ++ " ➞ " ++ formatToHour end) ]
-                , Html.button
-                    [ HtmlAttr.css
-                        [ Css.position Css.absolute
-                        , Css.top Css.zero
-                        , Css.right Css.zero
-                        , Css.width <| Css.rem 2
-                        , Css.height <| Css.rem 2
-                        , Css.borderStyle Css.none
-                        , Css.backgroundColor Css.transparent
-                        , Css.cursor Css.pointer
-                        , Css.padding <| Css.rem 0.25
-                        , Css.color (theme |> Colors.contrastColor |> Colors.toCssColor)
-                        ]
-                    , Event.onClick (DeleteCycle <| Time.posixToMillis start)
-                    ]
-                    [ Common.icon "clear" ]
-                ]
+                [ Html.div [] [ Html.text (formatToHour start ++ " ➞ " ++ formatToHour end) ] ]
     in
     Html.div [ HtmlAttr.css [ Css.color (theme |> Colors.textColor |> Colors.toCssColor) ] ]
         [ Common.h2 theme
@@ -148,28 +216,66 @@ renderDailyLogs zone theme selected log =
         ]
 
 
-monthlyAverages : Zone -> List Cycle -> List ( Date, Float )
-monthlyAverages zone log =
+hourlyAverages : Zone -> List Cycle -> List ( Int, Int, Float )
+hourlyAverages zone log =
     let
-        aggregate cycle agg start =
+        aggregate agg { start, seconds } =
             let
-                date =
-                    start |> Date.fromPosix zone
+                hour =
+                    start |> Time.toHour zone
             in
-            case ( agg |> ListEx.findIndex (Tuple.first >> (==) date), cycle.seconds ) of
-                ( Just idx, Just secs ) ->
-                    agg |> ListEx.updateAt idx (\( d, s ) -> ( d, s + secs ))
+            case agg |> ListEx.findIndex (Trio.first >> (==) hour) of
+                Just idx ->
+                    agg |> ListEx.updateAt idx (\( h, count, secs ) -> ( h, count + 1, secs + seconds ))
 
-                ( Nothing, Just secs ) ->
-                    ( date, secs ) :: agg
-
-                _ ->
-                    agg
+                Nothing ->
+                    ( hour, 1, seconds ) :: agg
 
         firstPass =
             log
                 |> List.filter (.interval >> Model.intervalIsActivity)
-                |> List.foldl (\cycle agg -> cycle.start |> Maybe.map (aggregate cycle agg) |> Maybe.withDefault []) []
+                |> List.foldl
+                    (\cycle agg ->
+                        cycle
+                            |> Model.cycleMaterialized
+                            |> Maybe.map (aggregate agg)
+                            |> Maybe.withDefault agg
+                    )
+                    []
+                |> List.map (\( h, count, secs ) -> ( h, secs // count ))
+
+        max =
+            firstPass |> ListEx.maximumBy Tuple.second |> Maybe.map Tuple.second |> Maybe.withDefault 0
+    in
+    firstPass |> List.map (\( h, secs ) -> ( h, secs, toFloat secs * 100 / toFloat max ))
+
+
+monthlyAverages : Zone -> List Cycle -> List ( Date, Float )
+monthlyAverages zone log =
+    let
+        aggregate agg { start, seconds } =
+            let
+                date =
+                    start |> Date.fromPosix zone
+            in
+            case agg |> ListEx.findIndex (Tuple.first >> (==) date) of
+                Just idx ->
+                    agg |> ListEx.updateAt idx (\( d, s ) -> ( d, s + seconds ))
+
+                Nothing ->
+                    ( date, seconds ) :: agg
+
+        firstPass =
+            log
+                |> List.filter (.interval >> Model.intervalIsActivity)
+                |> List.foldl
+                    (\cycle agg ->
+                        cycle
+                            |> Model.cycleMaterialized
+                            |> Maybe.map (aggregate agg)
+                            |> Maybe.withDefault agg
+                    )
+                    []
 
         max =
             firstPass |> ListEx.maximumBy Tuple.second |> Maybe.map Tuple.second |> Maybe.withDefault 0

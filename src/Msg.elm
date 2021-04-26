@@ -28,6 +28,5 @@ type Msg
     | SpotifyDisconnect
     | ChangeNavDate Date
     | GotStatsLogs Value
-    | DeleteCycle Int
     | ChangeLogDate Date
     | GotNavLogs Value
