@@ -52,6 +52,9 @@ port spotifyRefresh : () -> Cmd msg
 port spotifyDisconnect : () -> Cmd msg
 
 
+port tick : (Int -> msg) -> Sub msg
+
+
 port gotSpotifyState : (D.Value -> msg) -> Sub msg
 
 
@@ -297,8 +300,11 @@ update msg model =
         NoOp ->
             done model
 
-        Tick posix ->
+        Tick millis ->
             let
+                posix =
+                    Time.millisToPosix millis
+
                 updateTime model_ =
                     { model_ | time = posix, uptime = model_.uptime + 1 }
             in
@@ -550,7 +556,7 @@ update msg model =
 subs : Model -> Sub Msg
 subs _ =
     Sub.batch
-        [ Time.every 1000 Tick
+        [ tick Tick
         , gotSpotifyState GotSpotifyState
         , gotStatsLogs GotStatsLogs
         , gotNavLogs GotNavLogs

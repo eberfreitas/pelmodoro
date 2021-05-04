@@ -24,3 +24,7 @@ viewportFix();
 notify(app);
 spotify(app);
 logs(app);
+
+const tickWorker = new Worker('./src/js/tick.js');
+
+tickWorker.onmessage = ({ data }) => app.ports.tick.send(data);
