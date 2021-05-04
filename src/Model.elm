@@ -1,13 +1,5 @@
-module Model exposing
-    ( Continuity(..)
-    , Current
-    , Interval(..)
-    , Model
-    , Page(..)
-    , Seconds
-    , Settings
-    , Spotify(..)
-    , Theme(..)
+port module Model exposing
+    ( Model
     , buildIntervals
     , continuityFromString
     , continuityPairs
@@ -16,14 +8,18 @@ module Model exposing
     , currentSecondsLeft
     , cycleBuild
     , cycleLog
+    , cycleMaterialized
     , cycleStart
     , decodeCurrent
+    , decodeLog
+    , decodeNavLog
     , decodeSettings
     , decodeSpotify
     , default
     , encodeCurrent
     , encodeSettings
     , firstInterval
+    , intervalIsActivity
     , intervalSeconds
     , intervalsTotalRun
     , mapSettings
@@ -36,76 +32,24 @@ import Json.Decode as D
 import Json.Decode.Pipeline as Pipeline
 import Json.Encode as E
 import List.Extra as ListEx
+import Msg exposing (Msg)
 import Time exposing (Posix, Zone)
+import Types
+    exposing
+        ( Continuity(..)
+        , Current
+        , Cycle
+        , Interval(..)
+        , Page(..)
+        , Seconds
+        , Settings
+        , Spotify(..)
+        , SpotifyPlaylist
+        , Theme(..)
+        )
 
 
-type Page
-    = TimerPage
-    | SettingsPage
-    | StatsPage
-    | CreditsPage
-
-
-type alias Seconds =
-    Int
-
-
-type Theme
-    = LightTheme
-    | DarkTheme
-
-
-type alias SpotifyPlaylist =
-    ( String, String )
-
-
-type Spotify
-    = NotConnected String
-    | ConnectionError String
-    | Connected (List SpotifyPlaylist) (Maybe String)
-    | Uninitialized
-
-
-type alias Settings =
-    { rounds : Int
-    , activity : Seconds
-    , break : Seconds
-    , longBreak : Seconds
-    , theme : Theme
-    , continuity : Continuity
-    , spotify : Spotify
-    }
-
-
-type Interval
-    = Activity Int
-    | Break Int
-    | LongBreak Int
-
-
-type alias Cycle =
-    { interval : Interval
-    , start : Maybe Posix
-    , end : Maybe Posix
-    , seconds : Maybe Seconds
-    }
-
-
-type alias Current =
-    { index : Int
-    , cycle : Cycle
-    , elapsed : Seconds
-    }
-
-
-type Continuity
-    = NoCont
-    | SimpleCont
-    | FullCont
-
-
-type alias Log =
-    List Cycle
+port logCycle : E.Value -> Cmd msg
 
 
 type alias Model =
@@ -117,7 +61,6 @@ type alias Model =
     , current : Current
     , playing : Bool
     , intervals : List Interval
-    , log : Log
     }
 
 
@@ -187,24 +130,37 @@ default =
     , current = current
     , playing = False
     , intervals = intervals
-    , log = []
     }
 
 
-cycleLog : Posix -> Current -> Log -> Log
-cycleLog now { cycle, elapsed } log =
+cycleLog : Posix -> Current -> Cmd Msg
+cycleLog now { cycle, elapsed } =
     if elapsed /= 0 then
         { cycle | end = Just now, seconds = Just elapsed }
-            |> List.singleton
-            |> (++) log
+            |> encodeCycle
+            |> logCycle
 
     else
-        log
+        Cmd.none
 
 
 cycleStart : Posix -> Cycle -> Cycle
 cycleStart now cycle =
     { cycle | start = Just now }
+
+
+cycleMaterialized : Cycle -> Maybe { interval : Interval, start : Posix, end : Posix, seconds : Seconds }
+cycleMaterialized { interval, start, end, seconds } =
+    ( start, end, seconds )
+        |> Helpers.maybeTrio
+        |> Maybe.map
+            (\( start_, end_, secs_ ) ->
+                { interval = interval
+                , start = start_
+                , end = end_
+                , seconds = secs_
+                }
+            )
 
 
 intervalSeconds : Interval -> Seconds
@@ -223,6 +179,16 @@ intervalSeconds interval =
 intervalsTotalRun : List Interval -> Seconds
 intervalsTotalRun intervals =
     intervals |> List.foldl (\i t -> i |> intervalSeconds |> (+) t) 0
+
+
+intervalIsActivity : Interval -> Bool
+intervalIsActivity interval =
+    case interval of
+        Activity _ ->
+            True
+
+        _ ->
+            False
 
 
 currentSecondsLeft : Current -> Float
@@ -413,6 +379,21 @@ decodeCycle =
         |> Pipeline.required "start" (D.nullable Helpers.decodePosix)
         |> Pipeline.required "end" (D.nullable Helpers.decodePosix)
         |> Pipeline.required "secs" (D.nullable D.int)
+
+
+decodeLog : D.Decoder { ts : Int, daily : List Cycle, monthly : List Cycle }
+decodeLog =
+    D.succeed (\ts d m -> { ts = ts, daily = d, monthly = m })
+        |> Pipeline.required "ts" D.int
+        |> Pipeline.required "daily" (D.list decodeCycle)
+        |> Pipeline.required "monthly" (D.list decodeCycle)
+
+
+decodeNavLog : D.Decoder { ts : Int, log : List Cycle }
+decodeNavLog =
+    D.succeed (\ts l -> { ts = ts, log = l })
+        |> Pipeline.required "ts" D.int
+        |> Pipeline.required "log" (D.list decodeCycle)
 
 
 decodeCurrent : D.Decoder Current

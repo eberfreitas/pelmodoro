@@ -6,10 +6,12 @@ import Helpers
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as HtmlAttr
 import Html.Styled.Events as Event
-import Model exposing (Current, Interval, Model, Seconds, Theme)
+import Model exposing (Model)
 import Msg exposing (Msg(..))
 import Svg.Styled as Svg exposing (Svg)
 import Svg.Styled.Attributes as SvgAttr
+import Types exposing (Current, Interval, Seconds, Theme)
+import View.Common as Common
 
 
 secondsToDisplay : Seconds -> String
@@ -152,7 +154,7 @@ renderControls theme playing =
         button icon msg =
             Html.button
                 [ Event.onClick msg, HtmlAttr.css [ buttonStyle ] ]
-                [ Helpers.icon icon ]
+                [ Common.icon icon ]
     in
     Html.ul
         [ HtmlAttr.css [ Css.listStyle Css.none, Css.displayFlex, Css.marginTop <| Css.rem 1.0 ] ]

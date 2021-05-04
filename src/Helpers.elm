@@ -1,15 +1,8 @@
-module Helpers exposing (decodePosix, encodeMaybe, encodePosix, flip, icon)
+module Helpers exposing (decodePosix, encodeMaybe, encodePosix, flip, maybeTrio)
 
-import Html.Styled as Html exposing (Html)
-import Html.Styled.Attributes as HtmlAttr
 import Json.Decode as D
 import Json.Encode as E
 import Time exposing (Posix)
-
-
-icon : String -> Html msg
-icon desc =
-    Html.span [ HtmlAttr.class "material-icons-round" ] [ Html.text desc ]
 
 
 flip : (b -> a -> c) -> a -> b -> c
@@ -29,9 +22,19 @@ encodeMaybe fn value =
 
 encodePosix : Posix -> E.Value
 encodePosix =
-    Time.posixToMillis >> toFloat >> (\x -> x / 1000) >> E.float
+    Time.posixToMillis >> E.int
 
 
 decodePosix : D.Decoder Posix
 decodePosix =
-    D.map (truncate >> (*) 1000 >> Time.millisToPosix) D.float
+    D.map Time.millisToPosix D.int
+
+
+maybeTrio : ( Maybe a, Maybe b, Maybe c ) -> Maybe ( a, b, c )
+maybeTrio ( a, b, c ) =
+    case ( a, b, c ) of
+        ( Just a_, Just b_, Just c_ ) ->
+            Just ( a_, b_, c_ )
+
+        _ ->
+            Nothing

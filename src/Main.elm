@@ -3,20 +3,25 @@ port module Main exposing (main)
 import Browser
 import Colors
 import Css
+import Date
 import Helpers
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as HtmlAttr
 import Html.Styled.Events as Event
+import Iso8601
 import Json.Decode as D
 import Json.Encode as E
 import List.Extra as ListEx
-import Model exposing (Continuity(..), Current, Interval(..), Model, Page(..), Spotify(..), Theme)
+import Model exposing (Model)
 import Msg exposing (Msg(..))
 import Platform exposing (Program)
 import Platform.Sub as Sub
 import Task
 import Time exposing (Posix)
+import Types exposing (Continuity(..), Current, Interval(..), Page(..), Spotify(..), StatState(..), StatsDef, Theme)
+import View.Common as Common
 import View.Settings as Settings
+import View.Stats as Stats
 import View.Timer as Timer
 
 
@@ -27,6 +32,12 @@ port persistCurrent : E.Value -> Cmd msg
 
 
 port persistSettings : E.Value -> Cmd msg
+
+
+port fetchLogs : Int -> Cmd msg
+
+
+port fetchNavLog : Int -> Cmd msg
 
 
 port spotifyPlay : String -> Cmd msg
@@ -41,7 +52,16 @@ port spotifyRefresh : () -> Cmd msg
 port spotifyDisconnect : () -> Cmd msg
 
 
+port tick : (Int -> msg) -> Sub msg
+
+
 port gotSpotifyState : (D.Value -> msg) -> Sub msg
+
+
+port gotStatsLogs : (D.Value -> msg) -> Sub msg
+
+
+port gotNavLogs : (D.Value -> msg) -> Sub msg
 
 
 type alias Flags =
@@ -102,6 +122,7 @@ renderNav theme page =
     let
         pages =
             [ ( TimerPage, "timer" )
+            , ( StatsPage Loading, "leaderboard" )
             , ( SettingsPage, "settings" )
             ]
 
@@ -115,6 +136,23 @@ renderNav theme page =
                 , Css.outline Css.zero
                 , Css.cursor Css.pointer
                 ]
+
+        isSelected page_ current =
+            case ( page_, current ) of
+                ( TimerPage, TimerPage ) ->
+                    Css.opacity <| Css.num 1
+
+                ( SettingsPage, SettingsPage ) ->
+                    Css.opacity <| Css.num 1
+
+                ( StatsPage _, StatsPage _ ) ->
+                    Css.opacity <| Css.num 1
+
+                ( CreditsPage, CreditsPage ) ->
+                    Css.opacity <| Css.num 1
+
+                _ ->
+                    Css.opacity <| Css.num 0.4
     in
     Html.div
         [ HtmlAttr.css
@@ -144,14 +182,10 @@ renderNav theme page =
                                 [ Event.onClick <| ChangePage page_
                                 , HtmlAttr.css
                                     [ buttonStyle
-                                    , if page_ == page then
-                                        Css.opacity <| Css.num 1
-
-                                      else
-                                        Css.opacity <| Css.num 0.4
+                                    , isSelected page_ page
                                     ]
                                 ]
-                                [ Helpers.icon icon ]
+                                [ Common.icon icon ]
                             ]
                     )
             )
@@ -167,6 +201,9 @@ renderPage model =
 
             SettingsPage ->
                 Settings.render model
+
+            StatsPage _ ->
+                Stats.render model
 
             _ ->
                 Html.text "other pages"
@@ -214,7 +251,7 @@ evalElapsedTime now spotify current repeat intervals =
         ( Model.currentAddElapsed 1 current, True, Cmd.none )
 
 
-update : Msg -> Model -> ( Model, Cmd msg )
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
         done m =
@@ -252,11 +289,8 @@ update msg model =
             let
                 ( newIntervals, newCurrent ) =
                     Model.buildIntervals model_.settings (Just model_.current)
-
-                newLog =
-                    model.log |> Model.cycleLog model.time model.current
             in
-            { model_ | current = newCurrent, log = newLog, intervals = newIntervals, playing = False }
+            { model_ | current = newCurrent, intervals = newIntervals, playing = False }
                 |> done
                 |> persistSettings_
                 |> persistCurrent_
@@ -266,8 +300,11 @@ update msg model =
         NoOp ->
             done model
 
-        Tick posix ->
+        Tick millis ->
             let
+                posix =
+                    Time.millisToPosix millis
+
                 updateTime model_ =
                     { model_ | time = posix, uptime = model_.uptime + 1 }
             in
@@ -280,16 +317,16 @@ update msg model =
                             model.settings.continuity
                             model.intervals
 
-                    newLog =
+                    logCmd =
                         if cmd /= Cmd.none then
-                            model.log |> Model.cycleLog model.time model.current
+                            Model.cycleLog model.time model.current
 
                         else
-                            model.log
+                            Cmd.none
                 in
-                { model | current = newCurrent, playing = newPlaying, log = newLog }
+                { model | current = newCurrent, playing = newPlaying }
                     |> updateTime
-                    |> Helpers.flip Tuple.pair cmd
+                    |> Helpers.flip Tuple.pair (Cmd.batch [ cmd, logCmd ])
                     |> persistCurrent_
 
             else
@@ -338,25 +375,19 @@ update msg model =
 
                 newCurrent =
                     Current newIndex (Model.cycleBuild newInterval Nothing) 0
-
-                newLog =
-                    model.log |> Model.cycleLog model.time model.current
             in
-            { model | current = newCurrent, playing = False, log = newLog }
-                |> done
+            { model | current = newCurrent, playing = False }
+                |> Helpers.flip Tuple.pair (Model.cycleLog model.time model.current)
                 |> persistCurrent_
                 |> pausePlaylist
 
         Reset ->
             let
-                newLog =
-                    model.log |> Model.cycleLog model.time model.current
-
                 newCurrent =
                     Current 0 (Model.cycleBuild (Model.firstInterval model.intervals) Nothing) 0
             in
-            { model | current = newCurrent, log = newLog, playing = False }
-                |> done
+            { model | current = newCurrent, playing = False }
+                |> Helpers.flip Tuple.pair (Model.cycleLog model.time model.current)
                 |> persistCurrent_
                 |> pausePlaylist
 
@@ -407,7 +438,12 @@ update msg model =
                     done model
 
         ChangePage page ->
-            done { model | page = page }
+            case page of
+                StatsPage _ ->
+                    ( { model | page = page }, fetchLogs <| Time.posixToMillis model.time )
+
+                _ ->
+                    done { model | page = page }
 
         ChangePlaylist uri ->
             model
@@ -462,12 +498,68 @@ update msg model =
         SpotifyDisconnect ->
             ( model, spotifyDisconnect () )
 
+        ChangeNavDate newDate ->
+            case newDate |> Date.add Date.Days 1 |> Date.toIsoString |> Iso8601.toTime of
+                Ok posix ->
+                    ( model, fetchNavLog <| Time.posixToMillis posix )
+
+                _ ->
+                    done model
+
+        ChangeLogDate newDate ->
+            case newDate |> Date.add Date.Days 1 |> Date.toIsoString |> Iso8601.toTime of
+                Ok posix ->
+                    ( model, fetchLogs <| Time.posixToMillis posix )
+
+                _ ->
+                    done model
+
+        GotStatsLogs raw ->
+            case ( model.page, D.decodeValue Model.decodeLog raw ) of
+                ( StatsPage Loading, Ok { ts, daily, monthly } ) ->
+                    let
+                        date =
+                            ts |> Time.millisToPosix |> Date.fromPosix model.zone
+                    in
+                    done { model | page = StatsPage (Loaded (StatsDef date date daily monthly)) }
+
+                ( StatsPage (Loaded def), Ok { ts, daily, monthly } ) ->
+                    let
+                        newDef =
+                            { def
+                                | logDate =
+                                    ts
+                                        |> Time.millisToPosix
+                                        |> Date.fromPosix model.zone
+                                , daily = daily
+                                , monthly = monthly
+                            }
+                    in
+                    done { model | page = StatsPage (Loaded newDef) }
+
+                _ ->
+                    done model
+
+        GotNavLogs raw ->
+            case ( model.page, D.decodeValue Model.decodeNavLog raw ) of
+                ( StatsPage (Loaded def), Ok { ts, log } ) ->
+                    let
+                        newDef =
+                            { def | navDate = ts |> Time.millisToPosix |> Date.fromPosix model.zone, monthly = log }
+                    in
+                    done { model | page = StatsPage (Loaded newDef) }
+
+                _ ->
+                    done model
+
 
 subs : Model -> Sub Msg
 subs _ =
     Sub.batch
-        [ Time.every 1000 Tick
+        [ tick Tick
         , gotSpotifyState GotSpotifyState
+        , gotStatsLogs GotStatsLogs
+        , gotNavLogs GotNavLogs
         ]
 
 

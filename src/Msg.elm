@@ -1,13 +1,14 @@
 module Msg exposing (Msg(..))
 
+import Date exposing (Date)
 import Json.Decode exposing (Value)
-import Model exposing (Continuity, Page)
-import Time exposing (Posix, Zone)
+import Time exposing (Zone)
+import Types exposing (Continuity, Page)
 
 
 type Msg
     = NoOp
-    | Tick Posix
+    | Tick Int
     | AdjustTimeZone Zone
     | Play
     | Pause
@@ -25,3 +26,7 @@ type Msg
     | GotSpotifyState Value
     | SpotifyRefresh
     | SpotifyDisconnect
+    | ChangeNavDate Date
+    | GotStatsLogs Value
+    | ChangeLogDate Date
+    | GotNavLogs Value

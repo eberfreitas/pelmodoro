@@ -3,6 +3,7 @@ module Colors exposing
     , contrastColor
     , foregroundColor
     , intervalColor
+    , longBreakColor
     , setAlpha
     , textColor
     , toCssColor
@@ -11,7 +12,7 @@ module Colors exposing
 
 import Css exposing (Color)
 import Helpers
-import Model exposing (Interval(..), Theme(..))
+import Types exposing (Interval(..), Theme(..))
 
 
 type alias BaseColor =
@@ -131,6 +132,11 @@ textColor =
 contrastColor : Theme -> BaseColor
 contrastColor =
     themeColors >> .contrast
+
+
+longBreakColor : Theme -> BaseColor
+longBreakColor =
+    themeColors >> .longBreak
 
 
 intervalColor : Theme -> Interval -> BaseColor

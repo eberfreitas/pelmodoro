@@ -12,8 +12,8 @@ let player;
 window.spotify = {
   connected: false,
   canPlay: false,
-  deviceId: null,
   playing: false,
+  deviceId: null,
 };
 
 const connectData = () => {
@@ -164,7 +164,7 @@ const initPlayer = (app, token, retries) => {
 
   player = new Spotify.Player({
     name: "Pelmodoro",
-    getOAuthToken: cb => { cb(token) },
+    getOAuthToken: cb => cb(token),
     volume: 1
   });
 
@@ -178,7 +178,7 @@ const initPlayer = (app, token, retries) => {
     window.spotify.deviceId = device_id;
   });
 
-  player.addListener("authentication_error", () => notconnected(app));
+  player.addListener("authentication_error", () => notConnected(app));
   player.addListener("account_error", () => connectionError(app));
 
   player.connect();
@@ -223,7 +223,7 @@ const apiReqParams = token => {
   }
 };
 
-const pause = (token) => {
+const pause = token => {
   if (window.spotify.playing == true) {
     checkStateReq(token)
       .then(promiseByStatus)
@@ -260,8 +260,6 @@ const play = (token, uri) => {
     .then(res => {
       if (res.status != 204) {
         window.spotify.playing = false;
-
-        shuffle(token, deviceId);
 
         return false;
       }
@@ -302,8 +300,8 @@ const disconnect = app => {
 
   window.spotify.connected = false;
   window.spotify.canPlay = false;
-  window.spotify.deviceId = null;
   window.spotify.playing = false;
+  window.spotify.deviceId = null;
 
   player.disconnect();
   notConnected(app);
@@ -314,7 +312,7 @@ const init = (app, token) => {
   setupPlaylists(app, token);
   checkState(token);
 
-  app.ports.spotifyPlay.subscribe((uri) => play(token, uri));
+  app.ports.spotifyPlay.subscribe(uri => play(token, uri));
   app.ports.spotifyPause.subscribe(() => pause(token));
   app.ports.spotifyDisconnect.subscribe(() => disconnect(app));
   app.ports.spotifyRefresh.subscribe(() => setupPlaylists(app, token));
