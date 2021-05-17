@@ -1,9 +1,11 @@
 module Msg exposing (Msg(..))
 
+import Browser exposing (UrlRequest)
 import Date exposing (Date)
 import Json.Decode exposing (Value)
 import Time exposing (Zone)
 import Types exposing (Continuity, Page)
+import Url exposing (Url)
 
 
 type Msg
@@ -30,3 +32,5 @@ type Msg
     | GotStatsLogs Value
     | ChangeLogDate Date
     | GotNavLogs Value
+    | UrlChanged Url
+    | LinkCliked UrlRequest

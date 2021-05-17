@@ -1,6 +1,7 @@
 port module Main exposing (main)
 
-import Browser
+import Browser exposing (Document)
+import Browser.Navigation exposing (Key)
 import Colors
 import Css
 import Date
@@ -19,10 +20,12 @@ import Platform.Sub as Sub
 import Task
 import Time exposing (Posix)
 import Types exposing (Continuity(..), Current, Interval(..), Page(..), Spotify(..), StatState(..), StatsDef, Theme)
+import Url exposing (Url)
 import View.Common as Common
 import View.Settings as Settings
 import View.Stats as Stats
 import View.Timer as Timer
+import VirtualDom exposing (Node)
 
 
 port notify : () -> Cmd msg
@@ -70,8 +73,8 @@ type alias Flags =
     }
 
 
-init : Flags -> ( Model, Cmd Msg )
-init { current, settings } =
+init : Flags -> Url -> Key -> ( Model, Cmd Msg )
+init { current, settings } _ _ =
     let
         baseModel =
             Model.default
@@ -100,8 +103,15 @@ init { current, settings } =
     )
 
 
-view : Model -> Html Msg
+view : Model -> Document Msg
 view model =
+    { title = "Pelmodoro"
+    , body = [ viewBody model ]
+    }
+
+
+viewBody : Model -> Node Msg
+viewBody model =
     Html.div
         [ HtmlAttr.class "container"
         , HtmlAttr.css
@@ -115,6 +125,7 @@ view model =
         [ renderPage model
         , renderNav model.settings.theme model.page
         ]
+        |> Html.toUnstyled
 
 
 renderNav : Theme -> Page -> Html Msg
@@ -552,6 +563,12 @@ update msg model =
                 _ ->
                     done model
 
+        UrlChanged _ ->
+            done model
+
+        LinkCliked _ ->
+            done model
+
 
 subs : Model -> Sub Msg
 subs _ =
@@ -565,9 +582,11 @@ subs _ =
 
 main : Program Flags Model Msg
 main =
-    Browser.element
+    Browser.application
         { init = init
-        , view = view >> Html.toUnstyled
+        , view = view
         , update = update
         , subscriptions = subs
+        , onUrlChange = UrlChanged
+        , onUrlRequest = LinkCliked
         }
