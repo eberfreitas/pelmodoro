@@ -56,7 +56,7 @@ port logCycle : E.Value -> Cmd msg
 type alias Model =
     { zone : Zone
     , time : Posix
-    , nav : Key
+    , key : Key
     , page : Page
     , uptime : Int
     , settings : Settings
@@ -126,7 +126,7 @@ default key =
     in
     { zone = Time.utc
     , time = Time.millisToPosix 0
-    , nav = key
+    , key = key
     , page = TimerPage
     , uptime = 0
     , settings = defaultSettings

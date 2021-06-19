@@ -1,14 +1,13 @@
 port module Main exposing (main)
 
-import Browser exposing (Document)
-import Browser.Navigation exposing (Key)
+import Browser exposing (Document, UrlRequest(..))
+import Browser.Navigation as Nav exposing (Key)
 import Colors
 import Css
 import Date
 import Helpers
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as HtmlAttr
-import Html.Styled.Events as Event
 import Iso8601
 import Json.Decode as D
 import Json.Encode as E
@@ -161,9 +160,9 @@ renderNav : Theme -> Page -> Html Msg
 renderNav theme page =
     let
         pages =
-            [ ( TimerPage, "timer" )
-            , ( StatsPage Loading, "leaderboard" )
-            , ( SettingsPage, "settings" )
+            [ ( "/", "timer" )
+            , ( "/stats", "leaderboard" )
+            , ( "/settings", "settings" )
             ]
 
         buttonStyle =
@@ -174,21 +173,24 @@ renderNav theme page =
                 , Css.height <| Css.rem 3
                 , Css.color <| (theme |> Colors.backgroundColor |> Colors.toCssColor)
                 , Css.outline Css.zero
-                , Css.cursor Css.pointer
+                , Css.displayFlex
+                , Css.justifyContent Css.center
+                , Css.alignItems Css.center
+                , Css.textDecoration Css.none
                 ]
 
-        isSelected page_ current =
-            case ( page_, current ) of
-                ( TimerPage, TimerPage ) ->
+        isSelected path current =
+            case ( path, current ) of
+                ( "/", TimerPage ) ->
                     Css.opacity <| Css.num 1
 
-                ( SettingsPage, SettingsPage ) ->
+                ( "/settings", SettingsPage ) ->
                     Css.opacity <| Css.num 1
 
-                ( StatsPage _, StatsPage _ ) ->
+                ( "/stats", StatsPage _ ) ->
                     Css.opacity <| Css.num 1
 
-                ( CreditsPage, CreditsPage ) ->
+                ( "/credits", CreditsPage ) ->
                     Css.opacity <| Css.num 1
 
                 _ ->
@@ -216,13 +218,13 @@ renderNav theme page =
             ]
             (pages
                 |> List.map
-                    (\( page_, icon ) ->
+                    (\( path, icon ) ->
                         Html.li []
-                            [ Html.button
-                                [ Event.onClick <| ChangePage page_
+                            [ Html.a
+                                [ HtmlAttr.href path
                                 , HtmlAttr.css
                                     [ buttonStyle
-                                    , isSelected page_ page
+                                    , isSelected path page
                                     ]
                                 ]
                                 [ Common.icon icon ]
@@ -592,11 +594,18 @@ update msg model =
                 _ ->
                     done model
 
-        UrlChanged _ ->
-            done model
+        UrlChanged url ->
+            url
+                |> urlToPage (Time.posixToMillis model.time)
+                |> Tuple.mapFirst (\p -> { model | page = p })
 
-        LinkCliked _ ->
-            done model
+        LinkCliked urlRequest ->
+            case urlRequest of
+                Internal url ->
+                    ( model, Nav.pushUrl model.key (Url.toString url) )
+
+                External href ->
+                    ( model, Nav.load href )
 
 
 subs : Model -> Sub Msg
