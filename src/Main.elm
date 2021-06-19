@@ -70,14 +70,31 @@ port gotNavLogs : (D.Value -> msg) -> Sub msg
 type alias Flags =
     { current : D.Value
     , settings : D.Value
+    , now : Int
     }
 
 
+urlToPage : Int -> Url -> ( Page, Cmd Msg )
+urlToPage time { path } =
+    case path of
+        "/settings" ->
+            ( SettingsPage, Cmd.none )
+
+        "/stats" ->
+            ( StatsPage Loading, fetchLogs time )
+
+        "/credits" ->
+            ( CreditsPage, Cmd.none )
+
+        _ ->
+            ( TimerPage, Cmd.none )
+
+
 init : Flags -> Url -> Key -> ( Model, Cmd Msg )
-init { current, settings } _ _ =
+init { current, settings, now } url key =
     let
         baseModel =
-            Model.default
+            Model.default key
 
         newCurrent =
             case D.decodeValue Model.decodeCurrent current of
@@ -97,9 +114,21 @@ init { current, settings } _ _ =
 
         ( newIntervals, newCurrent_ ) =
             Model.buildIntervals newSettings (Just newCurrent)
+
+        ( page, pageCmd ) =
+            urlToPage now url
     in
-    ( { baseModel | current = newCurrent_, settings = newSettings, intervals = newIntervals }
-    , Task.perform AdjustTimeZone Time.here
+    ( { baseModel
+        | current = newCurrent_
+        , time = Time.millisToPosix now
+        , settings = newSettings
+        , intervals = newIntervals
+        , page = page
+      }
+    , Cmd.batch
+        [ Task.perform AdjustTimeZone Time.here
+        , pageCmd
+        ]
     )
 
 

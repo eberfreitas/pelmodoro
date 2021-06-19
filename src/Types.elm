@@ -17,18 +17,11 @@ import Date exposing (Date)
 import Time exposing (Posix)
 
 
-
--- type alias LogSummary =
---     { something : Int, somethingElse : Int }
-
-
 type alias StatsDef =
     { navDate : Date
     , logDate : Date
     , daily : List Cycle
     , monthly : List Cycle
-
-    -- , summary : LogSummary
     }
 
 

@@ -27,6 +27,7 @@ port module Model exposing
     , themePairs
     )
 
+import Browser.Navigation exposing (Key)
 import Helpers
 import Json.Decode as D
 import Json.Decode.Pipeline as Pipeline
@@ -55,6 +56,7 @@ port logCycle : E.Value -> Cmd msg
 type alias Model =
     { zone : Zone
     , time : Posix
+    , nav : Key
     , page : Page
     , uptime : Int
     , settings : Settings
@@ -116,14 +118,15 @@ cycleBuild interval start =
     start |> Maybe.map (\s -> { new | start = Just s }) |> Maybe.withDefault new
 
 
-default : Model
-default =
+default : Key -> Model
+default key =
     let
         ( intervals, current ) =
             buildIntervals defaultSettings Nothing
     in
     { zone = Time.utc
     , time = Time.millisToPosix 0
+    , nav = key
     , page = TimerPage
     , uptime = 0
     , settings = defaultSettings
