@@ -133,7 +133,28 @@ init { current, settings, now } url key =
 
 view : Model -> Document Msg
 view model =
-    { title = "Pelmodoro"
+    let
+        title =
+            case model.page of
+                TimerPage ->
+                    if model.playing then
+                        [ model.current |> Model.currentSecondsLeft |> truncate |> Timer.secondsToDisplay
+                        , Model.intervalToString model.current.cycle.interval
+                        ]
+
+                    else
+                        []
+
+                SettingsPage ->
+                    [ "Settings" ]
+
+                StatsPage _ ->
+                    [ "Stats" ]
+
+                CreditsPage ->
+                    [ "Credits" ]
+    in
+    { title = title ++ [ "Pelmodoro" ] |> String.join " - "
     , body = [ viewBody model ]
     }
 

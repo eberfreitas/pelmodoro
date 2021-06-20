@@ -21,6 +21,7 @@ port module Model exposing
     , firstInterval
     , intervalIsActivity
     , intervalSeconds
+    , intervalToString
     , intervalsTotalRun
     , mapSettings
     , themeFromString
@@ -192,6 +193,19 @@ intervalIsActivity interval =
 
         _ ->
             False
+
+
+intervalToString : Interval -> String
+intervalToString interval =
+    case interval of
+        Activity _ ->
+            "Active"
+
+        Break _ ->
+            "Break"
+
+        LongBreak _ ->
+            "Long break"
 
 
 currentSecondsLeft : Current -> Float
