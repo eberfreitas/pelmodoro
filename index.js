@@ -10,10 +10,10 @@ const current = storage.get("current", {});
 const settings = storage.get("settings", {});
 
 const app = Elm.Main.init({
-  node: document.getElementById("root"),
   flags: {
     current: current,
-    settings: settings
+    settings: settings,
+    now: Date.now()
   }
 });
 

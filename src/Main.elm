@@ -1,13 +1,13 @@
 port module Main exposing (main)
 
-import Browser
+import Browser exposing (Document, UrlRequest(..))
+import Browser.Navigation as Nav exposing (Key)
 import Colors
 import Css
 import Date
 import Helpers
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as HtmlAttr
-import Html.Styled.Events as Event
 import Iso8601
 import Json.Decode as D
 import Json.Encode as E
@@ -19,10 +19,12 @@ import Platform.Sub as Sub
 import Task
 import Time exposing (Posix)
 import Types exposing (Continuity(..), Current, Interval(..), Page(..), Spotify(..), StatState(..), StatsDef, Theme)
+import Url exposing (Url)
 import View.Common as Common
 import View.Settings as Settings
 import View.Stats as Stats
 import View.Timer as Timer
+import VirtualDom exposing (Node)
 
 
 port notify : () -> Cmd msg
@@ -67,14 +69,31 @@ port gotNavLogs : (D.Value -> msg) -> Sub msg
 type alias Flags =
     { current : D.Value
     , settings : D.Value
+    , now : Int
     }
 
 
-init : Flags -> ( Model, Cmd Msg )
-init { current, settings } =
+urlToPage : Int -> Url -> ( Page, Cmd Msg )
+urlToPage time { path } =
+    case path of
+        "/settings" ->
+            ( SettingsPage, Cmd.none )
+
+        "/stats" ->
+            ( StatsPage Loading, fetchLogs time )
+
+        "/credits" ->
+            ( CreditsPage, Cmd.none )
+
+        _ ->
+            ( TimerPage, Cmd.none )
+
+
+init : Flags -> Url -> Key -> ( Model, Cmd Msg )
+init { current, settings, now } url key =
     let
         baseModel =
-            Model.default
+            Model.default key
 
         newCurrent =
             case D.decodeValue Model.decodeCurrent current of
@@ -94,14 +113,54 @@ init { current, settings } =
 
         ( newIntervals, newCurrent_ ) =
             Model.buildIntervals newSettings (Just newCurrent)
+
+        ( page, pageCmd ) =
+            urlToPage now url
     in
-    ( { baseModel | current = newCurrent_, settings = newSettings, intervals = newIntervals }
-    , Task.perform AdjustTimeZone Time.here
+    ( { baseModel
+        | current = newCurrent_
+        , time = Time.millisToPosix now
+        , settings = newSettings
+        , intervals = newIntervals
+        , page = page
+      }
+    , Cmd.batch
+        [ Task.perform AdjustTimeZone Time.here
+        , pageCmd
+        ]
     )
 
 
-view : Model -> Html Msg
+view : Model -> Document Msg
 view model =
+    let
+        title =
+            case model.page of
+                TimerPage ->
+                    if model.playing then
+                        [ model.current |> Model.currentSecondsLeft |> truncate |> Timer.secondsToDisplay
+                        , Model.intervalToString model.current.cycle.interval
+                        ]
+
+                    else
+                        []
+
+                SettingsPage ->
+                    [ "Settings" ]
+
+                StatsPage _ ->
+                    [ "Stats" ]
+
+                CreditsPage ->
+                    [ "Credits" ]
+    in
+    { title = title ++ [ "Pelmodoro" ] |> String.join " - "
+    , body = [ viewBody model ]
+    }
+
+
+viewBody : Model -> Node Msg
+viewBody model =
     Html.div
         [ HtmlAttr.class "container"
         , HtmlAttr.css
@@ -115,15 +174,16 @@ view model =
         [ renderPage model
         , renderNav model.settings.theme model.page
         ]
+        |> Html.toUnstyled
 
 
 renderNav : Theme -> Page -> Html Msg
 renderNav theme page =
     let
         pages =
-            [ ( TimerPage, "timer" )
-            , ( StatsPage Loading, "leaderboard" )
-            , ( SettingsPage, "settings" )
+            [ ( "/", "timer" )
+            , ( "/stats", "leaderboard" )
+            , ( "/settings", "settings" )
             ]
 
         buttonStyle =
@@ -134,21 +194,24 @@ renderNav theme page =
                 , Css.height <| Css.rem 3
                 , Css.color <| (theme |> Colors.backgroundColor |> Colors.toCssColor)
                 , Css.outline Css.zero
-                , Css.cursor Css.pointer
+                , Css.displayFlex
+                , Css.justifyContent Css.center
+                , Css.alignItems Css.center
+                , Css.textDecoration Css.none
                 ]
 
-        isSelected page_ current =
-            case ( page_, current ) of
-                ( TimerPage, TimerPage ) ->
+        isSelected path current =
+            case ( path, current ) of
+                ( "/", TimerPage ) ->
                     Css.opacity <| Css.num 1
 
-                ( SettingsPage, SettingsPage ) ->
+                ( "/settings", SettingsPage ) ->
                     Css.opacity <| Css.num 1
 
-                ( StatsPage _, StatsPage _ ) ->
+                ( "/stats", StatsPage _ ) ->
                     Css.opacity <| Css.num 1
 
-                ( CreditsPage, CreditsPage ) ->
+                ( "/credits", CreditsPage ) ->
                     Css.opacity <| Css.num 1
 
                 _ ->
@@ -176,13 +239,13 @@ renderNav theme page =
             ]
             (pages
                 |> List.map
-                    (\( page_, icon ) ->
+                    (\( path, icon ) ->
                         Html.li []
-                            [ Html.button
-                                [ Event.onClick <| ChangePage page_
+                            [ Html.a
+                                [ HtmlAttr.href path
                                 , HtmlAttr.css
                                     [ buttonStyle
-                                    , isSelected page_ page
+                                    , isSelected path page
                                     ]
                                 ]
                                 [ Common.icon icon ]
@@ -552,6 +615,19 @@ update msg model =
                 _ ->
                     done model
 
+        UrlChanged url ->
+            url
+                |> urlToPage (Time.posixToMillis model.time)
+                |> Tuple.mapFirst (\p -> { model | page = p })
+
+        LinkCliked urlRequest ->
+            case urlRequest of
+                Internal url ->
+                    ( model, Nav.pushUrl model.key (Url.toString url) )
+
+                External href ->
+                    ( model, Nav.load href )
+
 
 subs : Model -> Sub Msg
 subs _ =
@@ -565,9 +641,11 @@ subs _ =
 
 main : Program Flags Model Msg
 main =
-    Browser.element
+    Browser.application
         { init = init
-        , view = view >> Html.toUnstyled
+        , view = view
         , update = update
         , subscriptions = subs
+        , onUrlChange = UrlChanged
+        , onUrlRequest = LinkCliked
         }

@@ -1,8 +1,7 @@
-module View.Timer exposing (render)
+module View.Timer exposing (render, secondsToDisplay)
 
 import Colors
 import Css
-import Helpers
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as HtmlAttr
 import Html.Styled.Events as Event
