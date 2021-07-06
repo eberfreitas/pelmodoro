@@ -5,7 +5,8 @@
     "node-elm-compiler": "^5.0.5",
     "parcel-bundler": "^1.12.3",
     "parcel-plugin-pwa-manifest": "^3.0.10",
-    "parcel-plugin-static-files-copy": "^2.5.1"
+    "parcel-plugin-static-files-copy": "^2.5.1",
+    "workbox-cli": "^6.1.5"
   },
   "scripts": {
     "dev": "parcel ./index.html --https",
@@ -33,17 +34,17 @@
     "last 1 Safari version"
   ],
   "pwaManifest": {
-      "name": "Pelmodoro",
-      "shortName": "Pelmo",
-      "startURL": "./",
-      "scope": "/",
-      "theme": "transparent",
-      "backgroundColor": "transparent",
-      "display": "standalone",
-      "orientation": "portrait",
-      "generateIconOptions": {
-          "baseIcon": "./icon.svg",
-          "genFavicons": true
-      }
+    "name": "Pelmodoro",
+    "shortName": "Pelmo",
+    "startURL": "./",
+    "scope": "/",
+    "theme": "transparent",
+    "backgroundColor": "transparent",
+    "display": "standalone",
+    "orientation": "portrait",
+    "generateIconOptions": {
+      "baseIcon": "./icon.svg",
+      "genFavicons": true
+    }
   }
 }
