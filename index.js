@@ -28,3 +28,7 @@ logs(app);
 const tickWorker = new Worker('./src/js/tick.js');
 
 tickWorker.onmessage = ({ data }) => app.ports.tick.send(data);
+
+const sw = "sw.js";
+
+navigator.serviceWorker.register(sw);

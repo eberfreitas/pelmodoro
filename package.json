@@ -9,7 +9,8 @@
   },
   "scripts": {
     "dev": "parcel ./index.html --https",
-    "build": "parcel build ./index.html"
+    "build": "parcel build ./index.html",
+    "postbuild": "workbox generateSW"
   },
   "dependencies": {
     "@sentry/browser": "^6.2.5",
@@ -35,10 +36,13 @@
       "name": "Pelmodoro",
       "shortName": "Pelmo",
       "startURL": "./",
-      "theme": "tomato",
+      "scope": "/",
+      "theme": "transparent",
+      "backgroundColor": "transparent",
+      "display": "standalone",
+      "orientation": "portrait",
       "generateIconOptions": {
           "baseIcon": "./icon.svg",
-          "sizes": [192, 384, 512],
           "genFavicons": true
       }
   }
