@@ -11,8 +11,10 @@ module Types exposing
     , StatState(..)
     , StatsDef
     , Theme(..)
+    , ThemeColors
     )
 
+import Colors exposing (BaseColor)
 import Date exposing (Date)
 import Time exposing (Posix)
 
@@ -43,8 +45,19 @@ type alias Seconds =
 
 
 type Theme
-    = LightTheme
-    | DarkTheme
+    = Tomato
+    | NightMood
+
+
+type alias ThemeColors =
+    { background : BaseColor
+    , activity : BaseColor
+    , break : BaseColor
+    , longBreak : BaseColor
+    , foreground : BaseColor
+    , contrast : BaseColor
+    , text : BaseColor
+    }
 
 
 type alias SpotifyPlaylist =

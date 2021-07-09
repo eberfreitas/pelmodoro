@@ -1,164 +1,65 @@
 module Colors exposing
-    ( backgroundColor
-    , contrastColor
-    , foregroundColor
-    , intervalColor
-    , longBreakColor
+    ( BaseColor
+    , new
     , setAlpha
-    , textColor
     , toCssColor
     , toRgbaString
     )
 
 import Css exposing (Color)
 import Helpers
-import Types exposing (Interval(..), Theme(..))
 
 
-type alias BaseColor =
-    { red : Int
-    , green : Int
-    , blue : Int
-    , alpha : Float
-    }
+type BaseColor
+    = BaseColor
+        { red : Int
+        , green : Int
+        , blue : Int
+        , alpha : Float
+        }
 
 
-type alias ThemeColors =
-    { background : BaseColor
-    , activity : BaseColor
-    , break : BaseColor
-    , longBreak : BaseColor
-    , foreground : BaseColor
-    , contrast : BaseColor
-    , text : BaseColor
-    }
+normalizeColor : Int -> Int
+normalizeColor color =
+    if color < 0 then
+        0
+
+    else if color > 255 then
+        255
+
+    else
+        color
 
 
-washedTomato : BaseColor
-washedTomato =
-    BaseColor 255 243 240 1.0
+normalizeAlpha : Float -> Float
+normalizeAlpha alpha =
+    if alpha < 0 then
+        0
+
+    else if alpha > 1.0 then
+        1.0
+
+    else
+        alpha
 
 
-tomato : BaseColor
-tomato =
-    BaseColor 255 99 71 1.0
-
-
-purpleBlue : BaseColor
-purpleBlue =
-    BaseColor 45 91 222 1.0
-
-
-lightBlue : BaseColor
-lightBlue =
-    BaseColor 45 188 224 1.0
-
-
-darkGrey : BaseColor
-darkGrey =
-    BaseColor 34 34 34 1.0
-
-
-lightGrey : BaseColor
-lightGrey =
-    BaseColor 62 62 62 1.0
-
-
-lighterGrey : BaseColor
-lighterGrey =
-    BaseColor 82 82 82 1.0
-
-
-darkPink : BaseColor
-darkPink =
-    BaseColor 141 48 99 1.0
-
-
-darkPurple : BaseColor
-darkPurple =
-    BaseColor 95 46 136 1.0
-
-
-oilBlue : BaseColor
-oilBlue =
-    BaseColor 46 117 137 1.0
-
-
-white : BaseColor
-white =
-    BaseColor 255 255 255 1.0
-
-
-dirtyWhite : BaseColor
-dirtyWhite =
-    BaseColor 202 202 202 1.0
-
-
-lightTheme : ThemeColors
-lightTheme =
-    ThemeColors washedTomato tomato purpleBlue lightBlue tomato white darkGrey
-
-
-darkTheme : ThemeColors
-darkTheme =
-    ThemeColors darkGrey darkPink darkPurple oilBlue lightGrey dirtyWhite lighterGrey
-
-
-themeColors : Theme -> ThemeColors
-themeColors theme =
-    case theme of
-        LightTheme ->
-            lightTheme
-
-        DarkTheme ->
-            darkTheme
-
-
-backgroundColor : Theme -> BaseColor
-backgroundColor =
-    themeColors >> .background
-
-
-foregroundColor : Theme -> BaseColor
-foregroundColor =
-    themeColors >> .foreground
-
-
-textColor : Theme -> BaseColor
-textColor =
-    themeColors >> .text
-
-
-contrastColor : Theme -> BaseColor
-contrastColor =
-    themeColors >> .contrast
-
-
-longBreakColor : Theme -> BaseColor
-longBreakColor =
-    themeColors >> .longBreak
-
-
-intervalColor : Theme -> Interval -> BaseColor
-intervalColor theme interval =
-    case interval of
-        Activity _ ->
-            theme |> themeColors |> .activity
-
-        Break _ ->
-            theme |> themeColors |> .break
-
-        LongBreak _ ->
-            theme |> themeColors |> .longBreak
+new : Int -> Int -> Int -> Float -> BaseColor
+new red green blue alpha =
+    BaseColor
+        { red = normalizeColor red
+        , green = normalizeColor green
+        , blue = normalizeColor blue
+        , alpha = normalizeAlpha alpha
+        }
 
 
 toCssColor : BaseColor -> Color
-toCssColor { red, green, blue, alpha } =
+toCssColor (BaseColor { red, green, blue, alpha }) =
     Css.rgba red green blue alpha
 
 
 toRgbaString : BaseColor -> String
-toRgbaString { red, green, blue, alpha } =
+toRgbaString (BaseColor { red, green, blue, alpha }) =
     [ red, green, blue ]
         |> List.map String.fromInt
         |> String.join ","
@@ -167,5 +68,5 @@ toRgbaString { red, green, blue, alpha } =
 
 
 setAlpha : Float -> BaseColor -> BaseColor
-setAlpha alpha color =
-    { color | alpha = alpha }
+setAlpha alpha (BaseColor color) =
+    { color | alpha = alpha } |> BaseColor

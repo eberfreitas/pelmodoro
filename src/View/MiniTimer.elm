@@ -6,6 +6,7 @@ import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as HtmlAttr
 import Model exposing (Model)
 import Msg exposing (Msg)
+import Themes.Base as Theme
 
 
 render : Model -> Html Msg
@@ -30,7 +31,7 @@ render model =
                             toFloat (Model.intervalSeconds interval) * 100 / totalRun
 
                         backgroundColor =
-                            interval |> Colors.intervalColor model.settings.theme
+                            interval |> Theme.intervalColor model.settings.theme
 
                         backgroundColor_ =
                             if index >= model.current.index then
