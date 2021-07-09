@@ -5,6 +5,7 @@ import viewportFix from "./src/js/viewport-fix.js";
 import notify from "./src/js/notify.js";
 import spotify from "./src/js/spotify.js";
 import logs from "./src/js/logs.js";
+import pwa from "./src/js/pwa.js";
 
 const current = storage.get("current", {});
 const settings = storage.get("settings", {});
@@ -24,11 +25,8 @@ viewportFix();
 notify(app);
 spotify(app);
 logs(app);
+pwa();
 
 const tickWorker = new Worker('./src/js/tick.js');
 
 tickWorker.onmessage = ({ data }) => app.ports.tick.send(data);
-
-const sw = "sw.js";
-
-navigator.serviceWorker.register(sw);
