@@ -247,6 +247,7 @@ themePairs : List ( Theme, String )
 themePairs =
     [ ( Tomato, "Tomato" )
     , ( NightMood, "Night Mood" )
+    , ( Gruvbox, "Gruvbox" )
     ]
 
 
@@ -319,6 +320,9 @@ encodeTheme theme =
 
         NightMood ->
             E.string "dark"
+
+        Gruvbox ->
+            E.string "gruvbox"
 
 
 encodeSpotifyPlaylist : SpotifyPlaylist -> E.Value
@@ -432,6 +436,9 @@ decodeTheme =
 
                     "dark" ->
                         D.succeed NightMood
+
+                    "gruvbox" ->
+                        D.succeed Gruvbox
 
                     _ ->
                         D.fail <| "Could not find theme: " ++ theme

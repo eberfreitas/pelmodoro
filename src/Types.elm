@@ -47,6 +47,7 @@ type alias Seconds =
 type Theme
     = Tomato
     | NightMood
+    | Gruvbox
 
 
 type alias ThemeColors =

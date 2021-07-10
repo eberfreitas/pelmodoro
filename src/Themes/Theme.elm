@@ -8,6 +8,7 @@ module Themes.Theme exposing
     )
 
 import Colors exposing (BaseColor)
+import Themes.Gruvbox as Gruvbox
 import Themes.NightMood as NightMood
 import Themes.Tomato as Tomato
 import Types exposing (Interval(..), Theme(..), ThemeColors)
@@ -21,6 +22,9 @@ themeColors theme =
 
         NightMood ->
             NightMood.theme
+
+        Gruvbox ->
+            Gruvbox.theme
 
 
 backgroundColor : Theme -> BaseColor
