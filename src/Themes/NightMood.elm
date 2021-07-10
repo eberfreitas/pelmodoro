@@ -26,7 +26,7 @@ oilBlue =
 
 lighterGrey : BaseColor
 lighterGrey =
-    Colors.new 82 82 82 1.0
+    Colors.new 90 90 90 1.0
 
 
 dirtyWhite : BaseColor
@@ -36,7 +36,7 @@ dirtyWhite =
 
 lightGrey : BaseColor
 lightGrey =
-    Colors.new 62 62 62 1.0
+    Colors.new 70 70 70 1.0
 
 
 theme : ThemeColors
