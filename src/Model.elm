@@ -69,7 +69,7 @@ type alias Model =
 
 defaultSettings : Settings
 defaultSettings =
-    Settings 4 (25 * 60) (5 * 60) (15 * 60) LightTheme NoCont Uninitialized
+    Settings 4 (25 * 60) (5 * 60) (15 * 60) Tomato NoCont Uninitialized
 
 
 firstInterval : List Interval -> Interval
@@ -245,8 +245,11 @@ continuityFromString cont =
 
 themePairs : List ( Theme, String )
 themePairs =
-    [ ( LightTheme, "Light" )
-    , ( DarkTheme, "Dark" )
+    [ ( Tomato, "Tomato" )
+    , ( NightMood, "Night Mood" )
+    , ( Gruvbox, "Gruvbox" )
+    , ( Dracula, "Dracula" )
+    , ( Nord, "Nord" )
     ]
 
 
@@ -314,11 +317,20 @@ encodeContinuity cont =
 encodeTheme : Theme -> E.Value
 encodeTheme theme =
     case theme of
-        LightTheme ->
+        Tomato ->
             E.string "light"
 
-        DarkTheme ->
+        NightMood ->
             E.string "dark"
+
+        Gruvbox ->
+            E.string "gruvbox"
+
+        Dracula ->
+            E.string "dracula"
+
+        Nord ->
+            E.string "nord"
 
 
 encodeSpotifyPlaylist : SpotifyPlaylist -> E.Value
@@ -428,10 +440,19 @@ decodeTheme =
             (\theme ->
                 case theme of
                     "light" ->
-                        D.succeed LightTheme
+                        D.succeed Tomato
 
                     "dark" ->
-                        D.succeed DarkTheme
+                        D.succeed NightMood
+
+                    "gruvbox" ->
+                        D.succeed Gruvbox
+
+                    "dracula" ->
+                        D.succeed Dracula
+
+                    "nord" ->
+                        D.succeed Nord
 
                     _ ->
                         D.fail <| "Could not find theme: " ++ theme

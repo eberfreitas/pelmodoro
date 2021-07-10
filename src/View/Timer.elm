@@ -9,6 +9,7 @@ import Model exposing (Model)
 import Msg exposing (Msg(..))
 import Svg.Styled as Svg exposing (Svg)
 import Svg.Styled.Attributes as SvgAttr
+import Themes.Theme as Theme
 import Types exposing (Current, Interval, Seconds, Theme)
 import View.Common as Common
 
@@ -47,7 +48,7 @@ renderTimer playing uptime theme current =
         [ SvgAttr.x "50%"
         , SvgAttr.y "55%"
         , SvgAttr.textAnchor "middle"
-        , SvgAttr.fill (current.cycle.interval |> Colors.intervalColor theme |> Colors.toRgbaString)
+        , SvgAttr.fill (current.cycle.interval |> Theme.intervalColor theme |> Colors.toRgbaString)
         , SvgAttr.fontFamily "Montserrat"
         , SvgAttr.fontSize "36px"
         , SvgAttr.opacity timerOpacity
@@ -94,7 +95,7 @@ renderIntervalArcs size theme current intervals =
                             [ SvgAttr.strokeWidth <| String.fromInt strokeWidth
                             , SvgAttr.strokeLinecap "round"
                             , SvgAttr.fill "none"
-                            , SvgAttr.stroke (interval_ |> Colors.intervalColor theme |> Colors.toRgbaString)
+                            , SvgAttr.stroke (interval_ |> Theme.intervalColor theme |> Colors.toRgbaString)
                             , SvgAttr.d (describeArc centerPoint centerPoint radius start_ end_)
                             , SvgAttr.opacity opacity_
                             ]
@@ -145,7 +146,7 @@ renderControls theme playing =
                 , Css.backgroundColor Css.transparent
                 , Css.width <| Css.rem 3
                 , Css.height <| Css.rem 3
-                , Css.color (theme |> Colors.foregroundColor |> Colors.toCssColor)
+                , Css.color (theme |> Theme.foregroundColor |> Colors.toCssColor)
                 , Css.outline Css.zero
                 , Css.cursor Css.pointer
                 ]

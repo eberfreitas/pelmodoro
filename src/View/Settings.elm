@@ -7,6 +7,7 @@ import Html.Styled.Attributes as HtmlAttr
 import Html.Styled.Events as Event
 import Model exposing (Model)
 import Msg exposing (Msg(..))
+import Themes.Theme as Theme
 import Tuple.Trio as Trio
 import Types exposing (Continuity(..), Spotify(..), Theme(..))
 import View.Common as Common
@@ -26,10 +27,10 @@ render ({ settings } as model) =
         buttonStyle =
             Css.batch
                 [ Css.borderStyle Css.none
-                , Css.backgroundColor <| (settings.theme |> Colors.foregroundColor |> Colors.toCssColor)
+                , Css.backgroundColor <| (settings.theme |> Theme.foregroundColor |> Colors.toCssColor)
                 , Css.width <| Css.rem 3
                 , Css.height <| Css.rem 3
-                , Css.color <| (settings.theme |> Colors.backgroundColor |> Colors.toCssColor)
+                , Css.color <| (settings.theme |> Theme.backgroundColor |> Colors.toCssColor)
                 , Css.outline Css.zero
                 , Css.cursor Css.pointer
                 ]
@@ -48,8 +49,8 @@ render ({ settings } as model) =
         settingDisplayStyle =
             Css.batch
                 [ Css.height <| Css.rem 3
-                , Css.backgroundColor (settings.theme |> Colors.contrastColor |> Colors.toCssColor)
-                , Css.color (settings.theme |> Colors.textColor |> Colors.toCssColor)
+                , Css.backgroundColor (settings.theme |> Theme.contrastColor |> Colors.toCssColor)
+                , Css.color (settings.theme |> Theme.textColor |> Colors.toCssColor)
                 , Css.padding2 (Css.rem 1) (Css.rem 0)
                 , Css.width (Css.calc (Css.pct 100) Css.minus (Css.rem 6))
                 , Css.textAlign Css.center
@@ -64,8 +65,8 @@ render ({ settings } as model) =
                 , Css.padding <| Css.rem 1
                 , Css.width <| Css.pct 100
                 , Css.cursor Css.pointer
-                , Css.color (settings.theme |> Colors.textColor |> Colors.toCssColor)
-                , Css.backgroundColor (settings.theme |> Colors.contrastColor |> Colors.toCssColor)
+                , Css.color (settings.theme |> Theme.textColor |> Colors.toCssColor)
+                , Css.backgroundColor (settings.theme |> Theme.contrastColor |> Colors.toCssColor)
                 , Css.backgroundRepeat Css.noRepeat
                 , Css.backgroundPosition2 (Css.pct 95) (Css.pct 50)
                 , Css.property "background-image"

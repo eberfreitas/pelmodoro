@@ -12,6 +12,7 @@ import Html.Styled.Keyed as Keyed
 import List.Extra as ListEx
 import Model exposing (Model)
 import Msg exposing (Msg(..))
+import Themes.Theme as Theme
 import Time exposing (Zone)
 import Tuple.Trio as Trio
 import Types exposing (Cycle, Page(..), StatState(..), StatsDef, Theme)
@@ -74,7 +75,7 @@ renderHourlyAverages zone theme log =
                                     [ HtmlAttr.css
                                         [ Css.width <| Css.pct 4.16666
                                         , Css.height <| Css.pct pct
-                                        , Css.backgroundColor (theme |> Colors.longBreakColor |> Colors.toCssColor)
+                                        , Css.backgroundColor (theme |> Theme.longBreakColor |> Colors.toCssColor)
                                         , Css.margin2 Css.zero (Css.rem 0.25)
                                         ]
                                     , HtmlAttr.title (inMinutes secs |> String.fromInt)
@@ -108,7 +109,7 @@ renderHourlyAverages zone theme log =
                 , Css.borderLeft Css.zero
                 , Css.paddingTop <| Css.rem 0.35
                 , Css.fontSize <| Css.rem 0.5
-                , Css.color (theme |> Colors.textColor |> Colors.toCssColor)
+                , Css.color (theme |> Theme.textColor |> Colors.toCssColor)
                 ]
             ]
             (hours
@@ -153,7 +154,7 @@ renderDailyLogs zone theme selected log =
                         |> String.fromInt
 
                 intervalColor =
-                    interval |> Colors.intervalColor theme
+                    interval |> Theme.intervalColor theme
 
                 dimmed =
                     intervalColor |> Colors.setAlpha 0.5 |> Colors.toRgbaString
@@ -166,7 +167,7 @@ renderDailyLogs zone theme selected log =
                     [ Css.padding <| Css.rem 0.5
                     , Css.position Css.relative
                     , Css.margin2 (Css.rem 0.5) Css.zero
-                    , Css.color (theme |> Colors.contrastColor |> Colors.toCssColor)
+                    , Css.color (theme |> Theme.contrastColor |> Colors.toCssColor)
                     , Css.lineHeight <| Css.rem 1
                     , Css.property "background-image"
                         ("linear-gradient(to right, "
@@ -187,7 +188,7 @@ renderDailyLogs zone theme selected log =
                 ]
                 [ Html.div [] [ Html.text (formatToHour start ++ " ➞ " ++ formatToHour end) ] ]
     in
-    Html.div [ HtmlAttr.css [ Css.color (theme |> Colors.textColor |> Colors.toCssColor) ] ]
+    Html.div [ HtmlAttr.css [ Css.color (theme |> Theme.textColor |> Colors.toCssColor) ] ]
         [ Common.h2 theme
             (selected |> Date.format "y-MM-d")
             [ HtmlAttr.css [ Css.marginBottom <| Css.rem 2 ] ]
@@ -306,19 +307,19 @@ renderCalendar zone theme monthly navDate logDate =
 
         cellBgColor average =
             average
-                |> Helpers.flip Colors.setAlpha (theme |> Colors.foregroundColor)
+                |> Helpers.flip Colors.setAlpha (theme |> Theme.foregroundColor)
                 |> Colors.toCssColor
 
         cellTextColor average =
             if average < 0.5 then
-                theme |> Colors.textColor |> Colors.toCssColor
+                theme |> Theme.textColor |> Colors.toCssColor
 
             else
-                theme |> Colors.contrastColor |> Colors.toCssColor
+                theme |> Theme.contrastColor |> Colors.toCssColor
 
         cellBorder day =
             if day == logDate then
-                Css.border3 (Css.rem 0.25) Css.solid (theme |> Colors.longBreakColor |> Colors.toCssColor)
+                Css.border3 (Css.rem 0.25) Css.solid (theme |> Theme.longBreakColor |> Colors.toCssColor)
 
             else
                 Css.borderStyle Css.none
@@ -366,7 +367,7 @@ renderCalendar zone theme monthly navDate logDate =
                 , Css.borderStyle Css.none
                 , Css.backgroundColor Css.transparent
                 , Css.cursor Css.pointer
-                , Css.color (theme |> Colors.textColor |> Colors.toCssColor)
+                , Css.color (theme |> Theme.textColor |> Colors.toCssColor)
                 ]
 
         arrow date float icon =

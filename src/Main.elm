@@ -17,6 +17,7 @@ import Msg exposing (Msg(..))
 import Platform exposing (Program)
 import Platform.Sub as Sub
 import Task
+import Themes.Theme as Theme
 import Time exposing (Posix)
 import Types exposing (Continuity(..), Current, Interval(..), Page(..), Spotify(..), StatState(..), StatsDef, Theme)
 import Url exposing (Url)
@@ -166,9 +167,9 @@ viewBody model =
         , HtmlAttr.css
             [ Css.width <| Css.vw 100.0
             , Css.position Css.relative
-            , Css.backgroundColor <| (model.settings.theme |> Colors.backgroundColor |> Colors.toCssColor)
+            , Css.backgroundColor <| (model.settings.theme |> Theme.backgroundColor |> Colors.toCssColor)
             , Css.fontFamilies [ "Montserrat" ]
-            , Css.color (model.settings.theme |> Colors.textColor |> Colors.toCssColor)
+            , Css.color (model.settings.theme |> Theme.textColor |> Colors.toCssColor)
             ]
         ]
         [ renderPage model
@@ -192,7 +193,7 @@ renderNav theme page =
                 , Css.backgroundColor Css.transparent
                 , Css.width <| Css.rem 3
                 , Css.height <| Css.rem 3
-                , Css.color <| (theme |> Colors.backgroundColor |> Colors.toCssColor)
+                , Css.color <| (theme |> Theme.backgroundColor |> Colors.toCssColor)
                 , Css.outline Css.zero
                 , Css.displayFlex
                 , Css.justifyContent Css.center
@@ -223,8 +224,8 @@ renderNav theme page =
             , Css.bottom <| Css.px 0
             , Css.left <| Css.px 0
             , Css.right <| Css.px 0
-            , Css.backgroundColor <| (theme |> Colors.foregroundColor |> Colors.toCssColor)
-            , Css.color <| (theme |> Colors.foregroundColor |> Colors.toCssColor)
+            , Css.backgroundColor <| (theme |> Theme.foregroundColor |> Colors.toCssColor)
+            , Css.color <| (theme |> Theme.foregroundColor |> Colors.toCssColor)
             , Css.displayFlex
             , Css.justifyContent Css.center
             , Css.padding <| Css.rem 0.25
