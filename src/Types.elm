@@ -48,6 +48,7 @@ type Theme
     = Tomato
     | NightMood
     | Gruvbox
+    | Dracula
 
 
 type alias ThemeColors =

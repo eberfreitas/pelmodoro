@@ -8,6 +8,7 @@ module Themes.Theme exposing
     )
 
 import Colors exposing (BaseColor)
+import Themes.Dracula as Dracula
 import Themes.Gruvbox as Gruvbox
 import Themes.NightMood as NightMood
 import Themes.Tomato as Tomato
@@ -25,6 +26,9 @@ themeColors theme =
 
         Gruvbox ->
             Gruvbox.theme
+
+        Dracula ->
+            Dracula.theme
 
 
 backgroundColor : Theme -> BaseColor

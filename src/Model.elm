@@ -248,6 +248,7 @@ themePairs =
     [ ( Tomato, "Tomato" )
     , ( NightMood, "Night Mood" )
     , ( Gruvbox, "Gruvbox" )
+    , ( Dracula, "Dracula" )
     ]
 
 
@@ -323,6 +324,9 @@ encodeTheme theme =
 
         Gruvbox ->
             E.string "gruvbox"
+
+        Dracula ->
+            E.string "dracula"
 
 
 encodeSpotifyPlaylist : SpotifyPlaylist -> E.Value
@@ -439,6 +443,9 @@ decodeTheme =
 
                     "gruvbox" ->
                         D.succeed Gruvbox
+
+                    "dracula" ->
+                        D.succeed Dracula
 
                     _ ->
                         D.fail <| "Could not find theme: " ++ theme
