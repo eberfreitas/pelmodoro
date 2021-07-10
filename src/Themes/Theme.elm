@@ -11,6 +11,7 @@ import Colors exposing (BaseColor)
 import Themes.Dracula as Dracula
 import Themes.Gruvbox as Gruvbox
 import Themes.NightMood as NightMood
+import Themes.Nord as Nord
 import Themes.Tomato as Tomato
 import Types exposing (Interval(..), Theme(..), ThemeColors)
 
@@ -29,6 +30,9 @@ themeColors theme =
 
         Dracula ->
             Dracula.theme
+
+        Nord ->
+            Nord.theme
 
 
 backgroundColor : Theme -> BaseColor

@@ -249,6 +249,7 @@ themePairs =
     , ( NightMood, "Night Mood" )
     , ( Gruvbox, "Gruvbox" )
     , ( Dracula, "Dracula" )
+    , ( Nord, "Nord" )
     ]
 
 
@@ -327,6 +328,9 @@ encodeTheme theme =
 
         Dracula ->
             E.string "dracula"
+
+        Nord ->
+            E.string "nord"
 
 
 encodeSpotifyPlaylist : SpotifyPlaylist -> E.Value
@@ -446,6 +450,9 @@ decodeTheme =
 
                     "dracula" ->
                         D.succeed Dracula
+
+                    "nord" ->
+                        D.succeed Nord
 
                     _ ->
                         D.fail <| "Could not find theme: " ++ theme

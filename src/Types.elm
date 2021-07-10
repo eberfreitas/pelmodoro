@@ -49,6 +49,7 @@ type Theme
     | NightMood
     | Gruvbox
     | Dracula
+    | Nord
 
 
 type alias ThemeColors =
