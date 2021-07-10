@@ -7,7 +7,7 @@ import Html.Styled.Attributes as HtmlAttr
 import Html.Styled.Events as Event
 import Model exposing (Model)
 import Msg exposing (Msg(..))
-import Themes.Base as Theme
+import Themes.Theme as Theme
 import Tuple.Trio as Trio
 import Types exposing (Continuity(..), Spotify(..), Theme(..))
 import View.Common as Common

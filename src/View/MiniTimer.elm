@@ -6,7 +6,7 @@ import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as HtmlAttr
 import Model exposing (Model)
 import Msg exposing (Msg)
-import Themes.Base as Theme
+import Themes.Theme as Theme
 
 
 render : Model -> Html Msg

@@ -12,7 +12,7 @@ import Html.Styled.Keyed as Keyed
 import List.Extra as ListEx
 import Model exposing (Model)
 import Msg exposing (Msg(..))
-import Themes.Base as Theme
+import Themes.Theme as Theme
 import Time exposing (Zone)
 import Tuple.Trio as Trio
 import Types exposing (Cycle, Page(..), StatState(..), StatsDef, Theme)

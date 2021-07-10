@@ -1,4 +1,4 @@
-module Themes.Base exposing
+module Themes.Theme exposing
     ( backgroundColor
     , contrastColor
     , foregroundColor

@@ -9,7 +9,7 @@ import Model exposing (Model)
 import Msg exposing (Msg(..))
 import Svg.Styled as Svg exposing (Svg)
 import Svg.Styled.Attributes as SvgAttr
-import Themes.Base as Theme
+import Themes.Theme as Theme
 import Types exposing (Current, Interval, Seconds, Theme)
 import View.Common as Common
 

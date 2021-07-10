@@ -4,7 +4,7 @@ import Colors
 import Css
 import Html.Styled as Html exposing (Attribute, Html)
 import Html.Styled.Attributes as HtmlAttr
-import Themes.Base as Theme
+import Themes.Theme as Theme
 import Types exposing (Theme)
 
 

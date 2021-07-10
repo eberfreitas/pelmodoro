@@ -17,7 +17,7 @@ import Msg exposing (Msg(..))
 import Platform exposing (Program)
 import Platform.Sub as Sub
 import Task
-import Themes.Base as Theme
+import Themes.Theme as Theme
 import Time exposing (Posix)
 import Types exposing (Continuity(..), Current, Interval(..), Page(..), Spotify(..), StatState(..), StatsDef, Theme)
 import Url exposing (Url)
