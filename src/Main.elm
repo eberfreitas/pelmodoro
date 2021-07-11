@@ -18,8 +18,9 @@ import Platform exposing (Program)
 import Platform.Sub as Sub
 import Task
 import Themes.Theme as Theme
+import Themes.Types exposing (Theme)
 import Time exposing (Posix)
-import Types exposing (Continuity(..), Current, Interval(..), Page(..), Spotify(..), StatState(..), StatsDef, Theme)
+import Types exposing (Continuity(..), Current, Interval(..), Page(..), Spotify(..), StatState(..), StatsDef)
 import Url exposing (Url)
 import View.Common as Common
 import View.Settings as Settings
@@ -492,7 +493,7 @@ update msg model =
                     done model
 
         ChangeTheme theme ->
-            case Model.themeFromString theme of
+            case Themes.Types.themeFromString theme of
                 Just t ->
                     model
                         |> Model.mapSettings (\s -> { s | theme = t })

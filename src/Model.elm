@@ -24,8 +24,6 @@ port module Model exposing
     , intervalToString
     , intervalsTotalRun
     , mapSettings
-    , themeFromString
-    , themePairs
     )
 
 import Browser.Navigation exposing (Key)
@@ -35,6 +33,7 @@ import Json.Decode.Pipeline as Pipeline
 import Json.Encode as E
 import List.Extra as ListEx
 import Msg exposing (Msg)
+import Themes.Types exposing (Theme(..))
 import Time exposing (Posix, Zone)
 import Types
     exposing
@@ -47,7 +46,6 @@ import Types
         , Settings
         , Spotify(..)
         , SpotifyPlaylist
-        , Theme(..)
         )
 
 
@@ -240,23 +238,6 @@ continuityFromString : String -> Maybe Continuity
 continuityFromString cont =
     continuityPairs
         |> ListEx.find (Tuple.second >> (==) cont)
-        |> Maybe.map Tuple.first
-
-
-themePairs : List ( Theme, String )
-themePairs =
-    [ ( Tomato, "Tomato" )
-    , ( NightMood, "Night Mood" )
-    , ( Gruvbox, "Gruvbox" )
-    , ( Dracula, "Dracula" )
-    , ( Nord, "Nord" )
-    ]
-
-
-themeFromString : String -> Maybe Theme
-themeFromString theme =
-    themePairs
-        |> ListEx.find (Tuple.second >> (==) theme)
         |> Maybe.map Tuple.first
 
 

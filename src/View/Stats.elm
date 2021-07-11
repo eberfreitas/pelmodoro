@@ -13,9 +13,10 @@ import List.Extra as ListEx
 import Model exposing (Model)
 import Msg exposing (Msg(..))
 import Themes.Theme as Theme
+import Themes.Types exposing (Theme)
 import Time exposing (Zone)
 import Tuple.Trio as Trio
-import Types exposing (Cycle, Page(..), StatState(..), StatsDef, Theme)
+import Types exposing (Cycle, Page(..), StatState(..), StatsDef)
 import View.Common as Common
 import View.MiniTimer as MiniTimer
 

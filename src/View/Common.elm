@@ -5,7 +5,7 @@ import Css
 import Html.Styled as Html exposing (Attribute, Html)
 import Html.Styled.Attributes as HtmlAttr
 import Themes.Theme as Theme
-import Types exposing (Theme)
+import Themes.Types exposing (Theme)
 
 
 icon : String -> Html msg

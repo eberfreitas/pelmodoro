@@ -8,8 +8,9 @@ import Html.Styled.Events as Event
 import Model exposing (Model)
 import Msg exposing (Msg(..))
 import Themes.Theme as Theme
+import Themes.Types exposing (Theme(..))
 import Tuple.Trio as Trio
-import Types exposing (Continuity(..), Spotify(..), Theme(..))
+import Types exposing (Continuity(..), Spotify(..))
 import View.Common as Common
 import View.MiniTimer as MiniTimer
 
@@ -144,7 +145,7 @@ render ({ settings } as model) =
                 selectInput
                     (Trio.first >> (==) settings.theme)
                     ChangeTheme
-                    (Model.themePairs |> List.map toTrio)
+                    (Themes.Types.themeStringPairs |> List.map toTrio)
             , Html.div [ HtmlAttr.css [ Css.marginBottom <| Css.rem 2 ] ]
                 [ Html.div [ HtmlAttr.css [ labelStyle ] ] [ Html.text "Spotify" ]
                 , Html.div []

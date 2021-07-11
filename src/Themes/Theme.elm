@@ -13,7 +13,8 @@ import Themes.Gruvbox as Gruvbox
 import Themes.NightMood as NightMood
 import Themes.Nord as Nord
 import Themes.Tomato as Tomato
-import Types exposing (Interval(..), Theme(..), ThemeColors)
+import Themes.Types exposing (Theme(..), ThemeColors)
+import Types exposing (Interval(..))
 
 
 themeColors : Theme -> ThemeColors

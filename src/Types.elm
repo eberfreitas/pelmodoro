@@ -10,12 +10,10 @@ module Types exposing
     , SpotifyPlaylist
     , StatState(..)
     , StatsDef
-    , Theme(..)
-    , ThemeColors
     )
 
-import Colors exposing (BaseColor)
 import Date exposing (Date)
+import Themes.Types exposing (Theme)
 import Time exposing (Posix)
 
 
@@ -42,25 +40,6 @@ type Page
 
 type alias Seconds =
     Int
-
-
-type Theme
-    = Tomato
-    | NightMood
-    | Gruvbox
-    | Dracula
-    | Nord
-
-
-type alias ThemeColors =
-    { background : BaseColor
-    , activity : BaseColor
-    , break : BaseColor
-    , longBreak : BaseColor
-    , foreground : BaseColor
-    , contrast : BaseColor
-    , text : BaseColor
-    }
 
 
 type alias SpotifyPlaylist =

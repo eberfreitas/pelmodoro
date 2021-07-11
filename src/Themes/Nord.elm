@@ -1,7 +1,7 @@
 module Themes.Nord exposing (theme)
 
 import Colors exposing (BaseColor)
-import Types exposing (ThemeColors)
+import Themes.Types exposing (ThemeColors)
 
 
 darkBlue : BaseColor
