@@ -2,6 +2,7 @@ import pkceChallenge from "pkce-challenge";
 import randomString from "crypto-random-string";
 
 import * as storage from "./helpers/local-storage.js";
+import setFlash from "./helpers/flash.js";
 
 const clientId = process.env.SPOTIFY_CLIENT_ID;
 const redirectUri = process.env.SPOTIFY_REDIRECT_URL;
@@ -129,20 +130,23 @@ const getAuthToken = (code, state) => {
 
 const notConnected = app => {
   app.ports.gotSpotifyState.send({ type: "notconnected", url: connectData().url });
+  setFlash(app, "Spotify disconnected", "Your Spotify account is disconnected.")
 };
 
 const connectionError = app => {
   app.ports.gotSpotifyState.send({ type: "connectionerror", url: connectData().url });
+  setFlash(app, "Connection error", "There was an error trying to connect to your Spotify account. Note: you need a Premium account to connect.");
 };
 
 const connected = (app, playlists) => {
   app.ports.gotSpotifyState.send({ type: "connected", playlists: playlists, playlist: null });
+  setFlash(app, "Spotify connected", "Your Spotify account is connected.");
 };
 
 const setupPlaylists = (app, token) => {
   getPlaylists(token)
-    .catch(() => notConnected(app))
-    .then(playlists => connected(app, playlists));
+    .then(playlists => connected(app, playlists))
+    .catch(() => notConnected(app));
 };
 
 const connectionCallback = (app, code, state) => {

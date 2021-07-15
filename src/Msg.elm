@@ -34,3 +34,5 @@ type Msg
     | GotNavLogs Value
     | UrlChanged Url
     | LinkCliked UrlRequest
+    | CloseFlashMsg
+    | GotFlashMsg Value

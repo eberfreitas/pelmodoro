@@ -16,13 +16,15 @@ import Model exposing (Model)
 import Msg exposing (Msg(..))
 import Platform exposing (Program)
 import Platform.Sub as Sub
+import Quotes
 import Task
 import Themes.Theme as Theme
 import Themes.Types exposing (Theme)
 import Time exposing (Posix)
-import Types exposing (Continuity(..), Current, Interval(..), Page(..), Spotify(..), StatState(..), StatsDef)
+import Types exposing (Continuity(..), Current, FlashMsg, Interval(..), Page(..), Spotify(..), StatState(..), StatsDef)
 import Url exposing (Url)
 import View.Common as Common
+import View.Flash as Flash
 import View.Settings as Settings
 import View.Stats as Stats
 import View.Timer as Timer
@@ -66,6 +68,9 @@ port gotStatsLogs : (D.Value -> msg) -> Sub msg
 
 
 port gotNavLogs : (D.Value -> msg) -> Sub msg
+
+
+port gotFlashMsg : (D.Value -> msg) -> Sub msg
 
 
 type alias Flags =
@@ -174,9 +179,17 @@ viewBody model =
             ]
         ]
         [ renderPage model
+        , renderFlash model.settings.theme model.flash
         , renderNav model.settings.theme model.page
         ]
         |> Html.toUnstyled
+
+
+renderFlash : Theme -> Maybe (FlashMsg Msg) -> Html Msg
+renderFlash theme flash =
+    flash
+        |> Maybe.map (\f -> Flash.render theme f)
+        |> Maybe.withDefault (Html.text "")
 
 
 renderNav : Theme -> Page -> Html Msg
@@ -275,7 +288,41 @@ renderPage model =
         ]
 
 
-evalElapsedTime : Posix -> Spotify -> Current -> Continuity -> List Interval -> ( Current, Bool, Cmd msg )
+newFlash : String -> Html msg -> FlashMsg msg
+newFlash title content =
+    FlashMsg 15 title content
+
+
+handleFlashMsg : Maybe (FlashMsg msg) -> Maybe (FlashMsg msg)
+handleFlashMsg flashMsg =
+    flashMsg
+        |> Maybe.andThen
+            (\({ time } as flash) ->
+                if (time - 1) < 1 then
+                    Nothing
+
+                else
+                    Just { flash | time = time - 1 }
+            )
+
+
+decodeFlash : D.Decoder (FlashMsg msg)
+decodeFlash =
+    D.map2
+        (\title msg -> newFlash title (Html.div [] [ Html.text msg ]))
+        (D.field "title" D.string)
+        (D.field "msg" D.string)
+
+
+type alias EvalResult msg =
+    { current : Current
+    , playing : Bool
+    , flash : Maybe (FlashMsg msg)
+    , cmd : Cmd msg
+    }
+
+
+evalElapsedTime : Posix -> Spotify -> Current -> Continuity -> List Interval -> EvalResult msg
 evalElapsedTime now spotify current repeat intervals =
     if Model.currentSecondsLeft current == 0 then
         let
@@ -309,11 +356,28 @@ evalElapsedTime now spotify current repeat intervals =
 
                     ( Just nextInterval, _ ) ->
                         ( Current nextIdx (Model.cycleBuild nextInterval (Just now)) 0, True )
+
+            flashMsg =
+                case ( current.cycle.interval, current_.cycle.interval ) of
+                    ( Activity _, Break _ ) ->
+                        Just (newFlash "Time to take a break" (Quotes.getAquote now))
+
+                    ( Break _, Activity _ ) ->
+                        Just (newFlash "Back to work" (Quotes.getAquote now))
+
+                    ( Activity _, LongBreak _ ) ->
+                        Just (newFlash "Time to relax" (Quotes.getAquote now))
+
+                    ( LongBreak _, Activity _ ) ->
+                        Just (newFlash "What is next?" (Quotes.getAquote now))
+
+                    _ ->
+                        Nothing
         in
-        ( current_, playing, Cmd.batch [ notify (), cmdFnByInterval current_.cycle.interval ] )
+        EvalResult current_ playing flashMsg (Cmd.batch [ notify (), cmdFnByInterval current_.cycle.interval ])
 
     else
-        ( Model.currentAddElapsed 1 current, True, Cmd.none )
+        EvalResult (Model.currentAddElapsed 1 current) True Nothing Cmd.none
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -350,6 +414,17 @@ update msg model =
                 |> Cmd.batch
                 |> Tuple.pair model_
 
+        updateFlash ( model_, cmd ) =
+            { model_ | flash = handleFlashMsg model_.flash }
+                |> Helpers.flip Tuple.pair cmd
+
+        setFlash : Maybe (FlashMsg Msg) -> ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
+        setFlash flashMsg ( model_, cmd ) =
+            flashMsg
+                |> Maybe.map (\f -> { model_ | flash = Just f })
+                |> Maybe.withDefault model_
+                |> Helpers.flip Tuple.pair cmd
+
         updateSettings model_ =
             let
                 ( newIntervals, newCurrent ) =
@@ -375,7 +450,7 @@ update msg model =
             in
             if model.playing == True then
                 let
-                    ( newCurrent, newPlaying, cmd ) =
+                    newState =
                         evalElapsedTime model.time
                             model.settings.spotify
                             model.current
@@ -383,19 +458,21 @@ update msg model =
                             model.intervals
 
                     logCmd =
-                        if cmd /= Cmd.none then
+                        if newState.cmd /= Cmd.none then
                             Model.cycleLog model.time model.current
 
                         else
                             Cmd.none
                 in
-                { model | current = newCurrent, playing = newPlaying }
+                { model | current = newState.current, playing = newState.playing }
                     |> updateTime
-                    |> Helpers.flip Tuple.pair (Cmd.batch [ cmd, logCmd ])
+                    |> Helpers.flip Tuple.pair (Cmd.batch [ newState.cmd, logCmd ])
+                    |> updateFlash
+                    |> setFlash newState.flash
                     |> persistCurrent_
 
             else
-                model |> updateTime |> done
+                model |> updateTime |> done |> updateFlash
 
         AdjustTimeZone newZone ->
             done { model | zone = newZone }
@@ -630,6 +707,17 @@ update msg model =
                 External href ->
                     ( model, Nav.load href )
 
+        CloseFlashMsg ->
+            { model | flash = Nothing } |> done
+
+        GotFlashMsg raw ->
+            case D.decodeValue decodeFlash raw of
+                Ok flash ->
+                    { model | flash = Just flash } |> done
+
+                Err _ ->
+                    done model
+
 
 subs : Model -> Sub Msg
 subs _ =
@@ -638,6 +726,7 @@ subs _ =
         , gotSpotifyState GotSpotifyState
         , gotStatsLogs GotStatsLogs
         , gotNavLogs GotNavLogs
+        , gotFlashMsg GotFlashMsg
         ]
 
 

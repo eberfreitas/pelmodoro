@@ -28,6 +28,7 @@ port module Model exposing
 
 import Browser.Navigation exposing (Key)
 import Helpers
+import Html.Styled as Html
 import Json.Decode as D
 import Json.Decode.Pipeline as Pipeline
 import Json.Encode as E
@@ -40,6 +41,7 @@ import Types
         ( Continuity(..)
         , Current
         , Cycle
+        , FlashMsg
         , Interval(..)
         , Page(..)
         , Seconds
@@ -62,6 +64,7 @@ type alias Model =
     , current : Current
     , playing : Bool
     , intervals : List Interval
+    , flash : Maybe (FlashMsg Msg)
     }
 
 
@@ -132,6 +135,7 @@ default key =
     , current = current
     , playing = False
     , intervals = intervals
+    , flash = Nothing
     }
 
 

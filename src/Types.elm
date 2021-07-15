@@ -2,6 +2,7 @@ module Types exposing
     ( Continuity(..)
     , Current
     , Cycle
+    , FlashMsg
     , Interval(..)
     , Page(..)
     , Seconds
@@ -13,6 +14,7 @@ module Types exposing
     )
 
 import Date exposing (Date)
+import Html.Styled exposing (Html)
 import Themes.Types exposing (Theme)
 import Time exposing (Posix)
 
@@ -28,7 +30,6 @@ type alias StatsDef =
 type StatState
     = Loading
     | Loaded StatsDef
-    | Error String
 
 
 type Page
@@ -89,3 +90,10 @@ type Continuity
     = NoCont
     | SimpleCont
     | FullCont
+
+
+type alias FlashMsg msg =
+    { time : Int
+    , title : String
+    , msg : Html msg
+    }
