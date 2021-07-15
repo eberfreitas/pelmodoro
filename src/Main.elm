@@ -645,7 +645,7 @@ update msg model =
                 Ok posix ->
                     ( model, fetchNavLog <| Time.posixToMillis posix )
 
-                _ ->
+                Err _ ->
                     done model
 
         ChangeLogDate newDate ->
@@ -653,7 +653,7 @@ update msg model =
                 Ok posix ->
                     ( model, fetchLogs <| Time.posixToMillis posix )
 
-                _ ->
+                Err _ ->
                     done model
 
         GotStatsLogs raw ->

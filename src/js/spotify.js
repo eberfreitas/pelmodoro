@@ -128,9 +128,12 @@ const getAuthToken = (code, state) => {
   return authRequest(body);
 };
 
-const notConnected = app => {
+const notConnected = (app, flash = true) => {
   app.ports.gotSpotifyState.send({ type: "notconnected", url: connectData().url });
-  setFlash(app, "Spotify disconnected", "Your Spotify account is disconnected.")
+
+  if (flash) {
+    setFlash(app, "Spotify disconnected", "Your Spotify account is disconnected.")
+  }
 };
 
 const connectionError = app => {
@@ -138,15 +141,18 @@ const connectionError = app => {
   setFlash(app, "Connection error", "There was an error trying to connect to your Spotify account. Note: you need a Premium account to connect.");
 };
 
-const connected = (app, playlists) => {
+const connected = (app, playlists, flash = true) => {
   app.ports.gotSpotifyState.send({ type: "connected", playlists: playlists, playlist: null });
-  setFlash(app, "Spotify connected", "Your Spotify account is connected.");
+
+  if (flash) {
+    setFlash(app, "Spotify connected", "Your Spotify account is connected.");
+  }
 };
 
-const setupPlaylists = (app, token) => {
+const setupPlaylists = (app, token, flash) => {
   getPlaylists(token)
-    .then(playlists => connected(app, playlists))
-    .catch(() => notConnected(app));
+    .then(playlists => connected(app, playlists, flash))
+    .catch(() => notConnected(app, flash));
 };
 
 const connectionCallback = (app, code, state) => {
@@ -188,7 +194,7 @@ const initPlayer = (app, token, retries) => {
   player.connect();
 };
 
-const initApp = app => {
+const initApp = (app, flash = true) => {
   const authData = storage.get("spotifyAuthData", {});
 
   if (authData.access_token) {
@@ -200,7 +206,7 @@ const initApp = app => {
         .then(data => {
           storage.set("spotifyAuthData", data);
 
-          init(app, data.access_token);
+          init(app, data.access_token, flash);
         });
     } else {
       const expiresDiff = authData.expires_at - now;
@@ -210,10 +216,10 @@ const initApp = app => {
 
       window.spotify.connected = true;
 
-      init(app, authData.access_token);
+      init(app, authData.access_token, flash);
     }
   } else {
-    notConnected(app);
+    notConnected(app, flash);
   }
 };
 
@@ -311,9 +317,9 @@ const disconnect = app => {
   notConnected(app);
 };
 
-const init = (app, token) => {
+const init = (app, token, flash) => {
   initPlayer(app, token, 0);
-  setupPlaylists(app, token);
+  setupPlaylists(app, token, flash);
   checkState(token);
 
   app.ports.spotifyPlay.subscribe(uri => play(token, uri));
@@ -330,6 +336,6 @@ export default function (app) {
   if (window.location.pathname == redirectUrl.pathname && code && state) {
     connectionCallback(app, code, state);
   } else {
-    initApp(app);
+    initApp(app, false);
   }
 }
