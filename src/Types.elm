@@ -4,6 +4,8 @@ module Types exposing
     , Cycle
     , FlashMsg
     , Interval(..)
+    , NotificationType(..)
+    , Notifications
     , Page(..)
     , Seconds
     , Settings
@@ -54,6 +56,19 @@ type Spotify
     | Uninitialized
 
 
+type alias Notifications =
+    { inApp : Bool
+    , sound : Bool
+    , browser : Bool
+    }
+
+
+type NotificationType
+    = InApp
+    | Sound
+    | Browser
+
+
 type alias Settings =
     { rounds : Int
     , activity : Seconds
@@ -62,6 +77,7 @@ type alias Settings =
     , theme : Theme
     , continuity : Continuity
     , spotify : Spotify
+    , notifications : Notifications
     }
 
 

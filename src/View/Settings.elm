@@ -10,7 +10,7 @@ import Msg exposing (Msg(..))
 import Themes.Theme as Theme
 import Themes.Types exposing (Theme(..))
 import Tuple.Trio as Trio
-import Types exposing (Continuity(..), Spotify(..))
+import Types exposing (Continuity(..), NotificationType(..), Spotify(..))
 import View.Common as Common
 import View.MiniTimer as MiniTimer
 
@@ -120,6 +120,33 @@ render ({ settings } as model) =
                     )
                 ]
 
+        checkbox : Bool -> Msg -> String -> Html Msg
+        checkbox val msg label =
+            let
+                icon =
+                    if val then
+                        "check_box"
+
+                    else
+                        "check_box_outline_blank"
+            in
+            Html.div []
+                [ Html.button
+                    [ HtmlAttr.css
+                        [ Css.backgroundColor Css.transparent
+                        , Css.border Css.zero
+                        , Css.padding Css.zero
+                        , Css.margin Css.zero
+                        , Css.verticalAlign Css.middle
+                        , Css.cursor Css.pointer
+                        , Css.color (settings.theme |> Theme.foregroundColor |> Colors.toCssColor)
+                        ]
+                    , Event.onClick msg
+                    ]
+                    [ Common.icon icon ]
+                , Html.span [ Event.onClick msg ] [ Html.text label ]
+                ]
+
         toTrio ( a, b ) =
             ( a, b, b )
     in
@@ -141,6 +168,14 @@ render ({ settings } as model) =
                     (Trio.first >> (==) settings.continuity)
                     ChangeContinuity
                     (Model.continuityPairs |> List.map toTrio)
+            , inputContainer "Notifications"
+                ([ ( settings.notifications.inApp, InApp, "In app messages" )
+                 , ( settings.notifications.sound, Sound, "Play sounds" )
+                 , ( settings.notifications.browser, Browser, "Browser notification" )
+                 ]
+                    |> List.map (\( v, t, l ) -> checkbox v (ToggleNotification t) l)
+                    |> Html.div []
+                )
             , inputContainer "Color theme" <|
                 selectInput
                     (Trio.first >> (==) settings.theme)

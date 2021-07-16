@@ -17,6 +17,7 @@ port module Model exposing
     , decodeSpotify
     , default
     , encodeCurrent
+    , encodeNotifications
     , encodeSettings
     , firstInterval
     , intervalIsActivity
@@ -43,6 +44,7 @@ import Types
         , Cycle
         , FlashMsg
         , Interval(..)
+        , Notifications
         , Page(..)
         , Seconds
         , Settings
@@ -70,7 +72,12 @@ type alias Model =
 
 defaultSettings : Settings
 defaultSettings =
-    Settings 4 (25 * 60) (5 * 60) (15 * 60) Tomato NoCont Uninitialized
+    Settings 4 (25 * 60) (5 * 60) (15 * 60) Tomato NoCont Uninitialized defaultNotifications
+
+
+defaultNotifications : Notifications
+defaultNotifications =
+    Notifications True True False
 
 
 firstInterval : List Interval -> Interval
@@ -353,8 +360,17 @@ encodeSpotify spotify =
                 [ ( "type", E.string "uninitialized" ) ]
 
 
+encodeNotifications : Notifications -> E.Value
+encodeNotifications { inApp, sound, browser } =
+    E.object
+        [ ( "inapp", E.bool inApp )
+        , ( "sound", E.bool sound )
+        , ( "browser", E.bool browser )
+        ]
+
+
 encodeSettings : Settings -> E.Value
-encodeSettings { rounds, activity, break, longBreak, theme, continuity, spotify } =
+encodeSettings { rounds, activity, break, longBreak, theme, continuity, spotify, notifications } =
     E.object
         [ ( "rounds", E.int rounds )
         , ( "activity", E.int activity )
@@ -363,6 +379,7 @@ encodeSettings { rounds, activity, break, longBreak, theme, continuity, spotify 
         , ( "theme", encodeTheme theme )
         , ( "continuity", encodeContinuity continuity )
         , ( "spotify", encodeSpotify spotify )
+        , ( "notifications", encodeNotifications notifications )
         ]
 
 
@@ -496,6 +513,14 @@ decodeSpotify =
             )
 
 
+decodeNotifications : D.Decoder Notifications
+decodeNotifications =
+    D.succeed Notifications
+        |> Pipeline.required "inapp" D.bool
+        |> Pipeline.required "sound" D.bool
+        |> Pipeline.required "browser" D.bool
+
+
 decodeSettings : D.Decoder Settings
 decodeSettings =
     D.succeed Settings
@@ -506,3 +531,4 @@ decodeSettings =
         |> Pipeline.required "theme" decodeTheme
         |> Pipeline.required "continuity" decodeContinuity
         |> Pipeline.required "spotify" decodeSpotify
+        |> Pipeline.optional "notifications" decodeNotifications defaultNotifications

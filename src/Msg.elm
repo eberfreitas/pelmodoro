@@ -4,7 +4,7 @@ import Browser exposing (UrlRequest)
 import Date exposing (Date)
 import Json.Decode exposing (Value)
 import Time exposing (Zone)
-import Types exposing (Continuity, Page)
+import Types exposing (Continuity, NotificationType, Page)
 import Url exposing (Url)
 
 
@@ -36,3 +36,5 @@ type Msg
     | LinkCliked UrlRequest
     | CloseFlashMsg
     | GotFlashMsg Value
+    | ToggleNotification NotificationType
+    | GotBrowserNotifRes Value

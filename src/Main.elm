@@ -20,8 +20,20 @@ import Quotes
 import Task
 import Themes.Theme as Theme
 import Themes.Types exposing (Theme)
-import Time exposing (Posix)
-import Types exposing (Continuity(..), Current, FlashMsg, Interval(..), Page(..), Spotify(..), StatState(..), StatsDef)
+import Time
+import Types
+    exposing
+        ( Continuity(..)
+        , Current
+        , FlashMsg
+        , Interval(..)
+        , NotificationType(..)
+        , Notifications
+        , Page(..)
+        , Spotify(..)
+        , StatState(..)
+        , StatsDef
+        )
 import Url exposing (Url)
 import View.Common as Common
 import View.Flash as Flash
@@ -31,7 +43,7 @@ import View.Timer as Timer
 import VirtualDom exposing (Node)
 
 
-port notify : () -> Cmd msg
+port notify : E.Value -> Cmd msg
 
 
 port persistCurrent : E.Value -> Cmd msg
@@ -58,6 +70,9 @@ port spotifyRefresh : () -> Cmd msg
 port spotifyDisconnect : () -> Cmd msg
 
 
+port requestBrowserNotif : Bool -> Cmd msg
+
+
 port tick : (Int -> msg) -> Sub msg
 
 
@@ -71,6 +86,9 @@ port gotNavLogs : (D.Value -> msg) -> Sub msg
 
 
 port gotFlashMsg : (D.Value -> msg) -> Sub msg
+
+
+port gotBrowserNotifRes : (D.Value -> msg) -> Sub msg
 
 
 type alias Flags =
@@ -272,7 +290,12 @@ renderNav theme page =
 
 renderPage : Model -> Html Msg
 renderPage model =
-    Html.div [ HtmlAttr.css [ Css.height (Css.calc (Css.pct 100) Css.minus (Css.rem 3.5)), Css.overflow Css.auto ] ]
+    Html.div
+        [ HtmlAttr.css
+            [ Css.height (Css.calc (Css.pct 100) Css.minus (Css.rem 3.5))
+            , Css.overflow Css.auto
+            ]
+        ]
         [ case model.page of
             TimerPage ->
                 Timer.render model
@@ -314,6 +337,14 @@ decodeFlash =
         (D.field "msg" D.string)
 
 
+decodeBrowserNotifRes : D.Decoder { val : Bool, msg : String }
+decodeBrowserNotifRes =
+    D.map2
+        (\val msg -> { val = val, msg = msg })
+        (D.field "val" D.bool)
+        (D.field "msg" D.string)
+
+
 type alias EvalResult msg =
     { current : Current
     , playing : Bool
@@ -322,18 +353,27 @@ type alias EvalResult msg =
     }
 
 
-evalElapsedTime : Posix -> Spotify -> Current -> Continuity -> List Interval -> EvalResult msg
-evalElapsedTime now spotify current repeat intervals =
-    if Model.currentSecondsLeft current == 0 then
+encodeNotifConfig : { sound : String, msg : String, config : Notifications } -> E.Value
+encodeNotifConfig { sound, msg, config } =
+    E.object
+        [ ( "sound", E.string sound )
+        , ( "msg", E.string msg )
+        , ( "config", Model.encodeNotifications config )
+        ]
+
+
+evalElapsedTime : Model -> EvalResult msg
+evalElapsedTime model =
+    if Model.currentSecondsLeft model.current == 0 then
         let
             firstInterval =
-                intervals |> Model.firstInterval
+                model.intervals |> Model.firstInterval
 
             nextIdx =
-                current.index + 1
+                model.current.index + 1
 
             cmdFnByInterval interval =
-                case ( interval, spotify ) of
+                case ( interval, model.settings.spotify ) of
                     ( Activity _, Connected _ (Just uri) ) ->
                         spotifyPlay uri
 
@@ -344,9 +384,9 @@ evalElapsedTime now spotify current repeat intervals =
                         Cmd.none
 
             ( current_, playing ) =
-                case ( intervals |> ListEx.getAt nextIdx, repeat ) of
+                case ( model.intervals |> ListEx.getAt nextIdx, model.settings.continuity ) of
                     ( Nothing, FullCont ) ->
-                        ( Current 0 (Model.cycleBuild firstInterval (Just now)) 0, True )
+                        ( Current 0 (Model.cycleBuild firstInterval (Just model.time)) 0, True )
 
                     ( Nothing, _ ) ->
                         ( Current 0 (Model.cycleBuild firstInterval Nothing) 0, False )
@@ -355,29 +395,38 @@ evalElapsedTime now spotify current repeat intervals =
                         ( Current nextIdx (Model.cycleBuild nextInterval Nothing) 0, False )
 
                     ( Just nextInterval, _ ) ->
-                        ( Current nextIdx (Model.cycleBuild nextInterval (Just now)) 0, True )
+                        ( Current nextIdx (Model.cycleBuild nextInterval (Just model.time)) 0, True )
 
-            flashMsg =
-                case ( current.cycle.interval, current_.cycle.interval ) of
+            ( flashMsg, notifMsg ) =
+                case ( model.current.cycle.interval, current_.cycle.interval ) of
                     ( Activity _, Break _ ) ->
-                        Just (newFlash "Time to take a break" (Quotes.getAquote now))
+                        ( Just (newFlash "Time to take a break" (Quotes.getAquote model.time))
+                        , "Time to take a break"
+                        )
 
                     ( Break _, Activity _ ) ->
-                        Just (newFlash "Back to work" (Quotes.getAquote now))
+                        ( Just (newFlash "Back to work" (Quotes.getAquote model.time)), "Back to work" )
 
                     ( Activity _, LongBreak _ ) ->
-                        Just (newFlash "Time to relax" (Quotes.getAquote now))
+                        ( Just (newFlash "Time to relax" (Quotes.getAquote model.time)), "Time to relax" )
 
                     ( LongBreak _, Activity _ ) ->
-                        Just (newFlash "What is next?" (Quotes.getAquote now))
+                        ( Just (newFlash "What is next?" (Quotes.getAquote model.time)), "What is next?" )
 
                     _ ->
-                        Nothing
+                        ( Nothing, "" )
+
+            notifyVal =
+                encodeNotifConfig { sound = "wind-chimes", msg = notifMsg, config = model.settings.notifications }
         in
-        EvalResult current_ playing flashMsg (Cmd.batch [ notify (), cmdFnByInterval current_.cycle.interval ])
+        EvalResult
+            current_
+            playing
+            flashMsg
+            (Cmd.batch [ notify notifyVal, cmdFnByInterval current_.cycle.interval ])
 
     else
-        EvalResult (Model.currentAddElapsed 1 current) True Nothing Cmd.none
+        EvalResult (Model.currentAddElapsed 1 model.current) True Nothing Cmd.none
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -451,11 +500,7 @@ update msg model =
             if model.playing == True then
                 let
                     newState =
-                        evalElapsedTime model.time
-                            model.settings.spotify
-                            model.current
-                            model.settings.continuity
-                            model.intervals
+                        evalElapsedTime model
 
                     logCmd =
                         if newState.cmd /= Cmd.none then
@@ -463,12 +508,19 @@ update msg model =
 
                         else
                             Cmd.none
+
+                    flashFn =
+                        if model.settings.notifications.inApp then
+                            setFlash newState.flash
+
+                        else
+                            identity
                 in
                 { model | current = newState.current, playing = newState.playing }
                     |> updateTime
                     |> Helpers.flip Tuple.pair (Cmd.batch [ newState.cmd, logCmd ])
                     |> updateFlash
-                    |> setFlash newState.flash
+                    |> flashFn
                     |> persistCurrent_
 
             else
@@ -597,7 +649,11 @@ update msg model =
                                     Connected playlists _ ->
                                         Connected
                                             playlists
-                                            (ListEx.find (Tuple.first >> (==) uri) playlists |> Maybe.map Tuple.first)
+                                            (ListEx.find
+                                                (Tuple.first >> (==) uri)
+                                                playlists
+                                                |> Maybe.map Tuple.first
+                                            )
 
                                     _ ->
                                         s.spotify
@@ -687,7 +743,10 @@ update msg model =
                 ( StatsPage (Loaded def), Ok { ts, log } ) ->
                     let
                         newDef =
-                            { def | navDate = ts |> Time.millisToPosix |> Date.fromPosix model.zone, monthly = log }
+                            { def
+                                | navDate = ts |> Time.millisToPosix |> Date.fromPosix model.zone
+                                , monthly = log
+                            }
                     in
                     done { model | page = StatsPage (Loaded newDef) }
 
@@ -718,6 +777,60 @@ update msg model =
                 Err _ ->
                     done model
 
+        ToggleNotification type_ ->
+            let
+                notificationSettings =
+                    model.settings.notifications
+            in
+            case type_ of
+                InApp ->
+                    let
+                        newNotifications =
+                            { notificationSettings | inApp = not notificationSettings.inApp }
+                    in
+                    model
+                        |> Model.mapSettings (\s -> { s | notifications = newNotifications })
+                        |> updateSettings
+
+                Sound ->
+                    let
+                        newNotifications =
+                            { notificationSettings | sound = not notificationSettings.sound }
+                    in
+                    model
+                        |> Model.mapSettings (\s -> { s | notifications = newNotifications })
+                        |> updateSettings
+
+                Browser ->
+                    ( model, requestBrowserNotif (not model.settings.notifications.browser) )
+
+        GotBrowserNotifRes raw ->
+            case D.decodeValue decodeBrowserNotifRes raw of
+                Ok res ->
+                    let
+                        flashFn =
+                            if res.msg /= "" then
+                                newFlash "Attention" (Html.div [] [ Html.text res.msg ])
+                                    |> Just
+                                    |> setFlash
+
+                            else
+                                identity
+
+                        notifications =
+                            model.settings.notifications
+
+                        newNotifications =
+                            { notifications | browser = res.val }
+                    in
+                    model
+                        |> Model.mapSettings (\s -> { s | notifications = newNotifications })
+                        |> updateSettings
+                        |> flashFn
+
+                Err _ ->
+                    done model
+
 
 subs : Model -> Sub Msg
 subs _ =
@@ -727,6 +840,7 @@ subs _ =
         , gotStatsLogs GotStatsLogs
         , gotNavLogs GotNavLogs
         , gotFlashMsg GotFlashMsg
+        , gotBrowserNotifRes GotBrowserNotifRes
         ]
 
 
