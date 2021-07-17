@@ -1,4 +1,8 @@
 import db from "./helpers/db.js";
+import download from "downloadjs";
+import { peakImportFile } from "dexie-export-import";
+
+import setFlash from "./helpers/flash.js";
 
 const insert = cycle => db.cycles.add(cycle);
 
@@ -29,8 +33,31 @@ const fetch = (app, millis) => {
 
 const fetchNav = (app, millis) => monthlyLogs(millis).then(log => app.ports.gotNavLogs.send({ ts: millis, log: log}));
 
+const exportData = () => {
+  db.export().then(blob => download(blob, "pelmodoro-data.json", "application/json"));
+};
+
+
+const importData = (app, str) => {
+  const blob = new Blob([str]);
+
+  peakImportFile(blob)
+    .then(() => {
+      db.cycles.clear()
+        .then(() => {
+          db.import(blob)
+            .then(() => setFlash(app, "Success", "Data has been successfully imported."))
+            .catch(() => setFlash(app, "Error", "There was an error trying to import the data."));
+        })
+        .catch(() => setFlash(app, "Error", "There was an error trying to import the data."));
+    })
+    .catch(() => setFlash(app, "Error", "There was an error trying to import the data."));
+}
+
 export default function (app) {
   app.ports.logCycle.subscribe(insert);
   app.ports.fetchLogs.subscribe(millis => fetch(app, millis));
   app.ports.fetchNavLog.subscribe(millis => fetchNav(app, millis));
+  app.ports.requestDataExport.subscribe(() => exportData());
+  app.ports.importData.subscribe(blob => importData(app, blob));
 }

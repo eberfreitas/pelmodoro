@@ -2,6 +2,7 @@ module Msg exposing (Msg(..))
 
 import Browser exposing (UrlRequest)
 import Date exposing (Date)
+import File exposing (File)
 import Json.Decode exposing (Value)
 import Time exposing (Zone)
 import Types exposing (Continuity, NotificationType, Page)
@@ -38,3 +39,7 @@ type Msg
     | GotFlashMsg Value
     | ToggleNotification NotificationType
     | GotBrowserNotifRes Value
+    | RequestDataExport
+    | ImportRequest
+    | ImportSelect File
+    | ImportData String

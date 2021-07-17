@@ -5,6 +5,8 @@ import Browser.Navigation as Nav exposing (Key)
 import Colors
 import Css
 import Date
+import File
+import File.Select as Select
 import Helpers
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as HtmlAttr
@@ -72,6 +74,12 @@ port spotifyDisconnect : () -> Cmd msg
 
 
 port requestBrowserNotif : Bool -> Cmd msg
+
+
+port requestDataExport : () -> Cmd msg
+
+
+port importData : String -> Cmd msg
 
 
 port tick : (Int -> msg) -> Sub msg
@@ -832,6 +840,18 @@ update msg model =
 
                 Err _ ->
                     done model
+
+        RequestDataExport ->
+            ( model, requestDataExport () )
+
+        ImportRequest ->
+            ( model, Select.file [ "application/json" ] ImportSelect )
+
+        ImportSelect file ->
+            ( model, Task.perform ImportData (File.toString file) )
+
+        ImportData data ->
+            ( model, importData data )
 
 
 subs : Model -> Sub Msg

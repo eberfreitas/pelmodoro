@@ -100,11 +100,15 @@ render ({ settings } as model) =
         numberInput min max msg num =
             Html.div
                 [ HtmlAttr.css [ Css.displayFlex ] ]
-                [ Html.button [ HtmlAttr.css [ buttonStyle ], Event.onClick (num - 1 |> atLeast min |> msg) ] [ Common.icon "remove" ]
+                [ Html.button
+                    [ HtmlAttr.css [ buttonStyle ], Event.onClick (num - 1 |> atLeast min |> msg) ]
+                    [ Common.icon "remove" ]
                 , Html.div
                     [ HtmlAttr.css [ settingDisplayStyle ] ]
                     [ Html.text <| String.fromInt num ]
-                , Html.button [ HtmlAttr.css [ buttonStyle ], Event.onClick (num + 1 |> atMost max |> msg) ] [ Common.icon "add" ]
+                , Html.button
+                    [ HtmlAttr.css [ buttonStyle ], Event.onClick (num + 1 |> atMost max |> msg) ]
+                    [ Common.icon "add" ]
                 ]
 
         selectInput fn msg pairs =
@@ -162,7 +166,9 @@ render ({ settings } as model) =
             , inputContainer "Rounds" <| numberInput 1 8 ChangeRounds settings.rounds
             , inputContainer "Session duration" <| numberInput 1 60 ChangeActivity <| inMinutes settings.activity
             , inputContainer "Break duration" <| numberInput 1 60 ChangeBreak <| inMinutes settings.break
-            , inputContainer "Long break duration" <| numberInput 1 60 ChangeLongBreak <| inMinutes settings.longBreak
+            , inputContainer "Long break duration" <|
+                numberInput 1 60 ChangeLongBreak <|
+                    inMinutes settings.longBreak
             , inputContainer "Rounds continuity" <|
                 selectInput
                     (Trio.first >> (==) settings.continuity)
@@ -214,16 +220,28 @@ render ({ settings } as model) =
                                                 [ Html.text title ]
                                         )
                                     |> (::) (Html.option [ HtmlAttr.value "" ] [ Html.text "--" ])
-                                    |> (::) (Html.option [ HtmlAttr.value "", HtmlAttr.selected (current == Nothing) ] [ Html.text "Don't play anything" ])
+                                    |> (::)
+                                        (Html.option
+                                            [ HtmlAttr.value "", HtmlAttr.selected (current == Nothing) ]
+                                            [ Html.text "Don't play anything" ]
+                                        )
                                 )
                             , Html.button
                                 [ Event.onClick SpotifyRefresh
-                                , HtmlAttr.css [ largeButtonStyle, Css.marginTop <| Css.rem 1, Css.paddingTop <| Css.zero ]
+                                , HtmlAttr.css
+                                    [ largeButtonStyle
+                                    , Css.marginTop <| Css.rem 1
+                                    , Css.paddingTop Css.zero
+                                    ]
                                 ]
                                 [ Html.text "Refresh playlists" ]
                             , Html.button
                                 [ Event.onClick SpotifyDisconnect
-                                , HtmlAttr.css [ largeButtonStyle, Css.marginTop <| Css.rem 1, Css.paddingTop <| Css.zero ]
+                                , HtmlAttr.css
+                                    [ largeButtonStyle
+                                    , Css.marginTop <| Css.rem 1
+                                    , Css.paddingTop Css.zero
+                                    ]
                                 ]
                                 [ Html.text "Disconnect" ]
                             ]
@@ -232,5 +250,18 @@ render ({ settings } as model) =
                             [ Html.text "Can't connect to Spotify" ]
                     )
                 ]
+            , inputContainer "Import / Export" <|
+                Html.div []
+                    [ Html.button
+                        [ Event.onClick RequestDataExport
+                        , HtmlAttr.css [ largeButtonStyle, Css.marginTop <| Css.rem 1, Css.paddingTop Css.zero ]
+                        ]
+                        [ Html.text "Export" ]
+                    , Html.button
+                        [ Event.onClick ImportRequest
+                        , HtmlAttr.css [ largeButtonStyle, Css.marginTop <| Css.rem 1, Css.paddingTop Css.zero ]
+                        ]
+                        [ Html.text "Import" ]
+                    ]
             ]
         ]

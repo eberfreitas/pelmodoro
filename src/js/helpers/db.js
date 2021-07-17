@@ -1,4 +1,5 @@
 import Dexie from "dexie";
+import "dexie-export-import";
 
 const db = new Dexie("DB");
 
