@@ -33,31 +33,31 @@ const fetch = (app, millis) => {
 
 const fetchNav = (app, millis) => monthlyLogs(millis).then(log => app.ports.gotNavLogs.send({ ts: millis, log: log}));
 
-const exportData = () => {
-  db.export().then(blob => download(blob, "pelmodoro-data.json", "application/json"));
+const exportData = async () => {
+  const blob = await db.export();
+
+  download(blob, "pelmodoro-data.json", "application/json")
 };
 
 
-const importData = (app, str) => {
+const importData = async (app, str) => {
   const blob = new Blob([str]);
 
-  peakImportFile(blob)
-    .then(() => {
-      db.cycles.clear()
-        .then(() => {
-          db.import(blob)
-            .then(() => setFlash(app, "Success", "Data has been successfully imported."))
-            .catch(() => setFlash(app, "Error", "There was an error trying to import the data."));
-        })
-        .catch(() => setFlash(app, "Error", "There was an error trying to import the data."));
-    })
-    .catch(() => setFlash(app, "Error", "There was an error trying to import the data."));
+  try {
+    await peakImportFile(blob);
+    await db.cycles.clear();
+    await db.import(blob);
+
+    setFlash(app, "Success", "Data has been successfully imported.")
+  } catch (e) {
+    setFlash(app, "Error", "There was an error trying to import the data.")
+  }
 }
 
 export default function (app) {
   app.ports.logCycle.subscribe(insert);
   app.ports.fetchLogs.subscribe(millis => fetch(app, millis));
   app.ports.fetchNavLog.subscribe(millis => fetchNav(app, millis));
-  app.ports.requestDataExport.subscribe(() => exportData());
-  app.ports.importData.subscribe(blob => importData(app, blob));
+  app.ports.requestDataExport.subscribe(async () => await exportData());
+  app.ports.importData.subscribe(async blob => await importData(app, blob));
 }
