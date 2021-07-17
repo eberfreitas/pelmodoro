@@ -9,7 +9,7 @@ import Msg exposing (Msg)
 import Themes.Theme as Theme
 
 
-render : Model -> Html Msg
+render : Model -> Html msg
 render model =
     let
         totalRun =

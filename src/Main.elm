@@ -36,6 +36,7 @@ import Types
         )
 import Url exposing (Url)
 import View.Common as Common
+import View.Credits as Credits
 import View.Flash as Flash
 import View.Settings as Settings
 import View.Stats as Stats
@@ -217,6 +218,7 @@ renderNav theme page =
             [ ( "/", "timer" )
             , ( "/stats", "leaderboard" )
             , ( "/settings", "settings" )
+            , ( "/credits", "info" )
             ]
 
         buttonStyle =
@@ -306,8 +308,8 @@ renderPage model =
             StatsPage _ ->
                 Stats.render model
 
-            _ ->
-                Html.text "other pages"
+            CreditsPage ->
+                Credits.render model
         ]
 
 
