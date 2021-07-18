@@ -42,8 +42,8 @@
     "startURL": "./",
     "scope": "/",
     "theme": "transparent",
-    "backgroundColor": "transparent",
-    "display": "standalone",
+    "backgroundColor": "tomato",
+    "display": "fullscreen",
     "orientation": "portrait",
     "generateIconOptions": {
       "baseIcon": "./icon.svg",

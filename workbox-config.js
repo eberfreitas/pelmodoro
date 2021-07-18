@@ -8,5 +8,6 @@ module.exports = {
 		/^fbclid$/
 	],
 	swDest: 'dist/sw.js',
-	maximumFileSizeToCacheInBytes: 3145728
+	maximumFileSizeToCacheInBytes: 3145728,
+	cleanupOutdatedCaches: true
 };
