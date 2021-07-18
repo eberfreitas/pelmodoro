@@ -61,83 +61,93 @@ renderHourlyAverages zone theme log =
         averages =
             hourlyAverages zone log
 
+        loggedHours =
+            averages |> List.map Trio.first
+
         hours =
-            List.range 0 23
+            List.range
+                (loggedHours |> List.minimum |> Maybe.withDefault 0)
+                (loggedHours |> List.maximum |> Maybe.withDefault 23)
 
         inMinutes x =
             x // 60
     in
-    Html.div [ HtmlAttr.css [ Css.marginBottom <| Css.rem 2 ] ]
-        [ Common.h2 theme "Most productive hours" [ HtmlAttr.css [ Css.marginBottom <| Css.rem 2 ] ] []
-        , hours
-            |> List.map
-                (\h ->
-                    averages
-                        |> ListEx.find (Trio.first >> (==) h)
-                        |> Maybe.map
-                            (\( _, secs, pct ) ->
-                                Html.div
-                                    [ HtmlAttr.css
-                                        [ Css.width <| Css.pct 4.16666
-                                        , Css.height <| Css.pct pct
-                                        , Css.backgroundColor (theme |> Theme.longBreakColor |> Colors.toCssColor)
-                                        , Css.margin2 Css.zero (Css.rem 0.25)
-                                        ]
-                                    , HtmlAttr.title (inMinutes secs |> String.fromInt)
-                                    ]
-                                    []
-                            )
-                        |> Maybe.withDefault
-                            (Html.div
-                                [ HtmlAttr.css
-                                    [ Css.width <| Css.pct 4.16666
-                                    , Css.margin2 Css.zero (Css.rem 0.25)
-                                    ]
-                                ]
-                                [ Html.text "" ]
-                            )
-                )
-            |> Html.div
-                [ HtmlAttr.css
-                    [ Css.displayFlex
-                    , Css.alignItems Css.flexEnd
-                    , Css.height <| Css.rem 5
-                    , Css.width <| Css.pct 100
-                    ]
-                ]
-        , Html.div
-            [ HtmlAttr.css
-                [ Css.borderTop <| Css.px 1
-                , Css.borderStyle Css.solid
-                , Css.borderRight Css.zero
-                , Css.borderBottom Css.zero
-                , Css.borderLeft Css.zero
-                , Css.paddingTop <| Css.rem 0.35
-                , Css.fontSize <| Css.rem 0.5
-                , Css.color (theme |> Theme.textColor |> Colors.toCssColor)
-                ]
-            ]
-            (hours
+    if log == [] then
+        Html.text ""
+
+    else
+        Html.div [ HtmlAttr.css [ Css.marginBottom <| Css.rem 2 ] ]
+            [ Common.h2 theme "Most productive hours" [ HtmlAttr.css [ Css.marginBottom <| Css.rem 2 ] ] []
+            , hours
                 |> List.map
                     (\h ->
-                        Html.div
-                            [ HtmlAttr.css
-                                [ Css.width <| Css.pct 4.16666
-                                , Css.margin2 Css.zero (Css.rem 0.25)
-                                , Css.textAlign Css.center
-                                ]
-                            ]
-                            [ Html.text (h |> String.fromInt |> String.padLeft 2 '0') ]
+                        averages
+                            |> ListEx.find (Trio.first >> (==) h)
+                            |> Maybe.map
+                                (\( _, secs, pct ) ->
+                                    Html.div
+                                        [ HtmlAttr.css
+                                            [ Css.width <| Css.pct 100
+                                            , Css.height <| Css.pct pct
+                                            , Css.backgroundColor (theme |> Theme.longBreakColor |> Colors.toCssColor)
+                                            , Css.margin2 Css.zero (Css.rem 0.25)
+                                            ]
+                                        , HtmlAttr.title (inMinutes secs |> String.fromInt)
+                                        ]
+                                        []
+                                )
+                            |> Maybe.withDefault
+                                (Html.div
+                                    [ HtmlAttr.css
+                                        [ Css.margin2 Css.zero (Css.rem 0.25)
+                                        , Css.width <| Css.pct 100
+                                        ]
+                                    ]
+                                    [ Html.text "" ]
+                                )
                     )
                 |> Html.div
                     [ HtmlAttr.css
                         [ Css.displayFlex
+                        , Css.alignItems Css.flexEnd
+                        , Css.height <| Css.rem 5
                         , Css.width <| Css.pct 100
                         ]
                     ]
-                |> List.singleton
-            )
-        ]
+            , Html.div
+                [ HtmlAttr.css
+                    [ Css.borderTop <| Css.px 1
+                    , Css.borderStyle Css.solid
+                    , Css.borderRight Css.zero
+                    , Css.borderBottom Css.zero
+                    , Css.borderLeft Css.zero
+                    , Css.paddingTop <| Css.rem 0.35
+                    , Css.fontSize <| Css.rem 0.5
+                    , Css.color (theme |> Theme.textColor |> Colors.toCssColor)
+                    ]
+                ]
+                (hours
+                    |> List.map
+                        (\h ->
+                            Html.div
+                                [ HtmlAttr.css
+                                    [ Css.width <| Css.pct 100
+                                    , Css.margin2 Css.zero (Css.rem 0.25)
+                                    , Css.textAlign Css.center
+                                    , Css.overflow Css.hidden
+                                    ]
+                                ]
+                                [ Html.text (h |> String.fromInt |> String.padLeft 2 '0') ]
+                        )
+                    |> Html.div
+                        [ HtmlAttr.css
+                            [ Css.displayFlex
+                            , Css.width <| Css.pct 100
+                            ]
+                        ]
+                    |> List.singleton
+                )
+            ]
 
 
 renderDailyLogs : Zone -> Theme -> Date -> List Cycle -> Html Msg
