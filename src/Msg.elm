@@ -5,7 +5,7 @@ import Date exposing (Date)
 import File exposing (File)
 import Json.Decode exposing (Value)
 import Time exposing (Zone)
-import Types exposing (Continuity, NotificationType, Page)
+import Types exposing (NotificationType)
 import Url exposing (Url)
 
 
@@ -17,8 +17,6 @@ type Msg
     | Pause
     | Skip
     | Reset
-    | SetCont Continuity
-    | ChangePage Page
     | ChangeRounds Int
     | ChangeActivity Int
     | ChangeBreak Int
@@ -29,10 +27,8 @@ type Msg
     | GotSpotifyState Value
     | SpotifyRefresh
     | SpotifyDisconnect
-    | ChangeNavDate Date
     | GotStatsLogs Value
     | ChangeLogDate Date
-    | GotNavLogs Value
     | UrlChanged Url
     | LinkCliked UrlRequest
     | CloseFlashMsg

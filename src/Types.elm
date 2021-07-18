@@ -22,10 +22,8 @@ import Time exposing (Posix)
 
 
 type alias StatsDef =
-    { navDate : Date
-    , logDate : Date
-    , daily : List Cycle
-    , monthly : List Cycle
+    { date : Date
+    , logs : List Cycle
     }
 
 

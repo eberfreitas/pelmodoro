@@ -22,7 +22,11 @@ import View.MiniTimer as MiniTimer
 
 
 render : Model -> Html Msg
-render ({ settings } as model) =
+render ({ settings, time, zone } as model) =
+    let
+        today =
+            Date.fromPosix zone time
+    in
     Html.div []
         [ MiniTimer.render model
         , Html.div
@@ -34,7 +38,7 @@ render ({ settings } as model) =
             [ Common.h1 settings.theme "Statistics"
             , case model.page of
                 StatsPage (Loaded def) ->
-                    renderLoaded model.zone settings.theme def
+                    renderLoaded zone today settings.theme def
 
                 _ ->
                     Html.text ""
@@ -42,12 +46,12 @@ render ({ settings } as model) =
         ]
 
 
-renderLoaded : Zone -> Theme -> StatsDef -> Html Msg
-renderLoaded zone theme def =
+renderLoaded : Zone -> Date -> Theme -> StatsDef -> Html Msg
+renderLoaded zone today theme { date, logs } =
     Html.div []
-        [ renderCalendar zone theme def.monthly def.navDate def.logDate
-        , renderHourlyAverages zone theme def.monthly
-        , renderDailyLogs zone theme def.logDate def.daily
+        [ renderCalendar zone theme today date logs
+        , renderHourlyAverages zone theme logs
+        , renderDailyLogs zone theme date logs
         ]
 
 
@@ -137,7 +141,7 @@ renderHourlyAverages zone theme log =
 
 
 renderDailyLogs : Zone -> Theme -> Date -> List Cycle -> Html Msg
-renderDailyLogs zone theme selected log =
+renderDailyLogs zone theme selected logs =
     let
         formatToHour t =
             ( t, t )
@@ -188,6 +192,14 @@ renderDailyLogs zone theme selected log =
                     ]
                 ]
                 [ Html.div [] [ Html.text (formatToHour start ++ " ➞ " ++ formatToHour end) ] ]
+
+        dailyLogs =
+            logs
+                |> List.filter
+                    (.start
+                        >> Maybe.map (Date.fromPosix zone >> Date.compare selected >> (==) EQ)
+                        >> Maybe.withDefault False
+                    )
     in
     Html.div [ HtmlAttr.css [ Css.color (theme |> Theme.textColor |> Colors.toCssColor) ] ]
         [ Common.h2 theme
@@ -195,20 +207,23 @@ renderDailyLogs zone theme selected log =
             [ HtmlAttr.css [ Css.marginBottom <| Css.rem 2 ] ]
             []
         , Html.div []
-            [ case log of
+            [ case dailyLogs of
                 [] ->
                     Html.div
                         [ HtmlAttr.css [ Css.textAlign Css.center ] ]
                         [ Html.text "No logs" ]
 
-                log_ ->
-                    log_
+                log ->
+                    log
                         |> List.sortBy (.start >> Maybe.map Time.posixToMillis >> Maybe.withDefault 0)
                         |> List.filterMap
                             (\{ interval, start, end, seconds } ->
                                 case ( start, end, seconds ) of
                                     ( Just s, Just e, Just sc ) ->
-                                        Just <| ( s |> Time.posixToMillis |> String.fromInt, renderCycle interval s e sc )
+                                        Just
+                                            ( s |> Time.posixToMillis |> String.fromInt
+                                            , renderCycle interval s e sc
+                                            )
 
                                     _ ->
                                         Nothing
@@ -285,11 +300,11 @@ monthlyAverages zone log =
     firstPass |> List.map (\( date, seconds ) -> ( date, (toFloat seconds * 100) / toFloat max ))
 
 
-renderCalendar : Zone -> Theme -> List Cycle -> Date -> Date -> Html Msg
-renderCalendar zone theme monthly navDate logDate =
+renderCalendar : Zone -> Theme -> Date -> Date -> List Cycle -> Html Msg
+renderCalendar zone theme today date logs =
     let
         averages =
-            monthlyAverages zone monthly
+            monthlyAverages zone logs
 
         cellStyle =
             Css.batch
@@ -319,13 +334,13 @@ renderCalendar zone theme monthly navDate logDate =
                 theme |> Theme.contrastColor |> Colors.toCssColor
 
         cellBorder day =
-            if day == logDate then
-                Css.border3 (Css.rem 0.25) Css.solid (theme |> Theme.longBreakColor |> Colors.toCssColor)
+            if day == date then
+                Css.border3 (Css.rem 0.15) Css.solid (theme |> Theme.longBreakColor |> Colors.toCssColor)
 
             else
                 Css.borderStyle Css.none
 
-        buildDay _ day =
+        buildDay day =
             let
                 average =
                     averageForTheDay day.date
@@ -341,25 +356,33 @@ renderCalendar zone theme monthly navDate logDate =
                         , Css.color (cellTextColor average)
                         ]
 
-                renderFn d =
-                    if d.dayDisplay == "  " then
+                renderFn =
+                    if day.dayDisplay == "  " then
                         Html.div [ HtmlAttr.css [ style ] ]
 
                     else
                         Html.button
-                            [ HtmlAttr.css [ style, Css.cursor Css.pointer, cellBorder d.date ]
-                            , Event.onClick (ChangeLogDate d.date)
+                            [ HtmlAttr.css [ style, Css.cursor Css.pointer, cellBorder day.date ]
+                            , case Date.compare day.date today of
+                                LT ->
+                                    Event.onClick (ChangeLogDate day.date)
+
+                                EQ ->
+                                    Event.onClick (ChangeLogDate day.date)
+
+                                GT ->
+                                    Event.onClick NoOp
                             ]
             in
             Html.div
                 [ HtmlAttr.css [ cellStyle ] ]
-                [ renderFn day [ Html.text day.dayDisplay ] ]
+                [ renderFn [ Html.text day.dayDisplay ] ]
 
         calendar =
-            navDate
+            date
                 |> Calendar.fromDate Nothing
                 |> List.concat
-                |> List.map (buildDay logDate)
+                |> List.map buildDay
 
         arrowStyle =
             Css.batch
@@ -371,18 +394,28 @@ renderCalendar zone theme monthly navDate logDate =
                 , Css.color (theme |> Theme.textColor |> Colors.toCssColor)
                 ]
 
-        arrow date float icon =
+        arrow date_ float icon =
             Html.button
                 [ HtmlAttr.css [ arrowStyle, Css.float float ]
-                , Event.onClick <| ChangeNavDate date
+                , if Date.compare date_ today == LT then
+                    Event.onClick <| ChangeLogDate date_
+
+                  else
+                    Event.onClick NoOp
                 ]
                 [ Common.icon icon ]
 
+        asFirstDay date_ =
+            Date.fromCalendarDate
+                (Date.year date_)
+                (Date.month date_)
+                1
+
         prevMonth =
-            navDate |> Date.add Months -1
+            date |> Date.add Months -1 |> asFirstDay
 
         nextMonth =
-            navDate |> Date.add Months 1
+            date |> Date.add Months 1 |> asFirstDay
     in
     Html.div
         [ HtmlAttr.css
@@ -393,7 +426,7 @@ renderCalendar zone theme monthly navDate logDate =
         [ Html.div
             [ HtmlAttr.css [ Css.position Css.relative, Css.marginBottom <| Css.rem 1 ] ]
             [ Common.h2 theme
-                (navDate |> Date.format "MMM / y")
+                (date |> Date.format "MMM / y")
                 []
                 [ arrow prevMonth Css.left "chevron_left"
                 , arrow nextMonth Css.right "chevron_right"

@@ -8,9 +8,9 @@ import Html.Styled.Events as Event
 import Model exposing (Model)
 import Msg exposing (Msg(..))
 import Themes.Theme as Theme
-import Themes.Types exposing (Theme(..))
+import Themes.Types
 import Tuple.Trio as Trio
-import Types exposing (Continuity(..), NotificationType(..), Spotify(..))
+import Types exposing (NotificationType(..), Spotify(..))
 import View.Common as Common
 import View.MiniTimer as MiniTimer
 
@@ -45,6 +45,12 @@ render ({ settings } as model) =
                 , Css.textDecoration Css.none
                 , Css.paddingTop <| Css.rem 1
                 , Css.fontSize <| Css.rem 1
+                ]
+
+        singleLargeButtonStyle =
+            Css.batch
+                [ Css.marginTop <| Css.rem 1
+                , Css.paddingTop Css.zero
                 ]
 
         settingDisplayStyle =
@@ -229,19 +235,13 @@ render ({ settings } as model) =
                             , Html.button
                                 [ Event.onClick SpotifyRefresh
                                 , HtmlAttr.css
-                                    [ largeButtonStyle
-                                    , Css.marginTop <| Css.rem 1
-                                    , Css.paddingTop Css.zero
-                                    ]
+                                    [ largeButtonStyle, singleLargeButtonStyle ]
                                 ]
                                 [ Html.text "Refresh playlists" ]
                             , Html.button
                                 [ Event.onClick SpotifyDisconnect
                                 , HtmlAttr.css
-                                    [ largeButtonStyle
-                                    , Css.marginTop <| Css.rem 1
-                                    , Css.paddingTop Css.zero
-                                    ]
+                                    [ largeButtonStyle, singleLargeButtonStyle ]
                                 ]
                                 [ Html.text "Disconnect" ]
                             ]
@@ -254,12 +254,12 @@ render ({ settings } as model) =
                 Html.div []
                     [ Html.button
                         [ Event.onClick RequestDataExport
-                        , HtmlAttr.css [ largeButtonStyle, Css.marginTop <| Css.rem 1, Css.paddingTop Css.zero ]
+                        , HtmlAttr.css [ largeButtonStyle, singleLargeButtonStyle ]
                         ]
                         [ Html.text "Export" ]
                     , Html.button
                         [ Event.onClick ImportRequest
-                        , HtmlAttr.css [ largeButtonStyle, Css.marginTop <| Css.rem 1, Css.paddingTop Css.zero ]
+                        , HtmlAttr.css [ largeButtonStyle, singleLargeButtonStyle ]
                         ]
                         [ Html.text "Import" ]
                     ]

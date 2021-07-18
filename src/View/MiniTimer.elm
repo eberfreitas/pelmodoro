@@ -5,7 +5,6 @@ import Css
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as HtmlAttr
 import Model exposing (Model)
-import Msg exposing (Msg)
 import Themes.Theme as Theme
 
 

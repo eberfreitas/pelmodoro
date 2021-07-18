@@ -12,7 +12,6 @@ port module Model exposing
     , cycleStart
     , decodeCurrent
     , decodeLog
-    , decodeNavLog
     , decodeSettings
     , decodeSpotify
     , default
@@ -29,7 +28,6 @@ port module Model exposing
 
 import Browser.Navigation exposing (Key)
 import Helpers
-import Html.Styled as Html
 import Json.Decode as D
 import Json.Decode.Pipeline as Pipeline
 import Json.Encode as E
@@ -412,19 +410,11 @@ decodeCycle =
         |> Pipeline.required "secs" (D.nullable D.int)
 
 
-decodeLog : D.Decoder { ts : Int, daily : List Cycle, monthly : List Cycle }
+decodeLog : D.Decoder { ts : Int, logs : List Cycle }
 decodeLog =
-    D.succeed (\ts d m -> { ts = ts, daily = d, monthly = m })
+    D.succeed (\ts l -> { ts = ts, logs = l })
         |> Pipeline.required "ts" D.int
-        |> Pipeline.required "daily" (D.list decodeCycle)
-        |> Pipeline.required "monthly" (D.list decodeCycle)
-
-
-decodeNavLog : D.Decoder { ts : Int, log : List Cycle }
-decodeNavLog =
-    D.succeed (\ts l -> { ts = ts, log = l })
-        |> Pipeline.required "ts" D.int
-        |> Pipeline.required "log" (D.list decodeCycle)
+        |> Pipeline.required "logs" (D.list decodeCycle)
 
 
 decodeCurrent : D.Decoder Current

@@ -10,7 +10,6 @@ import File.Select as Select
 import Helpers
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as HtmlAttr
-import Iso8601
 import Json.Decode as D
 import Json.Encode as E
 import List.Extra as ListEx
@@ -58,9 +57,6 @@ port persistSettings : E.Value -> Cmd msg
 port fetchLogs : Int -> Cmd msg
 
 
-port fetchNavLog : Int -> Cmd msg
-
-
 port spotifyPlay : String -> Cmd msg
 
 
@@ -89,9 +85,6 @@ port gotSpotifyState : (D.Value -> msg) -> Sub msg
 
 
 port gotStatsLogs : (D.Value -> msg) -> Sub msg
-
-
-port gotNavLogs : (D.Value -> msg) -> Sub msg
 
 
 port gotFlashMsg : (D.Value -> msg) -> Sub msg
@@ -595,12 +588,6 @@ update msg model =
                 |> persistCurrent_
                 |> pausePlaylist
 
-        SetCont cont ->
-            model
-                |> Model.mapSettings (\s -> { s | continuity = cont })
-                |> done
-                |> persistSettings_
-
         ChangeRounds rounds ->
             model
                 |> Model.mapSettings (\s -> { s | rounds = rounds })
@@ -640,14 +627,6 @@ update msg model =
 
                 Nothing ->
                     done model
-
-        ChangePage page ->
-            case page of
-                StatsPage _ ->
-                    ( { model | page = page }, fetchLogs <| Time.posixToMillis model.time )
-
-                _ ->
-                    done { model | page = page }
 
         ChangePlaylist uri ->
             model
@@ -706,56 +685,32 @@ update msg model =
         SpotifyDisconnect ->
             ( model, spotifyDisconnect () )
 
-        ChangeNavDate newDate ->
-            case newDate |> Date.add Date.Days 1 |> Date.toIsoString |> Iso8601.toTime of
-                Ok posix ->
-                    ( model, fetchNavLog <| Time.posixToMillis posix )
-
-                Err _ ->
-                    done model
-
         ChangeLogDate newDate ->
-            case newDate |> Date.add Date.Days 1 |> Date.toIsoString |> Iso8601.toTime of
-                Ok posix ->
-                    ( model, fetchLogs <| Time.posixToMillis posix )
-
-                Err _ ->
-                    done model
-
-        GotStatsLogs raw ->
-            case ( model.page, D.decodeValue Model.decodeLog raw ) of
-                ( StatsPage Loading, Ok { ts, daily, monthly } ) ->
-                    let
-                        date =
-                            ts |> Time.millisToPosix |> Date.fromPosix model.zone
-                    in
-                    done { model | page = StatsPage (Loaded (StatsDef date date daily monthly)) }
-
-                ( StatsPage (Loaded def), Ok { ts, daily, monthly } ) ->
-                    let
-                        newDef =
-                            { def
-                                | logDate =
-                                    ts
-                                        |> Time.millisToPosix
-                                        |> Date.fromPosix model.zone
-                                , daily = daily
-                                , monthly = monthly
-                            }
-                    in
-                    done { model | page = StatsPage (Loaded newDef) }
+            case model.page of
+                StatsPage (Loaded def) ->
+                    done { model | page = StatsPage (Loaded { def | date = newDate }) }
 
                 _ ->
                     done model
 
-        GotNavLogs raw ->
-            case ( model.page, D.decodeValue Model.decodeNavLog raw ) of
-                ( StatsPage (Loaded def), Ok { ts, log } ) ->
+        GotStatsLogs raw ->
+            case ( model.page, D.decodeValue Model.decodeLog raw ) of
+                ( StatsPage Loading, Ok { ts, logs } ) ->
+                    let
+                        date =
+                            ts |> Time.millisToPosix |> Date.fromPosix model.zone
+                    in
+                    done { model | page = StatsPage (Loaded (StatsDef date logs)) }
+
+                ( StatsPage (Loaded def), Ok { ts, logs } ) ->
                     let
                         newDef =
                             { def
-                                | navDate = ts |> Time.millisToPosix |> Date.fromPosix model.zone
-                                , monthly = log
+                                | date =
+                                    ts
+                                        |> Time.millisToPosix
+                                        |> Date.fromPosix model.zone
+                                , logs = logs
                             }
                     in
                     done { model | page = StatsPage (Loaded newDef) }
@@ -860,7 +815,6 @@ subs _ =
         [ tick Tick
         , gotSpotifyState GotSpotifyState
         , gotStatsLogs GotStatsLogs
-        , gotNavLogs GotNavLogs
         , gotFlashMsg GotFlashMsg
         , gotBrowserNotifRes GotBrowserNotifRes
         ]
