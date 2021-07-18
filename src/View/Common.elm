@@ -1,4 +1,4 @@
-module View.Common exposing (h1, h2, icon)
+module View.Common exposing (h1, h2, h3, icon)
 
 import Colors
 import Css
@@ -31,6 +31,19 @@ h2 theme label props children =
     Html.h2
         (HtmlAttr.css
             [ Css.fontSize <| Css.rem 1.5
+            , Css.textAlign <| Css.center
+            , Css.color (theme |> Theme.textColor |> Colors.toCssColor)
+            ]
+            :: props
+        )
+        (Html.text label :: children)
+
+
+h3 : Theme -> String -> List (Attribute msg) -> List (Html msg) -> Html msg
+h3 theme label props children =
+    Html.h3
+        (HtmlAttr.css
+            [ Css.fontSize <| Css.rem 1
             , Css.textAlign <| Css.center
             , Css.color (theme |> Theme.textColor |> Colors.toCssColor)
             ]

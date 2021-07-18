@@ -21,6 +21,21 @@ import View.Common as Common
 import View.MiniTimer as MiniTimer
 
 
+inMinutes : Int -> Int
+inMinutes x =
+    x // 60
+
+
+dailyLogs : Zone -> Date -> List Cycle -> List Cycle
+dailyLogs zone day logs =
+    logs
+        |> List.filter
+            (.start
+                >> Maybe.map (Date.fromPosix zone >> Date.compare day >> (==) EQ)
+                >> Maybe.withDefault False
+            )
+
+
 render : Model -> Html Msg
 render ({ settings, time, zone } as model) =
     let
@@ -50,32 +65,100 @@ renderLoaded : Zone -> Date -> Theme -> StatsDef -> Html Msg
 renderLoaded zone today theme { date, logs } =
     Html.div []
         [ renderCalendar zone theme today date logs
-        , renderHourlyAverages zone theme logs
+        , renderDailySummary zone theme date logs
         , renderDailyLogs zone theme date logs
+        , renderMonthlySummary theme logs
+        , renderHourlyAverages zone theme logs
         ]
+
+
+renderDailySummary : Zone -> Theme -> Date -> List Cycle -> Html msg
+renderDailySummary zone theme date logs =
+    renderSummary "Daily summary" theme (dailyLogs zone date logs)
+
+
+renderMonthlySummary : Theme -> List Cycle -> Html msg
+renderMonthlySummary theme logs =
+    renderSummary "Monthly summary" theme logs
+
+
+renderSummary : String -> Theme -> List Cycle -> Html msg
+renderSummary label theme logs =
+    if logs == [] then
+        Html.text ""
+
+    else
+        let
+            activityLogs =
+                logs |> List.filter (.interval >> Model.intervalIsActivity)
+
+            breakLogs =
+                logs |> List.filter (.interval >> Model.intervalIsBreak)
+
+            aggFn =
+                List.foldl
+                    (\{ seconds, interval } ( a, b ) ->
+                        ( a + (seconds |> Maybe.withDefault 0)
+                        , b + Model.intervalSeconds interval
+                        )
+                    )
+                    ( 0, 0 )
+
+            ( activityRealSecs, activityTotalSecs ) =
+                aggFn activityLogs
+
+            ( breakRealSecs, breakTotalSecs ) =
+                aggFn breakLogs
+
+            activityPct =
+                activityRealSecs * 100 // activityRealSecs
+
+            breakPct =
+                breakRealSecs * 100 // breakTotalSecs
+        in
+        Html.div [ HtmlAttr.css [ Css.marginBottom <| Css.rem 2 ] ]
+            [ Common.h2 theme label [ HtmlAttr.css [ Css.marginBottom <| Css.rem 1 ] ] []
+            , Html.div [ HtmlAttr.css [ Css.textAlign Css.center, Css.marginBottom <| Css.rem 2 ] ]
+                [ Common.h3 theme
+                    "Activity time "
+                    [ HtmlAttr.css [ Css.marginBottom <| Css.rem 1 ] ]
+                    [ Html.small [] [ Html.text "(in minutes)" ] ]
+                , Html.div
+                    [ HtmlAttr.css [ Css.marginBottom <| Css.rem 1.5 ]
+                    ]
+                    [ Html.text (activityRealSecs |> inMinutes |> String.fromInt)
+                    , Html.small [] [ Html.text (" (" ++ (activityPct |> String.fromInt) ++ "%)") ]
+                    ]
+                , Common.h3 theme
+                    "Break time "
+                    [ HtmlAttr.css [ Css.marginBottom <| Css.rem 1 ] ]
+                    [ Html.small [] [ Html.text "(in minutes)" ] ]
+                , Html.div []
+                    [ Html.text (breakRealSecs |> inMinutes |> String.fromInt)
+                    , Html.small [] [ Html.text (" (" ++ (breakPct |> String.fromInt) ++ "%)") ]
+                    ]
+                ]
+            ]
 
 
 renderHourlyAverages : Zone -> Theme -> List Cycle -> Html msg
 renderHourlyAverages zone theme log =
-    let
-        averages =
-            hourlyAverages zone log
-
-        loggedHours =
-            averages |> List.map Trio.first
-
-        hours =
-            List.range
-                (loggedHours |> List.minimum |> Maybe.withDefault 0)
-                (loggedHours |> List.maximum |> Maybe.withDefault 23)
-
-        inMinutes x =
-            x // 60
-    in
     if log == [] then
         Html.text ""
 
     else
+        let
+            averages =
+                hourlyAverages zone log
+
+            loggedHours =
+                averages |> List.map Trio.first
+
+            hours =
+                List.range
+                    (loggedHours |> List.minimum |> Maybe.withDefault 0)
+                    (loggedHours |> List.maximum |> Maybe.withDefault 23)
+        in
         Html.div [ HtmlAttr.css [ Css.marginBottom <| Css.rem 2 ] ]
             [ Common.h2 theme "Most productive hours" [ HtmlAttr.css [ Css.marginBottom <| Css.rem 2 ] ] []
             , hours
@@ -203,25 +286,21 @@ renderDailyLogs zone theme selected logs =
                 ]
                 [ Html.div [] [ Html.text (formatToHour start ++ " ➞ " ++ formatToHour end) ] ]
 
-        dailyLogs =
-            logs
-                |> List.filter
-                    (.start
-                        >> Maybe.map (Date.fromPosix zone >> Date.compare selected >> (==) EQ)
-                        >> Maybe.withDefault False
-                    )
+        dailyLogs_ =
+            dailyLogs zone selected logs
     in
-    Html.div [ HtmlAttr.css [ Css.color (theme |> Theme.textColor |> Colors.toCssColor) ] ]
-        [ Common.h2 theme
-            (selected |> Date.format "y-MM-dd")
-            [ HtmlAttr.css [ Css.marginBottom <| Css.rem 2 ] ]
-            []
-        , Html.div []
-            [ case dailyLogs of
+    Html.div
+        [ HtmlAttr.css
+            [ Css.color (theme |> Theme.textColor |> Colors.toCssColor)
+            , Css.marginBottom <| Css.rem 2
+            ]
+        ]
+        [ Html.div []
+            [ case dailyLogs_ of
                 [] ->
                     Html.div
                         [ HtmlAttr.css [ Css.textAlign Css.center ] ]
-                        [ Html.text "No logs" ]
+                        [ Html.text "Nothing was logged this day" ]
 
                 log ->
                     log

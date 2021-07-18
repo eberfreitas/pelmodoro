@@ -20,6 +20,7 @@ port module Model exposing
     , encodeSettings
     , firstInterval
     , intervalIsActivity
+    , intervalIsBreak
     , intervalSeconds
     , intervalToString
     , intervalsTotalRun
@@ -200,6 +201,16 @@ intervalIsActivity interval =
 
         _ ->
             False
+
+
+intervalIsBreak : Interval -> Bool
+intervalIsBreak interval =
+    case interval of
+        Activity _ ->
+            False
+
+        _ ->
+            True
 
 
 intervalToString : Interval -> String
