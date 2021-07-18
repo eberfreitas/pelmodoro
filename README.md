@@ -33,6 +33,8 @@ For the most part, I consider this project done, so there are only a few areas w
 
 **New themes**: If you have any ideas for a new theme or just want to adapt a different color scheme to Pelmodoro, take a look at how themes are implemented [here](https://github.com/eberfreitas/pelmodoro/blob/main/src/Themes/Theme.elm) and [here](https://github.com/eberfreitas/pelmodoro/blob/main/src/Themes/Tomato.elm). New themes are always appreciated.
 
+**Quotes**: You can contribute with quotes related to productivity, mindfulness, awareness, and so on. Take a look at the quotes we already have [here](https://github.com/eberfreitas/pelmodoro/blob/main/src/Quotes.elm) to get a sense of the type of quotes we use on the app. Try to bring insightful ideas that can aggregate to everyday real life.
+
 Other ideas might be discussed on issues, just let me know.
 
 ## Running locally
