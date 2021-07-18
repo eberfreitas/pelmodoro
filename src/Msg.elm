@@ -29,6 +29,7 @@ type Msg
     | SpotifyDisconnect
     | GotStatsLogs Value
     | ChangeLogDate Date
+    | ChangeLogMonth Date
     | UrlChanged Url
     | LinkCliked UrlRequest
     | CloseFlashMsg

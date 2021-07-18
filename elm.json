@@ -19,7 +19,8 @@
             "elm/virtual-dom": "1.0.2",
             "elm-community/list-extra": "8.3.0",
             "justinmimbs/date": "3.2.1",
-            "rtfeldman/elm-css": "16.1.0"
+            "rtfeldman/elm-css": "16.1.0",
+            "rtfeldman/elm-iso8601-date-strings": "1.1.4"
         },
         "indirect": {
             "elm/bytes": "1.0.8",

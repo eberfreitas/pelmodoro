@@ -203,7 +203,7 @@ renderDailyLogs zone theme selected logs =
     in
     Html.div [ HtmlAttr.css [ Css.color (theme |> Theme.textColor |> Colors.toCssColor) ] ]
         [ Common.h2 theme
-            (selected |> Date.format "y-MM-d")
+            (selected |> Date.format "y-MM-dd")
             [ HtmlAttr.css [ Css.marginBottom <| Css.rem 2 ] ]
             []
         , Html.div []
@@ -363,15 +363,11 @@ renderCalendar zone theme today date logs =
                     else
                         Html.button
                             [ HtmlAttr.css [ style, Css.cursor Css.pointer, cellBorder day.date ]
-                            , case Date.compare day.date today of
-                                LT ->
-                                    Event.onClick (ChangeLogDate day.date)
+                            , if [ LT, EQ ] |> List.member (Date.compare day.date today) then
+                                Event.onClick (ChangeLogDate day.date)
 
-                                EQ ->
-                                    Event.onClick (ChangeLogDate day.date)
-
-                                GT ->
-                                    Event.onClick NoOp
+                              else
+                                Event.onClick NoOp
                             ]
             in
             Html.div
@@ -398,7 +394,7 @@ renderCalendar zone theme today date logs =
             Html.button
                 [ HtmlAttr.css [ arrowStyle, Css.float float ]
                 , if Date.compare date_ today == LT then
-                    Event.onClick <| ChangeLogDate date_
+                    Event.onClick <| ChangeLogMonth date_
 
                   else
                     Event.onClick NoOp

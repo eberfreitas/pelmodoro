@@ -10,6 +10,7 @@ import File.Select as Select
 import Helpers
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as HtmlAttr
+import Iso8601
 import Json.Decode as D
 import Json.Encode as E
 import List.Extra as ListEx
@@ -691,6 +692,14 @@ update msg model =
                     done { model | page = StatsPage (Loaded { def | date = newDate }) }
 
                 _ ->
+                    done model
+
+        ChangeLogMonth newDate ->
+            case newDate |> Date.add Date.Days 1 |> Date.toIsoString |> Iso8601.toTime of
+                Ok posix ->
+                    ( model, fetchLogs <| Time.posixToMillis posix )
+
+                Err _ ->
                     done model
 
         GotStatsLogs raw ->
