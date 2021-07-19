@@ -46,6 +46,7 @@ import Types
         , Notifications
         , Page(..)
         , Seconds
+        , Sentiment(..)
         , Settings
         , Spotify(..)
         , SpotifyPlaylist
@@ -121,7 +122,7 @@ cycleBuild : Interval -> Maybe Posix -> Cycle
 cycleBuild interval start =
     let
         new =
-            Cycle interval Nothing Nothing Nothing
+            Cycle interval Nothing Nothing Nothing Nothing
     in
     start |> Maybe.map (\s -> { new | start = Just s }) |> Maybe.withDefault new
 
@@ -283,13 +284,27 @@ encodeInterval interval =
                 ]
 
 
+encodeSentiment : Sentiment -> E.Value
+encodeSentiment sentiment =
+    case sentiment of
+        Positive ->
+            E.string "positive"
+
+        Neutral ->
+            E.string "neutral"
+
+        Negative ->
+            E.string "negative"
+
+
 encodeCycle : Cycle -> E.Value
-encodeCycle { interval, start, end, seconds } =
+encodeCycle { interval, start, end, seconds, sentiment } =
     E.object
         [ ( "interval", encodeInterval interval )
         , ( "start", Helpers.encodeMaybe Helpers.encodePosix start )
         , ( "end", Helpers.encodeMaybe Helpers.encodePosix end )
         , ( "secs", Helpers.encodeMaybe E.int seconds )
+        , ( "sentiment", Helpers.encodeMaybe encodeSentiment sentiment )
         ]
 
 
@@ -412,6 +427,26 @@ decodeInterval =
             )
 
 
+decodeSentiment : D.Decoder Sentiment
+decodeSentiment =
+    D.string
+        |> D.andThen
+            (\sentiment ->
+                case sentiment of
+                    "positive" ->
+                        D.succeed Positive
+
+                    "neutral" ->
+                        D.succeed Neutral
+
+                    "negative" ->
+                        D.succeed Negative
+
+                    _ ->
+                        D.fail <| "Can't decode sentiment of type: " ++ sentiment
+            )
+
+
 decodeCycle : D.Decoder Cycle
 decodeCycle =
     D.succeed Cycle
@@ -419,6 +454,7 @@ decodeCycle =
         |> Pipeline.required "start" (D.nullable Helpers.decodePosix)
         |> Pipeline.required "end" (D.nullable Helpers.decodePosix)
         |> Pipeline.required "secs" (D.nullable D.int)
+        |> Pipeline.optional "sentiment" (D.nullable decodeSentiment) Nothing
 
 
 decodeLog : D.Decoder { ts : Int, logs : List Cycle }

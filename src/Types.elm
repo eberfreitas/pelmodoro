@@ -8,6 +8,7 @@ module Types exposing
     , Notifications
     , Page(..)
     , Seconds
+    , Sentiment(..)
     , Settings
     , Spotify(..)
     , SpotifyPlaylist
@@ -85,11 +86,18 @@ type Interval
     | LongBreak Int
 
 
+type Sentiment
+    = Positive
+    | Neutral
+    | Negative
+
+
 type alias Cycle =
     { interval : Interval
     , start : Maybe Posix
     , end : Maybe Posix
     , seconds : Maybe Seconds
+    , sentiment : Maybe Sentiment
     }
 
 
