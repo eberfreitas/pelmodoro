@@ -1,7 +1,7 @@
-module View.Common exposing (h1, h2, h3, icon)
+module View.Common exposing (h1, h2, h3, icon, styledIcon)
 
 import Colors
-import Css
+import Css exposing (Style)
 import Html.Styled as Html exposing (Attribute, Html)
 import Html.Styled.Attributes as HtmlAttr
 import Themes.Theme as Theme
@@ -11,6 +11,15 @@ import Themes.Types exposing (Theme)
 icon : String -> Html msg
 icon desc =
     Html.span [ HtmlAttr.class "material-icons-round" ] [ Html.text desc ]
+
+
+styledIcon : List Style -> String -> Html msg
+styledIcon styles desc =
+    Html.span
+        [ HtmlAttr.class "material-icons-round"
+        , HtmlAttr.css styles
+        ]
+        [ Html.text desc ]
 
 
 h1 : Theme -> String -> Html msg

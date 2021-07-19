@@ -27,6 +27,7 @@ import Types
     exposing
         ( Continuity(..)
         , Current
+        , Cycle
         , FlashMsg
         , Interval(..)
         , NotificationType(..)
@@ -77,6 +78,9 @@ port requestDataExport : () -> Cmd msg
 
 
 port importData : String -> Cmd msg
+
+
+port updateCycle : ( Int, String ) -> Cmd msg
 
 
 port tick : (Int -> msg) -> Sub msg
@@ -354,6 +358,7 @@ type alias EvalResult msg =
     , playing : Bool
     , flash : Maybe (FlashMsg msg)
     , cmd : Cmd msg
+    , sentimentCycle : Maybe Cycle
     }
 
 
@@ -401,24 +406,34 @@ evalElapsedTime model =
                     ( Just nextInterval, _ ) ->
                         ( Current nextIdx (Model.cycleBuild nextInterval (Just model.time)) 0, True )
 
-            ( flashMsg, notifMsg ) =
+            ( flashMsg, notifMsg, sentimentCycle ) =
                 case ( model.current.cycle.interval, current_.cycle.interval ) of
                     ( Activity _, Break _ ) ->
                         ( Just (newFlash "Time to take a break" (Quotes.getAquote model.time))
                         , "Time to take a break"
+                        , Just model.current.cycle
                         )
 
                     ( Break _, Activity _ ) ->
-                        ( Just (newFlash "Back to work" (Quotes.getAquote model.time)), "Back to work" )
+                        ( Just (newFlash "Back to work" (Quotes.getAquote model.time))
+                        , "Back to work"
+                        , Nothing
+                        )
 
                     ( Activity _, LongBreak _ ) ->
-                        ( Just (newFlash "Time to relax" (Quotes.getAquote model.time)), "Time to relax" )
+                        ( Just (newFlash "Time to relax" (Quotes.getAquote model.time))
+                        , "Time to relax"
+                        , Just model.current.cycle
+                        )
 
                     ( LongBreak _, Activity _ ) ->
-                        ( Just (newFlash "What is next?" (Quotes.getAquote model.time)), "What is next?" )
+                        ( Just (newFlash "What is next?" (Quotes.getAquote model.time))
+                        , "What is next?"
+                        , Nothing
+                        )
 
                     _ ->
-                        ( Nothing, "" )
+                        ( Nothing, "", Nothing )
 
             notifyVal =
                 encodeNotifConfig { sound = "wind-chimes", msg = notifMsg, config = model.settings.notifications }
@@ -428,9 +443,10 @@ evalElapsedTime model =
             playing
             flashMsg
             (Cmd.batch [ notify notifyVal, cmdFnByInterval current_.cycle.interval ])
+            sentimentCycle
 
     else
-        EvalResult (Model.currentAddElapsed 1 model.current) True Nothing Cmd.none
+        EvalResult (Model.currentAddElapsed 1 model.current) True Nothing Cmd.none Nothing
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -519,8 +535,27 @@ update msg model =
 
                         else
                             identity
+
+                    setupSentimentCycle m =
+                        let
+                            newSentiment =
+                                case ( m.sentimentCycle, newState.sentimentCycle, newState.current.cycle.interval ) of
+                                    ( _, _, Activity _ ) ->
+                                        Nothing
+
+                                    ( sentiment, Nothing, _ ) ->
+                                        sentiment
+
+                                    ( Nothing, sentiment, _ ) ->
+                                        sentiment
+
+                                    _ ->
+                                        Nothing
+                        in
+                        { m | sentimentCycle = newSentiment }
                 in
                 { model | current = newState.current, playing = newState.playing }
+                    |> setupSentimentCycle
                     |> updateTime
                     |> Helpers.flip Tuple.pair (Cmd.batch [ newState.cmd, logCmd ])
                     |> updateFlash
@@ -816,6 +851,30 @@ update msg model =
 
         ImportData data ->
             ( model, importData data )
+
+        UpdateSentiment start sentiment ->
+            let
+                newModel =
+                    case model.page of
+                        StatsPage (Loaded def) ->
+                            let
+                                newLogs =
+                                    def.logs
+                                        |> ListEx.findIndex (.start >> (==) (Just start))
+                                        |> Maybe.map
+                                            (\idx ->
+                                                def.logs
+                                                    |> ListEx.updateAt idx
+                                                        (\cycle -> { cycle | sentiment = Just sentiment })
+                                            )
+                                        |> Maybe.withDefault def.logs
+                            in
+                            { model | page = StatsPage (Loaded { def | logs = newLogs }) }
+
+                        _ ->
+                            model
+            in
+            ( newModel, updateCycle ( Time.posixToMillis start, Model.sentimentToString sentiment ) )
 
 
 subs : Model -> Sub Msg

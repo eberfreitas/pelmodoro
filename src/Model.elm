@@ -25,6 +25,7 @@ port module Model exposing
     , intervalToString
     , intervalsTotalRun
     , mapSettings
+    , sentimentToString
     )
 
 import Browser.Navigation exposing (Key)
@@ -67,6 +68,7 @@ type alias Model =
     , playing : Bool
     , intervals : List Interval
     , flash : Maybe (FlashMsg Msg)
+    , sentimentCycle : Maybe Cycle
     }
 
 
@@ -143,6 +145,7 @@ default key =
     , playing = False
     , intervals = intervals
     , flash = Nothing
+    , sentimentCycle = Nothing
     }
 
 
@@ -286,15 +289,7 @@ encodeInterval interval =
 
 encodeSentiment : Sentiment -> E.Value
 encodeSentiment sentiment =
-    case sentiment of
-        Positive ->
-            E.string "positive"
-
-        Neutral ->
-            E.string "neutral"
-
-        Negative ->
-            E.string "negative"
+    sentiment |> sentimentToString |> E.string
 
 
 encodeCycle : Cycle -> E.Value
@@ -569,3 +564,16 @@ decodeSettings =
         |> Pipeline.required "continuity" decodeContinuity
         |> Pipeline.required "spotify" decodeSpotify
         |> Pipeline.optional "notifications" decodeNotifications defaultNotifications
+
+
+sentimentToString : Sentiment -> String
+sentimentToString sentiment =
+    case sentiment of
+        Positive ->
+            "positive"
+
+        Neutral ->
+            "neutral"
+
+        Negative ->
+            "negative"

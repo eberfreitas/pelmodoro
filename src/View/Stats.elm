@@ -16,7 +16,7 @@ import Themes.Theme as Theme
 import Themes.Types exposing (Theme)
 import Time exposing (Zone)
 import Tuple.Trio as Trio
-import Types exposing (Cycle, Page(..), StatState(..), StatsDef)
+import Types exposing (Cycle, Interval(..), Page(..), Sentiment(..), StatState(..), StatsDef)
 import View.Common as Common
 import View.MiniTimer as MiniTimer
 
@@ -111,7 +111,7 @@ renderSummary label theme logs =
                 aggFn breakLogs
 
             activityPct =
-                activityRealSecs * 100 // activityRealSecs
+                activityRealSecs * 100 // activityTotalSecs
 
             breakPct =
                 breakRealSecs * 100 // breakTotalSecs
@@ -243,7 +243,58 @@ renderDailyLogs zone theme selected logs =
                     (Time.toMinute zone >> String.fromInt >> String.padLeft 2 'o')
                 |> (\( h, m ) -> h ++ ":" ++ m)
 
-        renderCycle interval start end seconds =
+        renderSentiment sentiment start =
+            let
+                opacity msg =
+                    sentiment
+                        |> Maybe.map
+                            (\s ->
+                                if UpdateSentiment start s == msg then
+                                    Css.opacity <| Css.num 1
+
+                                else
+                                    Css.opacity <| Css.num 0.5
+                            )
+                        |> Maybe.withDefault (Css.opacity <| Css.num 0.5)
+            in
+            Html.div
+                [ HtmlAttr.css
+                    [ Css.position Css.absolute
+                    , Css.top <| Css.rem 0.25
+                    , Css.right <| Css.rem 0.25
+                    ]
+                ]
+                [ Html.ul
+                    [ HtmlAttr.css [ Css.listStyle Css.none ] ]
+                    ([ ( "Positive", UpdateSentiment start Positive, "sentiment_satisfied" )
+                     , ( "Neutral", UpdateSentiment start Neutral, "sentiment_neutral" )
+                     , ( "Negative", UpdateSentiment start Negative, "sentiment_dissatisfied" )
+                     ]
+                        |> List.map
+                            (\( label, msg, icon ) ->
+                                Html.li [ HtmlAttr.css [ Css.display Css.inlineBlock ] ]
+                                    [ Html.button
+                                        [ Event.onClick msg
+                                        , HtmlAttr.title label
+                                        , HtmlAttr.css
+                                            [ Css.backgroundColor Css.transparent
+                                            , Css.border Css.zero
+                                            , Css.padding Css.zero
+                                            , Css.margin Css.zero
+                                            , Css.cursor Css.pointer
+                                            , opacity msg
+                                            ]
+                                        ]
+                                        [ Common.styledIcon
+                                            [ Css.color (theme |> Theme.contrastColor |> Colors.toCssColor) ]
+                                            icon
+                                        ]
+                                    ]
+                            )
+                    )
+                ]
+
+        renderCycle sentiment interval start end seconds =
             let
                 innerPct =
                     interval
@@ -284,7 +335,17 @@ renderDailyLogs zone theme selected logs =
                         )
                     ]
                 ]
-                [ Html.div [] [ Html.text (formatToHour start ++ " ➞ " ++ formatToHour end) ] ]
+                [ Html.div
+                    []
+                    [ Html.text (formatToHour start ++ " ➞ " ++ formatToHour end)
+                    , case interval of
+                        Activity _ ->
+                            renderSentiment sentiment start
+
+                        _ ->
+                            Html.text ""
+                    ]
+                ]
 
         dailyLogs_ =
             dailyLogs zone selected logs
@@ -306,16 +367,16 @@ renderDailyLogs zone theme selected logs =
                     log
                         |> List.sortBy (.start >> Maybe.map Time.posixToMillis >> Maybe.withDefault 0)
                         |> List.filterMap
-                            (\{ interval, start, end, seconds } ->
-                                case ( start, end, seconds ) of
-                                    ( Just s, Just e, Just sc ) ->
-                                        Just
-                                            ( s |> Time.posixToMillis |> String.fromInt
-                                            , renderCycle interval s e sc
-                                            )
-
-                                    _ ->
-                                        Nothing
+                            (\{ interval, start, end, seconds, sentiment } ->
+                                Maybe.map3
+                                    (\s e sc ->
+                                        ( s |> Time.posixToMillis |> String.fromInt
+                                        , renderCycle sentiment interval s e sc
+                                        )
+                                    )
+                                    start
+                                    end
+                                    seconds
                             )
                         |> Keyed.node "div" []
             ]

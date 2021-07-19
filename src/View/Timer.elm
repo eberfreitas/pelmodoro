@@ -11,7 +11,7 @@ import Svg.Styled as Svg exposing (Svg)
 import Svg.Styled.Attributes as SvgAttr
 import Themes.Theme as Theme
 import Themes.Types exposing (Theme)
-import Types exposing (Current, Interval, Seconds)
+import Types exposing (Current, Cycle, Interval, Seconds, Sentiment(..))
 import View.Common as Common
 
 
@@ -180,26 +180,105 @@ render model =
         toViewBox =
             List.repeat 2 >> List.map String.fromInt >> String.join " " >> (++) "0 0 "
     in
-    Html.div
-        [ HtmlAttr.css
-            [ Css.displayFlex
-            , Css.flexDirection Css.column
-            , Css.alignItems Css.center
-            , Css.justifyContent Css.center
-            , Css.width <| Css.pct 100.0
-            , Css.height <| Css.pct 100.0
+    Html.div [ HtmlAttr.css [ Css.width <| Css.pct 100, Css.height <| Css.pct 100 ] ]
+        [ Html.div
+            [ HtmlAttr.css
+                [ Css.displayFlex
+                , Css.flexDirection Css.column
+                , Css.alignItems Css.center
+                , Css.justifyContent Css.center
+                , Css.width <| Css.pct 100.0
+                , Css.height <| Css.pct 100.0
+                ]
             ]
+            [ Svg.svg
+                [ SvgAttr.width <| String.fromInt svgBaseSize
+                , SvgAttr.height <| String.fromInt svgBaseSize
+                , SvgAttr.viewBox <| toViewBox svgBaseSize
+                ]
+                (renderIntervalArcs svgBaseSize model.settings.theme model.current model.intervals
+                    ++ [ renderTimer model.playing model.uptime model.settings.theme model.current ]
+                )
+            , renderControls model.settings.theme model.playing
+            ]
+        , renderSentimentQuery model.settings.theme model.sentimentCycle
         ]
-        [ Svg.svg
-            [ SvgAttr.width <| String.fromInt svgBaseSize
-            , SvgAttr.height <| String.fromInt svgBaseSize
-            , SvgAttr.viewBox <| toViewBox svgBaseSize
-            ]
-            (renderIntervalArcs svgBaseSize model.settings.theme model.current model.intervals
-                ++ [ renderTimer model.playing model.uptime model.settings.theme model.current ]
+
+
+renderSentimentQuery : Theme -> Maybe Cycle -> Html Msg
+renderSentimentQuery theme cycle =
+    cycle
+        |> Maybe.andThen .start
+        |> Maybe.map
+            (\start ->
+                Html.div
+                    [ HtmlAttr.css
+                        [ Css.position Css.absolute
+                        , Css.bottom <| Css.rem 5
+                        , Css.left Css.zero
+                        , Css.right Css.zero
+                        ]
+                    ]
+                    [ Html.div
+                        [ HtmlAttr.css
+                            [ Css.maxWidth <| Css.rem 17.5
+                            , Css.width <| Css.pct 100
+                            , Css.margin2 Css.zero Css.auto
+                            ]
+                        ]
+                        [ Html.div
+                            [ HtmlAttr.css
+                                [ Css.color (theme |> Theme.textColor |> Colors.toCssColor)
+                                , Css.fontSize <| Css.rem 0.75
+                                , Css.marginBottom <| Css.rem 1
+                                , Css.textAlign Css.center
+                                ]
+                            ]
+                            [ Html.strong
+                                []
+                                [ Html.text "What is your feeling about the last working section?" ]
+                            , Html.text " You can set this later on your stats area."
+                            ]
+                        , Html.ul
+                            [ HtmlAttr.css
+                                [ Css.displayFlex
+                                , Css.justifyContent Css.spaceAround
+                                , Css.fontSize <| Css.rem 2
+                                , Css.width <| Css.pct 100
+                                , Css.listStyle Css.none
+                                ]
+                            ]
+                            ([ ( "Positive", UpdateSentiment start Positive, "sentiment_satisfied" )
+                             , ( "Neutral", UpdateSentiment start Neutral, "sentiment_neutral" )
+                             , ( "Negative", UpdateSentiment start Negative, "sentiment_dissatisfied" )
+                             ]
+                                |> List.map
+                                    (\( label, msg, icon ) ->
+                                        Html.li []
+                                            [ Html.button
+                                                [ Event.onClick msg
+                                                , HtmlAttr.title label
+                                                , HtmlAttr.css
+                                                    [ Css.backgroundColor Css.transparent
+                                                    , Css.border Css.zero
+                                                    , Css.padding Css.zero
+                                                    , Css.margin Css.zero
+                                                    , Css.cursor Css.pointer
+                                                    ]
+                                                ]
+                                                [ Common.styledIcon
+                                                    [ Css.fontSize <| Css.rem 3
+                                                    , Css.color (theme |> Theme.textColor |> Colors.toCssColor)
+                                                    ]
+                                                    icon
+                                                ]
+                                            ]
+                                    )
+                            )
+                        ]
+                    ]
             )
-        , renderControls model.settings.theme model.playing
-        ]
+        |> Maybe.withDefault (Html.text "")
 
 
 

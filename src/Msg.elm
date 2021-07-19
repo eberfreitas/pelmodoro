@@ -4,8 +4,8 @@ import Browser exposing (UrlRequest)
 import Date exposing (Date)
 import File exposing (File)
 import Json.Decode exposing (Value)
-import Time exposing (Zone)
-import Types exposing (NotificationType)
+import Time exposing (Posix, Zone)
+import Types exposing (NotificationType, Sentiment)
 import Url exposing (Url)
 
 
@@ -40,3 +40,4 @@ type Msg
     | ImportRequest
     | ImportSelect File
     | ImportData String
+    | UpdateSentiment Posix Sentiment
