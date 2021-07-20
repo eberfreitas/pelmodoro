@@ -744,7 +744,7 @@ update msg model =
                         date =
                             ts |> Time.millisToPosix |> Date.fromPosix model.zone
                     in
-                    done { model | page = StatsPage (Loaded (StatsDef date logs)) }
+                    done { model | page = StatsPage (Loaded (StatsDef date logs False)) }
 
                 ( StatsPage (Loaded def), Ok { ts, logs } ) ->
                     let
@@ -869,12 +869,27 @@ update msg model =
                                             )
                                         |> Maybe.withDefault def.logs
                             in
-                            { model | page = StatsPage (Loaded { def | logs = newLogs }) }
+                            { model
+                                | page = StatsPage (Loaded { def | logs = newLogs })
+                                , sentimentCycle = Nothing
+                            }
 
                         _ ->
-                            model
+                            { model | sentimentCycle = Nothing }
             in
             ( newModel, updateCycle ( Time.posixToMillis start, Model.sentimentToString sentiment ) )
+
+        ToggleLogs ->
+            case model.page of
+                StatsPage (Loaded def) ->
+                    let
+                        newDef =
+                            { def | showLogs = not def.showLogs }
+                    in
+                    done { model | page = StatsPage (Loaded newDef) }
+
+                _ ->
+                    done model
 
 
 subs : Model -> Sub Msg

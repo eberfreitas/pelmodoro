@@ -11,10 +11,10 @@ It runs in the browser but can also be installed as a stand-alone app as a PWA o
 
 ## Features
 
-- Personalize your sections your way
+- Personalize your sessions your way
 - Stats
 - Multiple means of notification like sounds and browser notifications
-- Spotify integration to sync a playlist to a working section
+- Spotify integration to sync a playlist to a working session
 - Multiple color schemes/themes
 - Export your stats data
 - And more...

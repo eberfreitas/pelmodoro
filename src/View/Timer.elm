@@ -236,8 +236,8 @@ renderSentimentQuery theme cycle =
                             ]
                             [ Html.strong
                                 []
-                                [ Html.text "What is your feeling about the last working section?" ]
-                            , Html.text " You can set this later on your stats area."
+                                [ Html.text "What is your feeling about the last working session?" ]
+                            , Html.text " You can set this later on the stats area."
                             ]
                         , Html.ul
                             [ HtmlAttr.css

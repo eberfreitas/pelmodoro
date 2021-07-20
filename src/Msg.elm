@@ -41,3 +41,4 @@ type Msg
     | ImportSelect File
     | ImportData String
     | UpdateSentiment Posix Sentiment
+    | ToggleLogs

@@ -52,8 +52,8 @@ render ({ settings, time, zone } as model) =
             ]
             [ Common.h1 settings.theme "Statistics"
             , case model.page of
-                StatsPage (Loaded def) ->
-                    renderLoaded zone today settings.theme def
+                StatsPage (Loaded def_) ->
+                    renderLoaded zone today settings.theme def_
 
                 _ ->
                     Html.text ""
@@ -61,12 +61,54 @@ render ({ settings, time, zone } as model) =
         ]
 
 
+calculateSentiment : List Cycle -> Sentiment
+calculateSentiment =
+    List.filter (.interval >> Model.intervalIsActivity)
+        >> List.map (.sentiment >> Maybe.withDefault Neutral)
+        >> List.foldl
+            (\sentiment ( positive, neutral, negative ) ->
+                case sentiment of
+                    Positive ->
+                        ( positive + 1, neutral, negative )
+
+                    Neutral ->
+                        ( positive, neutral + 1, negative )
+
+                    Negative ->
+                        ( positive, neutral, negative + 1 )
+            )
+            ( 0, 0, 0 )
+        >> (\( positive, neutral, negative ) ->
+                if negative >= neutral && negative >= positive then
+                    Negative
+
+                else if neutral >= positive && neutral >= negative then
+                    Neutral
+
+                else
+                    Positive
+           )
+
+
+sentimentToIcon : Sentiment -> String
+sentimentToIcon sentiment =
+    case sentiment of
+        Positive ->
+            "sentiment_satisfied"
+
+        Neutral ->
+            "sentiment_neutral"
+
+        Negative ->
+            "sentiment_dissatisfied"
+
+
 renderLoaded : Zone -> Date -> Theme -> StatsDef -> Html Msg
-renderLoaded zone today theme { date, logs } =
+renderLoaded zone today theme { date, logs, showLogs } =
     Html.div []
         [ renderCalendar zone theme today date logs
         , renderDailySummary zone theme date logs
-        , renderDailyLogs zone theme date logs
+        , renderDailyLogs showLogs zone theme date logs
         , renderMonthlySummary theme logs
         , renderHourlyAverages zone theme logs
         ]
@@ -115,27 +157,41 @@ renderSummary label theme logs =
 
             breakPct =
                 breakRealSecs * 100 // breakTotalSecs
+
+            sentiment =
+                calculateSentiment logs
         in
         Html.div [ HtmlAttr.css [ Css.marginBottom <| Css.rem 2 ] ]
             [ Common.h2 theme label [ HtmlAttr.css [ Css.marginBottom <| Css.rem 1 ] ] []
             , Html.div [ HtmlAttr.css [ Css.textAlign Css.center, Css.marginBottom <| Css.rem 2 ] ]
                 [ Common.h3 theme
-                    "Activity time "
-                    [ HtmlAttr.css [ Css.marginBottom <| Css.rem 1 ] ]
+                    "Activity time"
+                    [ HtmlAttr.css [ Css.marginBottom <| Css.rem 0.5 ] ]
                     [ Html.small [] [ Html.text "(in minutes)" ] ]
                 , Html.div
-                    [ HtmlAttr.css [ Css.marginBottom <| Css.rem 1.5 ]
+                    [ HtmlAttr.css [ Css.marginBottom <| Css.rem 1 ]
                     ]
                     [ Html.text (activityRealSecs |> inMinutes |> String.fromInt)
                     , Html.small [] [ Html.text (" (" ++ (activityPct |> String.fromInt) ++ "%)") ]
                     ]
                 , Common.h3 theme
-                    "Break time "
-                    [ HtmlAttr.css [ Css.marginBottom <| Css.rem 1 ] ]
+                    "Break time"
+                    [ HtmlAttr.css [ Css.marginBottom <| Css.rem 0.5 ] ]
                     [ Html.small [] [ Html.text "(in minutes)" ] ]
-                , Html.div []
+                , Html.div
+                    [ HtmlAttr.css [ Css.marginBottom <| Css.rem 1 ]
+                    ]
                     [ Html.text (breakRealSecs |> inMinutes |> String.fromInt)
                     , Html.small [] [ Html.text (" (" ++ (breakPct |> String.fromInt) ++ "%)") ]
+                    ]
+                , Common.h3 theme
+                    "Sentiment"
+                    [ HtmlAttr.css [ Css.marginBottom <| Css.rem 0.5 ] ]
+                    []
+                , Html.div [ HtmlAttr.title (Model.sentimentToString sentiment) ]
+                    [ Common.styledIcon
+                        [ Css.fontSize <| Css.rem 2 ]
+                        (sentimentToIcon sentiment)
                     ]
                 ]
             ]
@@ -233,8 +289,8 @@ renderHourlyAverages zone theme log =
             ]
 
 
-renderDailyLogs : Zone -> Theme -> Date -> List Cycle -> Html Msg
-renderDailyLogs zone theme selected logs =
+renderDailyLogs : Bool -> Zone -> Theme -> Date -> List Cycle -> Html Msg
+renderDailyLogs show zone theme selected logs =
     let
         formatToHour t =
             ( t, t )
@@ -357,13 +413,38 @@ renderDailyLogs zone theme selected logs =
             ]
         ]
         [ Html.div []
-            [ case dailyLogs_ of
-                [] ->
+            [ Html.div []
+                [ Html.button
+                    [ Event.onClick ToggleLogs
+                    , HtmlAttr.css
+                        [ Css.borderStyle Css.none
+                        , Css.backgroundColor <| (theme |> Theme.foregroundColor |> Colors.toCssColor)
+                        , Css.width <| Css.rem 14
+                        , Css.height <| Css.rem 2.5
+                        , Css.color <| (theme |> Theme.backgroundColor |> Colors.toCssColor)
+                        , Css.outline Css.zero
+                        , Css.cursor Css.pointer
+                        , Css.display Css.block
+                        , Css.margin2 Css.zero Css.auto
+                        , Css.marginBottom <| Css.rem 2
+                        ]
+                    ]
+                    [ Html.text
+                        (if show then
+                            "Hide logs"
+
+                         else
+                            "Show logs for the day"
+                        )
+                    ]
+                ]
+            , case ( show, dailyLogs_ ) of
+                ( True, [] ) ->
                     Html.div
                         [ HtmlAttr.css [ Css.textAlign Css.center ] ]
                         [ Html.text "Nothing was logged this day" ]
 
-                log ->
+                ( True, log ) ->
                     log
                         |> List.sortBy (.start >> Maybe.map Time.posixToMillis >> Maybe.withDefault 0)
                         |> List.filterMap
@@ -379,6 +460,9 @@ renderDailyLogs zone theme selected logs =
                                     seconds
                             )
                         |> Keyed.node "div" []
+
+                _ ->
+                    Html.text ""
             ]
         ]
 
