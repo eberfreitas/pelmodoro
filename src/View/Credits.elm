@@ -82,11 +82,34 @@ render ({ settings } as model) =
             , Html.div
                 [ HtmlAttr.css [ sectionStyle ] ]
                 [ Html.p []
-                    [ strong "\"Wind Chimes, A.wav\""
-                    , Html.text " by InspectorJ ("
-                    , anchor "https://www.jshaw.co.uk/" "www.jshow.co.uk"
-                    , Html.text ") of "
-                    , anchor "https://freesound.org/people/InspectorJ/sounds/353194/" "Freesound.org"
+                    [ strong "Wind Chimes, A.wav"
+                    , Html.text " by "
+                    , anchor "https://freesound.org/people/InspectorJ/sounds/353194/" "InspectorJ"
+                    ]
+                , Html.p []
+                    [ strong "Alarm Bell"
+                    , Html.text " by "
+                    , anchor "https://freesound.org/people/DDmyzik/sounds/460262/" "DDmyzik"
+                    ]
+                , Html.p []
+                    [ strong "Alarm1.mp3"
+                    , Html.text " by "
+                    , anchor "https://freesound.org/people/kwahmah_02/sounds/250629/" "kwahmah_02"
+                    ]
+                , Html.p []
+                    [ strong "bong.wav"
+                    , Html.text " by "
+                    , anchor "https://freesound.org/people/OtisJames/sounds/215774/" "OtisJames"
+                    ]
+                , Html.p []
+                    [ strong "Relaxing Percussion.wav"
+                    , Html.text " by "
+                    , anchor "https://freesound.org/people/AndreAngelo/sounds/246201/" "AndreAngelo"
+                    ]
+                , Html.p []
+                    [ strong "Birdsong Singleshot Denoised Wakeup Alarm"
+                    , Html.text " by "
+                    , anchor "https://freesound.org/people/unfa/sounds/186024/" "unfa"
                     ]
                 ]
             , Html.div

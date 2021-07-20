@@ -27,6 +27,11 @@
   "staticFiles": {
     "staticPath": [
       "wind-chimes.wav",
+      "bell.wav",
+      "alarm-clock.wav",
+      "bong.wav",
+      "relaxing-percussion.wav",
+      "bird-song.wav",
       "_redirects"
     ]
   },

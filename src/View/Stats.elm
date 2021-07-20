@@ -168,7 +168,7 @@ renderSummary label theme logs =
                 [ Common.h3 theme
                     "Activity time"
                     [ HtmlAttr.css [ Css.marginBottom <| Css.rem 0.5 ] ]
-                    [ Html.small [] [ Html.text "(in minutes)" ] ]
+                    [ Html.small [] [ Html.text " (in minutes)" ] ]
                 , Html.div
                     [ HtmlAttr.css [ Css.marginBottom <| Css.rem 1 ]
                     ]
@@ -178,7 +178,7 @@ renderSummary label theme logs =
                 , Common.h3 theme
                     "Break time"
                     [ HtmlAttr.css [ Css.marginBottom <| Css.rem 0.5 ] ]
-                    [ Html.small [] [ Html.text "(in minutes)" ] ]
+                    [ Html.small [] [ Html.text " (in minutes)" ] ]
                 , Html.div
                     [ HtmlAttr.css [ Css.marginBottom <| Css.rem 1 ]
                     ]

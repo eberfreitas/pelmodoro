@@ -5,7 +5,7 @@ import Date exposing (Date)
 import File exposing (File)
 import Json.Decode exposing (Value)
 import Time exposing (Posix, Zone)
-import Types exposing (NotificationType, Sentiment)
+import Types exposing (NotificationType, Sentiment, Sound)
 import Url exposing (Url)
 
 
@@ -42,3 +42,5 @@ type Msg
     | ImportData String
     | UpdateSentiment Posix Sentiment
     | ToggleLogs
+    | ChangeSound String
+    | TestSound Sound

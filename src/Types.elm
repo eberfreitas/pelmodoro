@@ -72,6 +72,11 @@ type NotificationType
 
 type Sound
     = WindChimes
+    | Bell
+    | AlarmClock
+    | Bong
+    | RelaxingPercussion
+    | BirdSong
 
 
 type alias Settings =

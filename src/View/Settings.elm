@@ -9,6 +9,7 @@ import Model exposing (Model)
 import Msg exposing (Msg(..))
 import Themes.Theme as Theme
 import Themes.Types
+import Tools
 import Tuple.Trio as Trio
 import Types exposing (NotificationType(..), Spotify(..))
 import View.Common as Common
@@ -179,7 +180,7 @@ render ({ settings } as model) =
                 selectInput
                     (Trio.first >> (==) settings.continuity)
                     ChangeContinuity
-                    (Model.continuityPairs |> List.map toTrio)
+                    (Tools.continuityDisplayPairs |> List.map toTrio)
             , inputContainer "Notifications"
                 ([ ( settings.notifications.inApp, InApp, "In app messages" )
                  , ( settings.notifications.sound, Sound, "Play sounds" )
@@ -188,6 +189,23 @@ render ({ settings } as model) =
                     |> List.map (\( v, t, l ) -> checkbox v (ToggleNotification t) l)
                     |> Html.div []
                 )
+            , if settings.notifications.sound then
+                inputContainer "Alarm sound" <|
+                    Html.div []
+                        [ selectInput
+                            (Trio.first >> (==) settings.sound)
+                            ChangeSound
+                            (Tools.soundDisplayPairs |> List.map toTrio)
+                        , Html.button
+                            [ Event.onClick (TestSound settings.sound)
+                            , HtmlAttr.css
+                                [ largeButtonStyle, singleLargeButtonStyle ]
+                            ]
+                            [ Common.styledIcon [ Css.verticalAlign Css.middle ] "play_arrow" ]
+                        ]
+
+              else
+                Html.text ""
             , inputContainer "Color theme" <|
                 selectInput
                     (Trio.first >> (==) settings.theme)

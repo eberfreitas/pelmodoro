@@ -86,6 +86,9 @@ port importData : String -> Cmd msg
 port updateCycle : ( Int, String ) -> Cmd msg
 
 
+port testSound : String -> Cmd msg
+
+
 port tick : (Int -> msg) -> Sub msg
 
 
@@ -440,7 +443,7 @@ evalElapsedTime model =
 
             notifyVal =
                 encodeNotifConfig
-                    { sound = "wind-chimes"
+                    { sound = model.settings.sound |> Tools.soundToString
                     , msg = notifMsg
                     , config = model.settings.notifications
                     }
@@ -652,7 +655,7 @@ update msg model =
                 |> updateSettings
 
         ChangeContinuity cont ->
-            case Model.continuityFromString cont of
+            case Tools.continuityFromDisplay cont of
                 Just c ->
                     model
                         |> Model.mapSettings (\s -> { s | continuity = c })
@@ -897,6 +900,19 @@ update msg model =
 
                 _ ->
                     done model
+
+        ChangeSound sound ->
+            case Tools.soundFromDisplay sound of
+                Just s ->
+                    model
+                        |> Model.mapSettings (\se -> { se | sound = s })
+                        |> updateSettings
+
+                Nothing ->
+                    done model
+
+        TestSound sound ->
+            ( model, testSound (sound |> Tools.soundToString) )
 
 
 subs : Model -> Sub Msg

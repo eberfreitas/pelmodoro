@@ -1,8 +1,6 @@
 port module Model exposing
     ( Model
     , buildIntervals
-    , continuityFromString
-    , continuityPairs
     , currentAddElapsed
     , currentElapsedPct
     , currentSecondsLeft
@@ -242,18 +240,3 @@ currentElapsedPct { cycle, elapsed } =
 mapSettings : (Settings -> Settings) -> Model -> Model
 mapSettings fn model =
     { model | settings = fn model.settings }
-
-
-continuityPairs : List ( Continuity, String )
-continuityPairs =
-    [ ( NoCont, "No continuity" )
-    , ( SimpleCont, "Simple continuity" )
-    , ( FullCont, "Full continuity" )
-    ]
-
-
-continuityFromString : String -> Maybe Continuity
-continuityFromString cont =
-    continuityPairs
-        |> ListEx.find (Tuple.second >> (==) cont)
-        |> Maybe.map Tuple.first
