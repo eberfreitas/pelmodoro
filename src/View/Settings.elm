@@ -280,6 +280,11 @@ render ({ settings } as model) =
                         , HtmlAttr.css [ largeButtonStyle, singleLargeButtonStyle ]
                         ]
                         [ Html.text "Import" ]
+                    , Html.button
+                        [ Event.onClick ClearLogs
+                        , HtmlAttr.css [ largeButtonStyle, singleLargeButtonStyle ]
+                        ]
+                        [ Html.text "Clear logs" ]
                     ]
             ]
         ]

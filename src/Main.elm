@@ -89,6 +89,9 @@ port updateCycle : ( Int, String ) -> Cmd msg
 port testSound : String -> Cmd msg
 
 
+port clearLogs : () -> Cmd msg
+
+
 port tick : (Int -> msg) -> Sub msg
 
 
@@ -913,6 +916,9 @@ update msg model =
 
         TestSound sound ->
             ( model, testSound (sound |> Tools.soundToString) )
+
+        ClearLogs ->
+            ( model, clearLogs () )
 
 
 subs : Model -> Sub Msg

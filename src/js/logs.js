@@ -53,10 +53,21 @@ const updateCycle = async data => {
   return updated;
 }
 
+const clearLogs = () => {
+  const confirmed = confirm("Are you sure you wanna delete all log entries? This step is irreversible!");
+
+  if (!confirmed) {
+    return;
+  }
+
+  db.cycles.clear();
+}
+
 export default function (app) {
   app.ports.logCycle.subscribe(insert);
   app.ports.fetchLogs.subscribe(async millis => await fetch(app, millis));
   app.ports.requestDataExport.subscribe(async () => await exportData());
   app.ports.importData.subscribe(async blob => await importData(app, blob));
   app.ports.updateCycle.subscribe(async data => await updateCycle(data));
+  app.ports.clearLogs.subscribe(clearLogs);
 }

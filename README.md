@@ -26,9 +26,9 @@ Pelmodoro started as a side-project to improve my skills in writing [Elm](https:
 
 ## Contributing
 
-Like said before, Pelmodoro is written almost entirely in the Elm language. If you are willing to contribute with code, you might wanna take a look at the language's [guide](https://guide.elm-lang.org/) if you are not familiar with it yet. It is easy and fun, you should try it out!
+Like said before, Pelmodoro is written almost entirely in the Elm language. If you are willing to contribute with code, you might wanna take a look at the language's [guide](https://guide.elm-lang.org/) if you are not familiar with it yet. It is easy and fun, **you should give it a try**!
 
-For the most part, I consider this project done, but there are few areas where contributions would be appreciated:
+For the most part, I consider this project done, but there are few areas where contributions are much appreciated:
 
 **Outstanding bugs**: If you find any bugs that prevent you from using the app, create an issue describing the problem and we can work it out.
 
@@ -36,9 +36,11 @@ For the most part, I consider this project done, but there are few areas where c
 
 **Quotes**: You can contribute with quotes related to productivity, mindfulness, awareness, and so on. Take a look at the quotes we already have [here](https://github.com/eberfreitas/pelmodoro/blob/main/src/Quotes.elm) to get a sense of the type of quotes we use on the app. Try to bring insightful ideas that can aggregate to everyday real life.
 
-**Spelling and grammatical errors**: If you spot any words or expressions that are wrong or can be improved, just let me know or send your PR.
+**Alarm sounds**: We can always go with more options. If you find a cool sound, we can add it. Just make sure that we can use it freely. [Freesound](https://freesound.org/) seems to be a good place to find new sounds.
 
-**PWA improvements**: This was my first attempt at creating a PWA application. I'm sure there are ways of improving things there.
+**Spelling and grammatical errors**: If you spot any words or expressions that are wrong or can be improved, just let me know or send your PR. There are probably a bunch of those as english is not my first language.
+
+**PWA improvements**: This app is my first attempt at creating a PWA application. I'm sure there are ways to improve things there.
 
 Other ideas might be discussed on issues, just let me know.
 

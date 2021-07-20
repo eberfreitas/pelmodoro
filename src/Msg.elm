@@ -44,3 +44,4 @@ type Msg
     | ToggleLogs
     | ChangeSound String
     | TestSound Sound
+    | ClearLogs
