@@ -2,6 +2,8 @@ port module Main exposing (main)
 
 import Browser exposing (Document, UrlRequest(..))
 import Browser.Navigation as Nav exposing (Key)
+import Codecs.Decoders as Decoder
+import Codecs.Encoders as Encoder
 import Colors
 import Css
 import Date
@@ -23,6 +25,7 @@ import Task
 import Themes.Theme as Theme
 import Themes.Types exposing (Theme)
 import Time
+import Tools
 import Types
     exposing
         ( Continuity(..)
@@ -128,7 +131,7 @@ init { current, settings, now } url key =
             Model.default key
 
         newCurrent =
-            case D.decodeValue Model.decodeCurrent current of
+            case D.decodeValue Decoder.decodeCurrent current of
                 Ok curr ->
                     curr
 
@@ -136,7 +139,7 @@ init { current, settings, now } url key =
                     baseModel.current
 
         newSettings =
-            case D.decodeValue Model.decodeSettings settings of
+            case D.decodeValue Decoder.decodeSettings settings of
                 Ok settings_ ->
                     settings_
 
@@ -367,7 +370,7 @@ encodeNotifConfig { sound, msg, config } =
     E.object
         [ ( "sound", E.string sound )
         , ( "msg", E.string msg )
-        , ( "config", Model.encodeNotifications config )
+        , ( "config", Encoder.encodeNotifications config )
         ]
 
 
@@ -436,7 +439,11 @@ evalElapsedTime model =
                         ( Nothing, "", Nothing )
 
             notifyVal =
-                encodeNotifConfig { sound = "wind-chimes", msg = notifMsg, config = model.settings.notifications }
+                encodeNotifConfig
+                    { sound = "wind-chimes"
+                    , msg = notifMsg
+                    , config = model.settings.notifications
+                    }
         in
         EvalResult
             current_
@@ -469,7 +476,7 @@ update msg model =
 
         persistCurrent_ ( model_, cmd ) =
             model_.current
-                |> Model.encodeCurrent
+                |> Encoder.encodeCurrent
                 |> persistCurrent
                 |> Helpers.flip (::) [ cmd ]
                 |> Cmd.batch
@@ -477,7 +484,7 @@ update msg model =
 
         persistSettings_ ( model_, cmd ) =
             model_.settings
-                |> Model.encodeSettings
+                |> Encoder.encodeSettings
                 |> persistSettings
                 |> Helpers.flip (::) [ cmd ]
                 |> Cmd.batch
@@ -688,7 +695,7 @@ update msg model =
                 |> updateSettings
 
         GotSpotifyState raw ->
-            case D.decodeValue Model.decodeSpotify raw of
+            case D.decodeValue Decoder.decodeSpotify raw of
                 Ok newState ->
                     model
                         |> Model.mapSettings
@@ -738,7 +745,7 @@ update msg model =
                     done model
 
         GotStatsLogs raw ->
-            case ( model.page, D.decodeValue Model.decodeLog raw ) of
+            case ( model.page, D.decodeValue Decoder.decodeLog raw ) of
                 ( StatsPage Loading, Ok { ts, logs } ) ->
                     let
                         date =
@@ -877,7 +884,7 @@ update msg model =
                         _ ->
                             { model | sentimentCycle = Nothing }
             in
-            ( newModel, updateCycle ( Time.posixToMillis start, Model.sentimentToString sentiment ) )
+            ( newModel, updateCycle ( Time.posixToMillis start, Tools.sentimentToString sentiment ) )
 
         ToggleLogs ->
             case model.page of

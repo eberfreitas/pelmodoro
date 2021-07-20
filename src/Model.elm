@@ -10,14 +10,7 @@ port module Model exposing
     , cycleLog
     , cycleMaterialized
     , cycleStart
-    , decodeCurrent
-    , decodeLog
-    , decodeSettings
-    , decodeSpotify
     , default
-    , encodeCurrent
-    , encodeNotifications
-    , encodeSettings
     , firstInterval
     , intervalIsActivity
     , intervalIsBreak
@@ -25,18 +18,17 @@ port module Model exposing
     , intervalToString
     , intervalsTotalRun
     , mapSettings
-    , sentimentToString
     )
 
 import Browser.Navigation exposing (Key)
+import Codecs.Encoders as Encoder
 import Helpers
-import Json.Decode as D
-import Json.Decode.Pipeline as Pipeline
 import Json.Encode as E
 import List.Extra as ListEx
 import Msg exposing (Msg)
 import Themes.Types exposing (Theme(..))
 import Time exposing (Posix, Zone)
+import Tools
 import Types
     exposing
         ( Continuity(..)
@@ -44,13 +36,11 @@ import Types
         , Cycle
         , FlashMsg
         , Interval(..)
-        , Notifications
         , Page(..)
         , Seconds
-        , Sentiment(..)
         , Settings
+        , Sound(..)
         , Spotify(..)
-        , SpotifyPlaylist
         )
 
 
@@ -74,12 +64,16 @@ type alias Model =
 
 defaultSettings : Settings
 defaultSettings =
-    Settings 4 (25 * 60) (5 * 60) (15 * 60) Tomato NoCont Uninitialized defaultNotifications
-
-
-defaultNotifications : Notifications
-defaultNotifications =
-    Notifications True True False
+    Settings
+        4
+        (25 * 60)
+        (5 * 60)
+        (15 * 60)
+        Tomato
+        NoCont
+        Uninitialized
+        Tools.notificationsDefault
+        WindChimes
 
 
 firstInterval : List Interval -> Interval
@@ -153,7 +147,7 @@ cycleLog : Posix -> Current -> Cmd Msg
 cycleLog now { cycle, elapsed } =
     if elapsed /= 0 then
         { cycle | end = Just now, seconds = Just elapsed }
-            |> encodeCycle
+            |> Encoder.encodeCycle
             |> logCycle
 
     else
@@ -263,317 +257,3 @@ continuityFromString cont =
     continuityPairs
         |> ListEx.find (Tuple.second >> (==) cont)
         |> Maybe.map Tuple.first
-
-
-encodeInterval : Interval -> E.Value
-encodeInterval interval =
-    case interval of
-        Activity s ->
-            E.object
-                [ ( "type", E.string "activity" )
-                , ( "secs", E.int s )
-                ]
-
-        Break s ->
-            E.object
-                [ ( "type", E.string "break" )
-                , ( "secs", E.int s )
-                ]
-
-        LongBreak s ->
-            E.object
-                [ ( "type", E.string "longbreak" )
-                , ( "secs", E.int s )
-                ]
-
-
-encodeSentiment : Sentiment -> E.Value
-encodeSentiment sentiment =
-    sentiment |> sentimentToString |> E.string
-
-
-encodeCycle : Cycle -> E.Value
-encodeCycle { interval, start, end, seconds, sentiment } =
-    E.object
-        [ ( "interval", encodeInterval interval )
-        , ( "start", Helpers.encodeMaybe Helpers.encodePosix start )
-        , ( "end", Helpers.encodeMaybe Helpers.encodePosix end )
-        , ( "secs", Helpers.encodeMaybe E.int seconds )
-        , ( "sentiment", Helpers.encodeMaybe encodeSentiment sentiment )
-        ]
-
-
-encodeCurrent : Current -> E.Value
-encodeCurrent { index, cycle, elapsed } =
-    E.object
-        [ ( "index", E.int index )
-        , ( "cycle", encodeCycle cycle )
-        , ( "elapsed", E.int elapsed )
-        ]
-
-
-encodeContinuity : Continuity -> E.Value
-encodeContinuity cont =
-    case cont of
-        NoCont ->
-            E.string "nocont"
-
-        SimpleCont ->
-            E.string "simplecont"
-
-        FullCont ->
-            E.string "fullcont"
-
-
-encodeTheme : Theme -> E.Value
-encodeTheme theme =
-    case theme of
-        Tomato ->
-            E.string "light"
-
-        NightMood ->
-            E.string "dark"
-
-        Gruvbox ->
-            E.string "gruvbox"
-
-        Dracula ->
-            E.string "dracula"
-
-        Nord ->
-            E.string "nord"
-
-
-encodeSpotifyPlaylist : SpotifyPlaylist -> E.Value
-encodeSpotifyPlaylist ( uri, title ) =
-    E.object
-        [ ( "uri", E.string uri )
-        , ( "title", E.string title )
-        ]
-
-
-encodeSpotify : Spotify -> E.Value
-encodeSpotify spotify =
-    case spotify of
-        NotConnected url ->
-            E.object
-                [ ( "type", E.string "notconnected" )
-                , ( "url", E.string url )
-                ]
-
-        ConnectionError url ->
-            E.object
-                [ ( "type", E.string "connectionerror" )
-                , ( "url", E.string url )
-                ]
-
-        Connected playlists playlist ->
-            E.object
-                [ ( "type", E.string "connected" )
-                , ( "playlists", E.list encodeSpotifyPlaylist playlists )
-                , ( "playlist", Helpers.encodeMaybe E.string playlist )
-                ]
-
-        Uninitialized ->
-            E.object
-                [ ( "type", E.string "uninitialized" ) ]
-
-
-encodeNotifications : Notifications -> E.Value
-encodeNotifications { inApp, sound, browser } =
-    E.object
-        [ ( "inapp", E.bool inApp )
-        , ( "sound", E.bool sound )
-        , ( "browser", E.bool browser )
-        ]
-
-
-encodeSettings : Settings -> E.Value
-encodeSettings { rounds, activity, break, longBreak, theme, continuity, spotify, notifications } =
-    E.object
-        [ ( "rounds", E.int rounds )
-        , ( "activity", E.int activity )
-        , ( "break", E.int break )
-        , ( "longBreak", E.int longBreak )
-        , ( "theme", encodeTheme theme )
-        , ( "continuity", encodeContinuity continuity )
-        , ( "spotify", encodeSpotify spotify )
-        , ( "notifications", encodeNotifications notifications )
-        ]
-
-
-decodeInterval : D.Decoder Interval
-decodeInterval =
-    D.field "type" D.string
-        |> D.andThen
-            (\type_ ->
-                case type_ of
-                    "activity" ->
-                        D.map Activity <| D.field "secs" D.int
-
-                    "break" ->
-                        D.map Break <| D.field "secs" D.int
-
-                    "longbreak" ->
-                        D.map LongBreak <| D.field "secs" D.int
-
-                    _ ->
-                        D.fail <| "Can't decode interval of type: " ++ type_
-            )
-
-
-decodeSentiment : D.Decoder Sentiment
-decodeSentiment =
-    D.string
-        |> D.andThen
-            (\sentiment ->
-                case sentiment of
-                    "positive" ->
-                        D.succeed Positive
-
-                    "neutral" ->
-                        D.succeed Neutral
-
-                    "negative" ->
-                        D.succeed Negative
-
-                    _ ->
-                        D.fail <| "Can't decode sentiment of type: " ++ sentiment
-            )
-
-
-decodeCycle : D.Decoder Cycle
-decodeCycle =
-    D.succeed Cycle
-        |> Pipeline.required "interval" decodeInterval
-        |> Pipeline.required "start" (D.nullable Helpers.decodePosix)
-        |> Pipeline.required "end" (D.nullable Helpers.decodePosix)
-        |> Pipeline.required "secs" (D.nullable D.int)
-        |> Pipeline.optional "sentiment" (D.nullable decodeSentiment) Nothing
-
-
-decodeLog : D.Decoder { ts : Int, logs : List Cycle }
-decodeLog =
-    D.succeed (\ts l -> { ts = ts, logs = l })
-        |> Pipeline.required "ts" D.int
-        |> Pipeline.required "logs" (D.list decodeCycle)
-
-
-decodeCurrent : D.Decoder Current
-decodeCurrent =
-    D.succeed Current
-        |> Pipeline.required "index" D.int
-        |> Pipeline.required "cycle" decodeCycle
-        |> Pipeline.required "elapsed" D.int
-
-
-decodeTheme : D.Decoder Theme
-decodeTheme =
-    D.string
-        |> D.andThen
-            (\theme ->
-                case theme of
-                    "light" ->
-                        D.succeed Tomato
-
-                    "dark" ->
-                        D.succeed NightMood
-
-                    "gruvbox" ->
-                        D.succeed Gruvbox
-
-                    "dracula" ->
-                        D.succeed Dracula
-
-                    "nord" ->
-                        D.succeed Nord
-
-                    _ ->
-                        D.fail <| "Could not find theme: " ++ theme
-            )
-
-
-decodeContinuity : D.Decoder Continuity
-decodeContinuity =
-    D.string
-        |> D.andThen
-            (\cont ->
-                case cont of
-                    "nocont" ->
-                        D.succeed NoCont
-
-                    "simplecont" ->
-                        D.succeed SimpleCont
-
-                    "fullcont" ->
-                        D.succeed FullCont
-
-                    _ ->
-                        D.fail <| "Could not find continuity type: " ++ cont
-            )
-
-
-decodeSpotifyPlaylist : D.Decoder SpotifyPlaylist
-decodeSpotifyPlaylist =
-    D.map2 Tuple.pair
-        (D.field "uri" D.string)
-        (D.field "title" D.string)
-
-
-decodeSpotify : D.Decoder Spotify
-decodeSpotify =
-    D.field "type" D.string
-        |> D.andThen
-            (\type_ ->
-                case type_ of
-                    "uninitialized" ->
-                        D.succeed Uninitialized
-
-                    "notconnected" ->
-                        D.map NotConnected <| D.field "url" D.string
-
-                    "connectionerror" ->
-                        D.map ConnectionError <| D.field "url" D.string
-
-                    "connected" ->
-                        D.map2 Connected
-                            (D.field "playlists" (D.list decodeSpotifyPlaylist))
-                            (D.field "playlist" (D.nullable D.string))
-
-                    _ ->
-                        D.fail <| "Invalid spotify state of: " ++ type_
-            )
-
-
-decodeNotifications : D.Decoder Notifications
-decodeNotifications =
-    D.succeed Notifications
-        |> Pipeline.required "inapp" D.bool
-        |> Pipeline.required "sound" D.bool
-        |> Pipeline.required "browser" D.bool
-
-
-decodeSettings : D.Decoder Settings
-decodeSettings =
-    D.succeed Settings
-        |> Pipeline.required "rounds" D.int
-        |> Pipeline.required "activity" D.int
-        |> Pipeline.required "break" D.int
-        |> Pipeline.required "longBreak" D.int
-        |> Pipeline.required "theme" decodeTheme
-        |> Pipeline.required "continuity" decodeContinuity
-        |> Pipeline.required "spotify" decodeSpotify
-        |> Pipeline.optional "notifications" decodeNotifications defaultNotifications
-
-
-sentimentToString : Sentiment -> String
-sentimentToString sentiment =
-    case sentiment of
-        Positive ->
-            "positive"
-
-        Neutral ->
-            "neutral"
-
-        Negative ->
-            "negative"

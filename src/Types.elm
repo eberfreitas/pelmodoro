@@ -10,6 +10,7 @@ module Types exposing
     , Seconds
     , Sentiment(..)
     , Settings
+    , Sound(..)
     , Spotify(..)
     , SpotifyPlaylist
     , StatState(..)
@@ -69,6 +70,10 @@ type NotificationType
     | Browser
 
 
+type Sound
+    = WindChimes
+
+
 type alias Settings =
     { rounds : Int
     , activity : Seconds
@@ -78,6 +83,7 @@ type alias Settings =
     , continuity : Continuity
     , spotify : Spotify
     , notifications : Notifications
+    , sound : Sound
     }
 
 

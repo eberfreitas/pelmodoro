@@ -15,6 +15,7 @@ import Msg exposing (Msg(..))
 import Themes.Theme as Theme
 import Themes.Types exposing (Theme)
 import Time exposing (Zone)
+import Tools
 import Tuple.Trio as Trio
 import Types exposing (Cycle, Interval(..), Page(..), Sentiment(..), StatState(..), StatsDef)
 import View.Common as Common
@@ -188,7 +189,7 @@ renderSummary label theme logs =
                     "Sentiment"
                     [ HtmlAttr.css [ Css.marginBottom <| Css.rem 0.5 ] ]
                     []
-                , Html.div [ HtmlAttr.title (Model.sentimentToString sentiment) ]
+                , Html.div [ HtmlAttr.title (Tools.sentimentToDisplay sentiment) ]
                     [ Common.styledIcon
                         [ Css.fontSize <| Css.rem 2 ]
                         (sentimentToIcon sentiment)

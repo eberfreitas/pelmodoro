@@ -1,6 +1,6 @@
 # Pelmodoro
 
-[**Pelmodoro**](https://www.pelmodoro.com/) is an attempt to create a somewhat feature-complete Pomodoro timer app so you can track your working sections using the Pomodoro technique.
+[**Pelmodoro**](https://www.pelmodoro.com/) is an attempt to create a somewhat feature-complete Pomodoro timer app so you can track your working sessions using the Pomodoro technique.
 
 It runs in the browser but can also be installed as a stand-alone app as a PWA on mobile devices or other browsers that allow that type of installation like Edge.
 
@@ -11,42 +11,50 @@ It runs in the browser but can also be installed as a stand-alone app as a PWA o
 
 ## Features
 
-- Personalize your sessions your way
+- Personalize your sessions
+- Productivity / sentiment logs
 - Stats
 - Multiple means of notification like sounds and browser notifications
 - Spotify integration to sync a playlist to a working session
-- Multiple color schemes/themes
+- Multiple color themes
 - Export your stats data
 - And more...
 
 ## What about the name?
 
-Pelmodoro started as a side-project to improve my skills in writing [Elm](https://elm-lang.org/), hence the name P**ELM**odoro.
+Pelmodoro started as a side-project to improve my skills in writing [Elm](https://elm-lang.org/), hence the name p**ELM**odoro. I'm not a huge fan of using tech names on product names, but in this case, it just felt right.
 
 ## Contributing
 
-Like said before, Pelmodoro is written almost entirely in the Elm language. If you are willing to contribute with code, you might wanna take a look at the language's [guide](https://guide.elm-lang.org/).
+Like said before, Pelmodoro is written almost entirely in the Elm language. If you are willing to contribute with code, you might wanna take a look at the language's [guide](https://guide.elm-lang.org/) if you are not familiar with it yet. It is easy and fun, you should try it out!
 
-For the most part, I consider this project done, so there are only a few areas where contributions would be appreciated:
+For the most part, I consider this project done, but there are few areas where contributions would be appreciated:
 
 **Outstanding bugs**: If you find any bugs that prevent you from using the app, create an issue describing the problem and we can work it out.
 
-**New themes**: If you have any ideas for a new theme or just want to adapt a different color scheme to Pelmodoro, take a look at how themes are implemented [here](https://github.com/eberfreitas/pelmodoro/blob/main/src/Themes/Theme.elm) and [here](https://github.com/eberfreitas/pelmodoro/blob/main/src/Themes/Tomato.elm). New themes are always appreciated.
+**New themes**: If you have any ideas for a new theme or just want to import a different color scheme to Pelmodoro, take a look at how themes are implemented [here](https://github.com/eberfreitas/pelmodoro/blob/main/src/Themes/Theme.elm) and [here](https://github.com/eberfreitas/pelmodoro/blob/main/src/Themes/Tomato.elm). New themes are always appreciated.
 
 **Quotes**: You can contribute with quotes related to productivity, mindfulness, awareness, and so on. Take a look at the quotes we already have [here](https://github.com/eberfreitas/pelmodoro/blob/main/src/Quotes.elm) to get a sense of the type of quotes we use on the app. Try to bring insightful ideas that can aggregate to everyday real life.
+
+**Spelling and grammatical errors**: If you spot any words or expressions that are wrong or can be improved, just let me know or send your PR.
+
+**PWA improvements**: This was my first attempt at creating a PWA application. I'm sure there are ways of improving things there.
 
 Other ideas might be discussed on issues, just let me know.
 
 ## Running locally
 
-Just clone the repo and run the following commands:
+Clone the repo and run the following commands:
 
 ```
+$ cp .env.sample .env
 $ npm install
 $ npm run dev
 ```
 
-You can also build running:
+Now go to `https://localhost:1234` and you should see the app running.
+
+You can also build the project running:
 
 ```
 $ npm run build
