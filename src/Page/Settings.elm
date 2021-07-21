@@ -1,11 +1,20 @@
-module Page.Settings exposing (Msg, Settings)
+module Page.Settings exposing
+    ( Flow
+    , Msg
+    , Notifications
+    , Settings
+    , alarmSoundToString
+    , default
+    , encodeNotifications
+    , shouldKeepPlaying
+    )
 
 import File exposing (File)
 import Json.Decode as D exposing (Value)
 import Json.Decode.Pipeline as Pipeline
 import Json.Encode as E
 import Misc
-import Page.Spotify as Spotify exposing (Spotify)
+import Page.Spotify as Spotify
 import Theme.Common exposing (Theme(..))
 import Theme.Theme as Theme
 
@@ -49,7 +58,7 @@ type alias Settings =
     , longBreakDuration : Seconds
     , theme : Theme
     , flow : Flow
-    , spotify : Spotify
+    , spotify : Spotify.State
     , notifications : Notifications
     , alarmSound : AlarmSound
     }
@@ -62,7 +71,6 @@ type Msg
     | UpdateLongBreakDuration Int
     | UpdateFlow String
     | UpdateTheme String
-    | UpdateSpotifyPlaylist String
     | UpdateAlarmSound String
     | ToggleNotification NotificationType
     | GotBrowserNotificationPermission Value
@@ -83,9 +91,25 @@ default =
         (15 * 60)
         Tomato
         None
-        Uninitialized
+        Spotify.default
         notificationsDefault
         WindChimes
+
+
+shouldKeepPlaying : Int -> Flow -> Bool
+shouldKeepPlaying index flow =
+    case ( index, flow ) of
+        ( _, None ) ->
+            False
+
+        ( 0, Simple ) ->
+            False
+
+        ( 0, Loop ) ->
+            True
+
+        _ ->
+            True
 
 
 flowToString : Flow -> String
@@ -282,9 +306,9 @@ encodeSettings settings =
         , ( "longBreakDuration", E.int settings.longBreakDuration )
         , ( "theme", Theme.encodeTheme settings.theme )
         , ( "flow", encodeFlow settings.flow )
-        , ( "spotify", encodeSpotify spotify )
-        , ( "notifications", encodeNotifications notifications )
-        , ( "sound", encodeSound sound )
+        , ( "spotify", Spotify.encodeState settings.spotify )
+        , ( "notifications", encodeNotifications settings.notifications )
+        , ( "alarmSound", encodeAlarmSound settings.alarmSound )
         ]
 
 
@@ -292,11 +316,11 @@ decodeSettings : D.Decoder Settings
 decodeSettings =
     D.succeed Settings
         |> Pipeline.required "rounds" D.int
-        |> Pipeline.required "activity" D.int
-        |> Pipeline.required "break" D.int
-        |> Pipeline.required "longBreak" D.int
-        |> Pipeline.required "theme" decodeTheme
-        |> Pipeline.required "continuity" decodeContinuity
-        |> Pipeline.required "spotify" decodeSpotify
-        |> Pipeline.optional "notifications" decodeNotifications Tools.notificationsDefault
-        |> Pipeline.optional "sound" decodeSound WindChimes
+        |> Pipeline.required "workDuration" D.int
+        |> Pipeline.required "breakDuration" D.int
+        |> Pipeline.required "longBreakDuration" D.int
+        |> Pipeline.required "theme" Theme.decodeTheme
+        |> Pipeline.required "flow" decodeFlow
+        |> Pipeline.required "spotify" Spotify.decodeState
+        |> Pipeline.optional "notifications" decodeNotifications notificationsDefault
+        |> Pipeline.optional "alarmSound" decodeAlarmSound WindChimes

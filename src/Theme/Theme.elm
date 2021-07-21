@@ -6,7 +6,6 @@ module Theme.Theme exposing
     , encodeTheme
     , foregroundColor
     , longBreakColor
-    , sessionColor
     , textColor
     , workColor
     )

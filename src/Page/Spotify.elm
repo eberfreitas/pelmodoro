@@ -1,11 +1,20 @@
-module Page.Spotify exposing (Msg, Spotify)
+module Page.Spotify exposing
+    ( Msg
+    , State
+    , decodeState
+    , default
+    , encodeState
+    , pause
+    , play
+    )
 
-import Json.Decode as D exposing (Value)
-import Json.Encode as E
+import Json.Decode as Decode
+import Json.Encode as Encode
 import Misc
+import Ports
 
 
-type Spotify
+type State
     = NotConnected String
     | ConnectionError String
     | Connected (List SpotifyPlaylist) (Maybe String)
@@ -17,77 +26,138 @@ type alias SpotifyPlaylist =
 
 
 type Msg
-    = GotState Value
+    = GotState Decode.Value
     | Refresh
     | Disconnect
+    | UpdatePlaylist String
+
+
+type Action
+    = Play String
+    | Pause
+
+
+default : State
+default =
+    Uninitialized
+
+
+play : State -> Cmd msg
+play state =
+    case state of
+        Connected _ url ->
+            url
+                |> Maybe.map (Play >> sendToSpotify)
+                |> Maybe.withDefault Cmd.none
+
+        _ ->
+            Cmd.none
+
+
+pause : State -> Cmd msg
+pause state =
+    case state of
+        Connected _ _ ->
+            Pause |> sendToSpotify
+
+        _ ->
+            Cmd.none
+
+
+playlistUrl : State -> Maybe String
+playlistUrl spotify =
+    case spotify of
+        Connected _ url ->
+            url
+
+        _ ->
+            Nothing
+
+
+sendToSpotify : Action -> Cmd msg
+sendToSpotify action =
+    action |> encodeAction |> Ports.toSpotify
 
 
 
 -- CODECS
 
 
-encodeSpotifyPlaylist : SpotifyPlaylist -> Value
+encodeAction : Action -> Encode.Value
+encodeAction action =
+    case action of
+        Play url ->
+            Encode.object
+                [ ( "type", Encode.string "play" )
+                , ( "url", Encode.string url )
+                ]
+
+        Pause ->
+            Encode.object [ ( "type", Encode.string "pause" ) ]
+
+
+encodeSpotifyPlaylist : SpotifyPlaylist -> Encode.Value
 encodeSpotifyPlaylist ( uri, title ) =
-    E.object
-        [ ( "uri", E.string uri )
-        , ( "title", E.string title )
+    Encode.object
+        [ ( "uri", Encode.string uri )
+        , ( "title", Encode.string title )
         ]
 
 
-decodeSpotifyPlaylist : D.Decoder SpotifyPlaylist
+decodeSpotifyPlaylist : Decode.Decoder SpotifyPlaylist
 decodeSpotifyPlaylist =
-    D.map2 Tuple.pair
-        (D.field "uri" D.string)
-        (D.field "title" D.string)
+    Decode.map2 Tuple.pair
+        (Decode.field "uri" Decode.string)
+        (Decode.field "title" Decode.string)
 
 
-encodeSpotify : Spotify -> E.Value
-encodeSpotify spotify =
-    case spotify of
+encodeState : State -> Encode.Value
+encodeState state =
+    case state of
         NotConnected url ->
-            E.object
-                [ ( "type", E.string "notconnected" )
-                , ( "url", E.string url )
+            Encode.object
+                [ ( "type", Encode.string "notconnected" )
+                , ( "url", Encode.string url )
                 ]
 
         ConnectionError url ->
-            E.object
-                [ ( "type", E.string "connectionerror" )
-                , ( "url", E.string url )
+            Encode.object
+                [ ( "type", Encode.string "connectionerror" )
+                , ( "url", Encode.string url )
                 ]
 
         Connected playlists playlist ->
-            E.object
-                [ ( "type", E.string "connected" )
-                , ( "playlists", E.list encodeSpotifyPlaylist playlists )
-                , ( "playlist", Misc.encodeMaybe E.string playlist )
+            Encode.object
+                [ ( "type", Encode.string "connected" )
+                , ( "playlists", Encode.list encodeSpotifyPlaylist playlists )
+                , ( "playlist", Misc.encodeMaybe Encode.string playlist )
                 ]
 
         Uninitialized ->
-            E.object
-                [ ( "type", E.string "uninitialized" ) ]
+            Encode.object
+                [ ( "type", Encode.string "uninitialized" ) ]
 
 
-decodeSpotify : D.Decoder Spotify
-decodeSpotify =
-    D.field "type" D.string
-        |> D.andThen
+decodeState : Decode.Decoder State
+decodeState =
+    Decode.field "type" Decode.string
+        |> Decode.andThen
             (\type_ ->
                 case type_ of
                     "uninitialized" ->
-                        D.succeed Uninitialized
+                        Decode.succeed Uninitialized
 
                     "notconnected" ->
-                        D.map NotConnected <| D.field "url" D.string
+                        Decode.map NotConnected <| Decode.field "url" Decode.string
 
                     "connectionerror" ->
-                        D.map ConnectionError <| D.field "url" D.string
+                        Decode.map ConnectionError <| Decode.field "url" Decode.string
 
                     "connected" ->
-                        D.map2 Connected
-                            (D.field "playlists" (D.list decodeSpotifyPlaylist))
-                            (D.field "playlist" (D.nullable D.string))
+                        Decode.map2 Connected
+                            (Decode.field "playlists" (Decode.list decodeSpotifyPlaylist))
+                            (Decode.field "playlist" (Decode.nullable Decode.string))
 
                     _ ->
-                        D.fail <| "Invalid spotify state of: " ++ type_
+                        Decode.fail <| "Invalid spotify state of: " ++ type_
             )

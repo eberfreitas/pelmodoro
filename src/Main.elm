@@ -2,7 +2,6 @@ port module Main exposing (main)
 
 import Browser exposing (Document, UrlRequest(..))
 import Browser.Navigation as Nav exposing (Key)
-import Codecs.Decoders as Decoder
 import Css
 import File
 import File.Select as Select
@@ -10,14 +9,14 @@ import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as HtmlAttr
 import Iso8601
 import Json.Decode as D
-import Json.Encode as E
 import List.Extra as ListEx
+import Page.Flash as Flash
 import Page.Settings as Settings
 import Page.Stats as Stats exposing (StatState)
 import Page.Timer as Timer
 import Platform exposing (Program)
 import Platform.Sub as Sub
-import Quotes
+import Session
 import Task
 import Theme.Common exposing (Theme)
 import Theme.Theme as Theme
@@ -32,12 +31,12 @@ type alias Model =
     , key : Key
     , page : Page
     , uptime : Int
-    , settings : Settings
-    , current : Current
     , playing : Bool
-    , intervals : List Interval
-    , flash : Maybe (FlashMsg Msg)
-    , sentimentCycle : Maybe Cycle
+    , settings : Settings.Settings
+    , sessions : List Session.SessionDef
+    , active : Session.Active
+    , sentimentSession : Maybe Session.Session
+    , flash : Maybe (Flash.FlashMsg Msg)
     }
 
 
@@ -52,44 +51,23 @@ default : Key -> Model
 default key =
     let
         ( sessions, active ) =
-            buildIntervals defaultSettings Nothing
+            Session.buildSessions Settings.default Nothing
     in
     { zone = Time.utc
     , time = Time.millisToPosix 0
     , key = key
     , page = TimerPage
     , uptime = 0
-    , settings = defaultSettings
-    , current = current
     , playing = False
-    , intervals = intervals
+    , settings = Settings.default
+    , sessions = sessions
+    , active = active
+    , sentimentSession = Nothing
     , flash = Nothing
-    , sentimentCycle = Nothing
     }
 
 
-port notify : E.Value -> Cmd msg
-
-
-port persistCurrent : E.Value -> Cmd msg
-
-
-port persistSettings : E.Value -> Cmd msg
-
-
 port fetchLogs : Int -> Cmd msg
-
-
-port spotifyPlay : String -> Cmd msg
-
-
-port spotifyPause : () -> Cmd msg
-
-
-port spotifyRefresh : () -> Cmd msg
-
-
-port spotifyDisconnect : () -> Cmd msg
 
 
 port requestBrowserNotif : Bool -> Cmd msg
@@ -108,9 +86,6 @@ port testSound : String -> Cmd msg
 
 
 port clearLogs : () -> Cmd msg
-
-
-port tick : (Int -> msg) -> Sub msg
 
 
 port gotSpotifyState : (D.Value -> msg) -> Sub msg
@@ -346,11 +321,6 @@ renderPage model =
         ]
 
 
-newFlash : String -> Html msg -> FlashMsg msg
-newFlash title content =
-    FlashMsg 15 title content
-
-
 handleFlashMsg : Maybe (FlashMsg msg) -> Maybe (FlashMsg msg)
 handleFlashMsg flashMsg =
     flashMsg
@@ -380,115 +350,15 @@ decodeBrowserNotifRes =
         (D.field "msg" D.string)
 
 
-type alias EvalResult msg =
-    { current : Current
-    , playing : Bool
-    , flash : Maybe (FlashMsg msg)
-    , cmd : Cmd msg
-    , sentimentCycle : Maybe Cycle
-    }
-
-
-encodeNotifConfig : { sound : String, msg : String, config : Notifications } -> E.Value
-encodeNotifConfig { sound, msg, config } =
-    E.object
-        [ ( "sound", E.string sound )
-        , ( "msg", E.string msg )
-        , ( "config", Encoder.encodeNotifications config )
-        ]
-
-
-evalElapsedTime : Model -> EvalResult msg
-evalElapsedTime model =
-    if Model.currentSecondsLeft model.current == 0 then
-        let
-            firstInterval =
-                model.intervals |> Model.firstInterval
-
-            nextIdx =
-                model.current.index + 1
-
-            cmdFnByInterval interval =
-                case ( interval, model.settings.spotify ) of
-                    ( Activity _, Connected _ (Just uri) ) ->
-                        spotifyPlay uri
-
-                    ( _, Connected _ (Just _) ) ->
-                        spotifyPause ()
-
-                    _ ->
-                        Cmd.none
-
-            ( current_, playing ) =
-                case ( model.intervals |> ListEx.getAt nextIdx, model.settings.continuity ) of
-                    ( Nothing, FullCont ) ->
-                        ( Current 0 (Model.cycleBuild firstInterval (Just model.time)) 0, True )
-
-                    ( Nothing, _ ) ->
-                        ( Current 0 (Model.cycleBuild firstInterval Nothing) 0, False )
-
-                    ( Just nextInterval, NoCont ) ->
-                        ( Current nextIdx (Model.cycleBuild nextInterval Nothing) 0, False )
-
-                    ( Just nextInterval, _ ) ->
-                        ( Current nextIdx (Model.cycleBuild nextInterval (Just model.time)) 0, True )
-
-            ( flashMsg, notifMsg, sentimentCycle ) =
-                case ( model.current.cycle.interval, current_.cycle.interval ) of
-                    ( Activity _, Break _ ) ->
-                        ( Just (newFlash "Time to take a break" (Quotes.getAquote model.time))
-                        , "Time to take a break"
-                        , Just model.current.cycle
-                        )
-
-                    ( Break _, Activity _ ) ->
-                        ( Just (newFlash "Back to work" (Quotes.getAquote model.time))
-                        , "Back to work"
-                        , Nothing
-                        )
-
-                    ( Activity _, LongBreak _ ) ->
-                        ( Just (newFlash "Time to relax" (Quotes.getAquote model.time))
-                        , "Time to relax"
-                        , Just model.current.cycle
-                        )
-
-                    ( LongBreak _, Activity _ ) ->
-                        ( Just (newFlash "What is next?" (Quotes.getAquote model.time))
-                        , "What is next?"
-                        , Nothing
-                        )
-
-                    _ ->
-                        ( Nothing, "", Nothing )
-
-            notifyVal =
-                encodeNotifConfig
-                    { sound = model.settings.sound |> Tools.soundToString
-                    , msg = notifMsg
-                    , config = model.settings.notifications
-                    }
-        in
-        EvalResult
-            current_
-            playing
-            flashMsg
-            (Cmd.batch [ notify notifyVal, cmdFnByInterval current_.cycle.interval ])
-            sentimentCycle
-
-    else
-        EvalResult (Model.currentAddElapsed 1 model.current) True Nothing Cmd.none Nothing
-
-
 type Msg
     = NoOp
-    | Tick Int
     | AdjustTimeZone Zone
     | UrlChanged Url
     | LinkCliked UrlRequest
-    | TimerMsg Timer.Msg
-    | StatsMsg Stats.Msg
-    | SettingsMsg Settings.Msg
+    | Timer Timer.Msg
+    | Stats Stats.Msg
+    | Settings Settings.Msg
+    | Flash Flash.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -529,13 +399,6 @@ update msg model =
             { model_ | flash = handleFlashMsg model_.flash }
                 |> Helpers.flip Tuple.pair cmd
 
-        setFlash : Maybe (FlashMsg Msg) -> ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
-        setFlash flashMsg ( model_, cmd ) =
-            flashMsg
-                |> Maybe.map (\f -> { model_ | flash = Just f })
-                |> Maybe.withDefault model_
-                |> Helpers.flip Tuple.pair cmd
-
         updateSettings model_ =
             let
                 ( newIntervals, newCurrent ) =
@@ -551,120 +414,11 @@ update msg model =
         NoOp ->
             done model
 
-        Tick millis ->
-            let
-                posix =
-                    Time.millisToPosix millis
-
-                updateTime model_ =
-                    { model_ | time = posix, uptime = model_.uptime + 1 }
-            in
-            if model.playing == True then
-                let
-                    newState =
-                        evalElapsedTime model
-
-                    logCmd =
-                        if newState.cmd /= Cmd.none then
-                            Model.cycleLog model.time model.current
-
-                        else
-                            Cmd.none
-
-                    flashFn =
-                        if model.settings.notifications.inApp then
-                            setFlash newState.flash
-
-                        else
-                            identity
-
-                    setupSentimentCycle m =
-                        let
-                            newSentiment =
-                                case ( m.sentimentCycle, newState.sentimentCycle, newState.current.cycle.interval ) of
-                                    ( _, _, Activity _ ) ->
-                                        Nothing
-
-                                    ( sentiment, Nothing, _ ) ->
-                                        sentiment
-
-                                    ( Nothing, sentiment, _ ) ->
-                                        sentiment
-
-                                    _ ->
-                                        Nothing
-                        in
-                        { m | sentimentCycle = newSentiment }
-                in
-                { model | current = newState.current, playing = newState.playing }
-                    |> setupSentimentCycle
-                    |> updateTime
-                    |> Helpers.flip Tuple.pair (Cmd.batch [ newState.cmd, logCmd ])
-                    |> updateFlash
-                    |> flashFn
-                    |> persistCurrent_
-
-            else
-                model |> updateTime |> done |> updateFlash
+        Timer subMsg ->
+            Timer.update subMsg model
 
         AdjustTimeZone newZone ->
             done { model | zone = newZone }
-
-        Pause ->
-            done { model | playing = False } |> pausePlaylist
-
-        Play ->
-            let
-                { index, cycle, elapsed } =
-                    model.current
-
-                newCurrent =
-                    if elapsed == 0 then
-                        Current index (Model.cycleStart model.time cycle) 0
-
-                    else
-                        model.current
-
-                cmdFn =
-                    case ( model.settings.spotify, newCurrent.cycle.interval ) of
-                        ( Connected _ (Just uri), Activity _ ) ->
-                            playPlaylist uri
-
-                        _ ->
-                            identity
-            in
-            { model | playing = True, current = newCurrent } |> done |> persistCurrent_ |> cmdFn
-
-        Skip ->
-            let
-                { index } =
-                    model.current
-
-                ( newIndex, newInterval ) =
-                    case ListEx.getAt (index + 1) model.intervals of
-                        Just next ->
-                            ( index + 1, next )
-
-                        Nothing ->
-                            ( 0, model.intervals |> Model.firstInterval )
-
-                newCurrent =
-                    Current newIndex (Model.cycleBuild newInterval Nothing) 0
-            in
-            { model | current = newCurrent, playing = False }
-                |> Helpers.flip Tuple.pair (Model.cycleLog model.time model.current)
-                |> persistCurrent_
-                |> pausePlaylist
-
-        Reset ->
-            let
-                newCurrent =
-                    Current 0 (Model.cycleBuild (Model.firstInterval model.intervals) Nothing) 0
-            in
-            { model | current = newCurrent, playing = False }
-                |> Helpers.flip Tuple.pair (Model.cycleLog model.time model.current)
-                |> persistCurrent_
-                |> pausePlaylist
 
         ChangeRounds rounds ->
             model

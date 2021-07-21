@@ -1,17 +1,29 @@
 module Misc exposing
-    ( decodePosix
+    ( addCmd
+    , decodePosix
     , encodeMaybe
     , encodePosix
     , flip
     , fromPairs
     , maybeTrio
     , toPairs
+    , withCmd
     )
 
 import Json.Decode as D
 import Json.Encode as E
 import List.Extra as ListEx
 import Time exposing (Posix)
+
+
+addCmd : Cmd msg -> ( a, Cmd msg ) -> ( a, Cmd msg )
+addCmd cmd =
+    Tuple.mapSecond (\c -> Cmd.batch [ cmd, c ])
+
+
+withCmd : a -> ( a, Cmd msg )
+withCmd a =
+    ( a, Cmd.none )
 
 
 toPairs : (a -> String) -> List a -> List ( a, String )
@@ -29,6 +41,16 @@ fromPairs list s =
 flip : (b -> a -> c) -> a -> b -> c
 flip fn a b =
     fn b a
+
+
+maybeTrio : ( Maybe a, Maybe b, Maybe c ) -> Maybe ( a, b, c )
+maybeTrio ( a, b, c ) =
+    case ( a, b, c ) of
+        ( Just a_, Just b_, Just c_ ) ->
+            Just ( a_, b_, c_ )
+
+        _ ->
+            Nothing
 
 
 encodeMaybe : (a -> E.Value) -> Maybe a -> E.Value
@@ -49,13 +71,3 @@ encodePosix =
 decodePosix : D.Decoder Posix
 decodePosix =
     D.map Time.millisToPosix D.int
-
-
-maybeTrio : ( Maybe a, Maybe b, Maybe c ) -> Maybe ( a, b, c )
-maybeTrio ( a, b, c ) =
-    case ( a, b, c ) of
-        ( Just a_, Just b_, Just c_ ) ->
-            Just ( a_, b_, c_ )
-
-        _ ->
-            Nothing

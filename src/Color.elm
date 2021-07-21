@@ -7,7 +7,7 @@ module Color exposing
     )
 
 import Css
-import Helpers
+import Misc
 
 
 type Color
@@ -63,7 +63,7 @@ toRgbaString (Color { red, green, blue, alpha }) =
     [ red, green, blue ]
         |> List.map String.fromInt
         |> String.join ","
-        |> Helpers.flip (++) ("," ++ String.fromFloat alpha)
+        |> Misc.flip (++) ("," ++ String.fromFloat alpha)
         |> (\c -> "rgba(" ++ c ++ ")")
 
 
