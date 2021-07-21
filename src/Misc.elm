@@ -1,8 +1,29 @@
-module Helpers exposing (decodePosix, encodeMaybe, encodePosix, flip, maybeTrio)
+module Misc exposing
+    ( decodePosix
+    , encodeMaybe
+    , encodePosix
+    , flip
+    , fromPairs
+    , maybeTrio
+    , toPairs
+    )
 
 import Json.Decode as D
 import Json.Encode as E
+import List.Extra as ListEx
 import Time exposing (Posix)
+
+
+toPairs : (a -> String) -> List a -> List ( a, String )
+toPairs fn =
+    List.map (\a -> ( a, fn a ))
+
+
+fromPairs : List ( a, String ) -> String -> Maybe a
+fromPairs list s =
+    list
+        |> ListEx.find (Tuple.second >> (==) s)
+        |> Maybe.map Tuple.first
 
 
 flip : (b -> a -> c) -> a -> b -> c

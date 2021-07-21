@@ -1,4 +1,4 @@
-module Themes.Codecs exposing (decodeTheme, encodeTheme)
+module Theme.Codecs exposing (decodeTheme, encodeTheme)
 
 import Json.Decode as D
 import Json.Encode as E

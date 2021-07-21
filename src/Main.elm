@@ -4,50 +4,98 @@ import Browser exposing (Document, UrlRequest(..))
 import Browser.Navigation as Nav exposing (Key)
 import Codecs.Decoders as Decoder
 import Codecs.Encoders as Encoder
-import Colors
+import Color
 import Css
-import Date
+import Date exposing (Date)
 import File
 import File.Select as Select
-import Helpers
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as HtmlAttr
 import Iso8601
 import Json.Decode as D
 import Json.Encode as E
 import List.Extra as ListEx
+import Misc
 import Model exposing (Model)
-import Msg exposing (Msg(..))
+import Page.Settings as Settings
+import Page.Spotify as Spotify
+import Page.Stats as Stats
+import Page.Timer as Timer
 import Platform exposing (Program)
 import Platform.Sub as Sub
 import Quotes
 import Task
-import Themes.Theme as Theme
-import Themes.Types exposing (Theme)
-import Time
-import Tools
-import Types
-    exposing
-        ( Continuity(..)
-        , Current
-        , Cycle
-        , FlashMsg
-        , Interval(..)
-        , NotificationType(..)
-        , Notifications
-        , Page(..)
-        , Spotify(..)
-        , StatState(..)
-        , StatsDef
-        )
+import Theme.Common exposing (Theme)
+import Theme.Theme as Theme
+import Time exposing (Posix, Zone)
 import Url exposing (Url)
-import View.Common as Common
-import View.Credits as Credits
-import View.Flash as Flash
-import View.Settings as Settings
-import View.Stats as Stats
-import View.Timer as Timer
 import VirtualDom exposing (Node)
+
+
+type StatState
+    = Loading
+    | Loaded StatsDef
+
+
+type alias StatsDef =
+    { date : Date
+    , logs : List Cycle
+    , showLogs : Bool
+    }
+
+
+type Page
+    = TimerPage
+    | SettingsPage
+    | StatsPage StatState
+    | CreditsPage
+
+
+type alias Model =
+    { zone : Zone
+    , time : Posix
+    , key : Key
+    , page : Page
+    , uptime : Int
+    , settings : Settings
+    , current : Current
+    , playing : Bool
+    , intervals : List Interval
+    , flash : Maybe (FlashMsg Msg)
+    , sentimentCycle : Maybe Cycle
+    }
+
+
+default : Key -> Model
+default key =
+    let
+        ( sessions, active ) =
+            buildIntervals defaultSettings Nothing
+    in
+    { zone = Time.utc
+    , time = Time.millisToPosix 0
+    , key = key
+    , page = TimerPage
+    , uptime = 0
+    , settings = defaultSettings
+    , current = current
+    , playing = False
+    , intervals = intervals
+    , flash = Nothing
+    , sentimentCycle = Nothing
+    }
+
+
+type Msg
+    = NoOp
+    | Tick Int
+    | AdjustTimeZone Zone
+    | UrlChanged Url
+    | LinkCliked UrlRequest
+    | SettingsMsg Settings.Msg
+    | SpotifyMsg Spotify.Msg
+    | TimerMsg Timer.Msg
+    | StatsMsg Stats.Msg
 
 
 port notify : E.Value -> Cmd msg
