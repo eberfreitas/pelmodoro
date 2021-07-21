@@ -3,10 +3,7 @@ port module Main exposing (main)
 import Browser exposing (Document, UrlRequest(..))
 import Browser.Navigation as Nav exposing (Key)
 import Codecs.Decoders as Decoder
-import Codecs.Encoders as Encoder
-import Color
 import Css
-import Date exposing (Date)
 import File
 import File.Select as Select
 import Html.Styled as Html exposing (Html)
@@ -15,11 +12,8 @@ import Iso8601
 import Json.Decode as D
 import Json.Encode as E
 import List.Extra as ListEx
-import Misc
-import Model exposing (Model)
 import Page.Settings as Settings
-import Page.Spotify as Spotify
-import Page.Stats as Stats
+import Page.Stats as Stats exposing (StatState)
 import Page.Timer as Timer
 import Platform exposing (Program)
 import Platform.Sub as Sub
@@ -30,25 +24,6 @@ import Theme.Theme as Theme
 import Time exposing (Posix, Zone)
 import Url exposing (Url)
 import VirtualDom exposing (Node)
-
-
-type StatState
-    = Loading
-    | Loaded StatsDef
-
-
-type alias StatsDef =
-    { date : Date
-    , logs : List Cycle
-    , showLogs : Bool
-    }
-
-
-type Page
-    = TimerPage
-    | SettingsPage
-    | StatsPage StatState
-    | CreditsPage
 
 
 type alias Model =
@@ -64,6 +39,13 @@ type alias Model =
     , flash : Maybe (FlashMsg Msg)
     , sentimentCycle : Maybe Cycle
     }
+
+
+type Page
+    = TimerPage
+    | SettingsPage
+    | StatsPage StatState
+    | CreditsPage
 
 
 default : Key -> Model
@@ -84,18 +66,6 @@ default key =
     , flash = Nothing
     , sentimentCycle = Nothing
     }
-
-
-type Msg
-    = NoOp
-    | Tick Int
-    | AdjustTimeZone Zone
-    | UrlChanged Url
-    | LinkCliked UrlRequest
-    | SettingsMsg Settings.Msg
-    | SpotifyMsg Spotify.Msg
-    | TimerMsg Timer.Msg
-    | StatsMsg Stats.Msg
 
 
 port notify : E.Value -> Cmd msg
@@ -508,6 +478,17 @@ evalElapsedTime model =
 
     else
         EvalResult (Model.currentAddElapsed 1 model.current) True Nothing Cmd.none Nothing
+
+
+type Msg
+    = NoOp
+    | Tick Int
+    | AdjustTimeZone Zone
+    | UrlChanged Url
+    | LinkCliked UrlRequest
+    | TimerMsg Timer.Msg
+    | StatsMsg Stats.Msg
+    | SettingsMsg Settings.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )

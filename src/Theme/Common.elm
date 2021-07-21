@@ -13,7 +13,7 @@ type Theme
 
 type alias ThemeColors =
     { background : Color
-    , activity : Color
+    , work : Color
     , break : Color
     , longBreak : Color
     , foreground : Color

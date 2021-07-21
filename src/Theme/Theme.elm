@@ -1,15 +1,20 @@
 module Theme.Theme exposing
     ( backgroundColor
+    , breakColor
     , contrastColor
+    , decodeTheme
+    , encodeTheme
     , foregroundColor
     , longBreakColor
     , sessionColor
     , textColor
+    , workColor
     )
 
 import Color exposing (Color)
+import Json.Decode as D
+import Json.Encode as E exposing (Value)
 import Misc
-import Session exposing (SessionType(..))
 import Theme.Common exposing (Theme(..), ThemeColors)
 import Theme.Dracula as Dracula
 import Theme.Gruvbox as Gruvbox
@@ -57,22 +62,19 @@ contrastColor =
     themeColors >> .contrast
 
 
+workColor : Theme -> Color
+workColor =
+    themeColors >> .work
+
+
+breakColor : Theme -> Color
+breakColor =
+    themeColors >> .break
+
+
 longBreakColor : Theme -> Color
 longBreakColor =
     themeColors >> .longBreak
-
-
-sessionColor : Theme -> SessionType -> Color
-sessionColor theme interval =
-    case interval of
-        Work _ ->
-            theme |> themeColors |> .activity
-
-        Break _ ->
-            theme |> themeColors |> .break
-
-        LongBreak _ ->
-            theme |> themeColors |> .longBreak
 
 
 themeToString : Theme -> String
@@ -108,3 +110,22 @@ themePairs =
 themeFromString : String -> Maybe Theme
 themeFromString =
     Misc.fromPairs themePairs
+
+
+
+-- CODECS
+
+
+encodeTheme : Theme -> Value
+encodeTheme =
+    themeToString >> E.string
+
+
+decodeTheme : D.Decoder Theme
+decodeTheme =
+    D.string
+        |> D.andThen
+            (themeFromString
+                >> Maybe.map D.succeed
+                >> Maybe.withDefault (D.fail "Invalid theme")
+            )

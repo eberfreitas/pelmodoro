@@ -1,10 +1,13 @@
 module Page.Settings exposing (Msg, Settings)
 
 import File exposing (File)
-import Json.Decode exposing (Value)
+import Json.Decode as D exposing (Value)
+import Json.Decode.Pipeline as Pipeline
+import Json.Encode as E
 import Misc
-import Page.Spotify exposing (Spotify)
+import Page.Spotify as Spotify exposing (Spotify)
 import Theme.Common exposing (Theme(..))
+import Theme.Theme as Theme
 
 
 type alias Seconds =
@@ -68,6 +71,7 @@ type Msg
     | ImportSelect File
     | ImportData String
     | TestSound AlarmSound
+    | SpotifyMsg Spotify.Msg
 
 
 default : Settings
@@ -225,3 +229,74 @@ alarmSoundFromDisplay =
 encodeFlow : Flow -> Value
 encodeFlow =
     flowToString >> E.string
+
+
+decodeFlow : D.Decoder Flow
+decodeFlow =
+    D.string
+        |> D.andThen
+            (flowFromString
+                >> Maybe.map D.succeed
+                >> Maybe.withDefault (D.fail "Invalid flow")
+            )
+
+
+encodeNotifications : Notifications -> Value
+encodeNotifications { inApp, sound, browser } =
+    E.object
+        [ ( "inapp", E.bool inApp )
+        , ( "sound", E.bool sound )
+        , ( "browser", E.bool browser )
+        ]
+
+
+decodeNotifications : D.Decoder Notifications
+decodeNotifications =
+    D.succeed Notifications
+        |> Pipeline.required "inapp" D.bool
+        |> Pipeline.required "sound" D.bool
+        |> Pipeline.required "browser" D.bool
+
+
+encodeAlarmSound : AlarmSound -> Value
+encodeAlarmSound =
+    alarmSoundToString >> E.string
+
+
+decodeAlarmSound : D.Decoder AlarmSound
+decodeAlarmSound =
+    D.string
+        |> D.andThen
+            (alarmSoundFromString
+                >> Maybe.map D.succeed
+                >> Maybe.withDefault (D.fail "Invalid alarm sound")
+            )
+
+
+encodeSettings : Settings -> Value
+encodeSettings settings =
+    E.object
+        [ ( "rounds", E.int settings.rounds )
+        , ( "workDuration", E.int settings.workDuration )
+        , ( "breakDuration", E.int settings.breakDuration )
+        , ( "longBreakDuration", E.int settings.longBreakDuration )
+        , ( "theme", Theme.encodeTheme settings.theme )
+        , ( "flow", encodeFlow settings.flow )
+        , ( "spotify", encodeSpotify spotify )
+        , ( "notifications", encodeNotifications notifications )
+        , ( "sound", encodeSound sound )
+        ]
+
+
+decodeSettings : D.Decoder Settings
+decodeSettings =
+    D.succeed Settings
+        |> Pipeline.required "rounds" D.int
+        |> Pipeline.required "activity" D.int
+        |> Pipeline.required "break" D.int
+        |> Pipeline.required "longBreak" D.int
+        |> Pipeline.required "theme" decodeTheme
+        |> Pipeline.required "continuity" decodeContinuity
+        |> Pipeline.required "spotify" decodeSpotify
+        |> Pipeline.optional "notifications" decodeNotifications Tools.notificationsDefault
+        |> Pipeline.optional "sound" decodeSound WindChimes

@@ -1,5 +1,7 @@
-port module Session exposing (..)
+port module Session exposing (Sentiment, Session, decodeSession)
 
+import Json.Decode as D
+import Json.Decode.Pipeline as Pipeline
 import Json.Encode as E exposing (Value)
 import List.Extra as ListEx
 import Misc
@@ -133,6 +135,91 @@ sessionLog now { session, elapsed } =
         Cmd.none
 
 
+sessionStart : Posix -> Session -> Session
+sessionStart now session =
+    { session | start = Just now }
+
+
+sessionMaterialized : Session -> Maybe { type_ : SessionType, start : Posix, end : Posix, seconds : Seconds }
+sessionMaterialized { type_, start, end, seconds } =
+    ( start, end, seconds )
+        |> Misc.maybeTrio
+        |> Maybe.map
+            (\( start_, end_, secs_ ) ->
+                { type_ = type_
+                , start = start_
+                , end = end_
+                , seconds = secs_
+                }
+            )
+
+
+sessionSeconds : SessionType -> Seconds
+sessionSeconds interval =
+    case interval of
+        Work s ->
+            s
+
+        Break s ->
+            s
+
+        LongBreak s ->
+            s
+
+
+sessionsTotalRun : List SessionType -> Seconds
+sessionsTotalRun sessions =
+    sessions |> List.foldl (\i t -> i |> sessionSeconds |> (+) t) 0
+
+
+isWork : SessionType -> Bool
+isWork type_ =
+    case type_ of
+        Work _ ->
+            True
+
+        _ ->
+            False
+
+
+isBreak : SessionType -> Bool
+isBreak type_ =
+    case type_ of
+        Work _ ->
+            False
+
+        _ ->
+            True
+
+
+sessionTypeToString : SessionType -> String
+sessionTypeToString type_ =
+    case type_ of
+        Work _ ->
+            "Work"
+
+        Break _ ->
+            "Break"
+
+        LongBreak _ ->
+            "Long break"
+
+
+secondsLeft : Active -> Float
+secondsLeft { session, elapsed } =
+    sessionSeconds session.type_ - elapsed |> toFloat
+
+
+addElapsed : Int -> Active -> Active
+addElapsed i active =
+    { active | elapsed = active.elapsed + i }
+
+
+elapsedPct : Active -> Float
+elapsedPct { session, elapsed } =
+    toFloat elapsed * 100 / (toFloat <| sessionSeconds session.type_)
+
+
 
 -- CODECS
 
@@ -159,9 +246,39 @@ encodeSessionType type_ =
                 ]
 
 
+decodeSessionType : D.Decoder SessionType
+decodeSessionType =
+    D.field "type" D.string
+        |> D.andThen
+            (\type_ ->
+                case type_ of
+                    "work" ->
+                        D.map Work <| D.field "secs" D.int
+
+                    "break" ->
+                        D.map Break <| D.field "secs" D.int
+
+                    "longbreak" ->
+                        D.map LongBreak <| D.field "secs" D.int
+
+                    _ ->
+                        D.fail <| "Can't decode interval of type: " ++ type_
+            )
+
+
 encodeSentiment : Sentiment -> Value
 encodeSentiment =
     sentimentToString >> E.string
+
+
+decodeSentiment : D.Decoder Sentiment
+decodeSentiment =
+    D.string
+        |> D.andThen
+            (sentimentFromString
+                >> Maybe.map D.succeed
+                >> Maybe.withDefault (D.fail "Invalid sentiment")
+            )
 
 
 encodeSession : Session -> Value
@@ -175,6 +292,16 @@ encodeSession { type_, start, end, seconds, sentiment } =
         ]
 
 
+decodeSession : D.Decoder Session
+decodeSession =
+    D.succeed Session
+        |> Pipeline.required "type" decodeSessionType
+        |> Pipeline.required "start" (D.nullable Misc.decodePosix)
+        |> Pipeline.required "end" (D.nullable Misc.decodePosix)
+        |> Pipeline.required "secs" (D.nullable D.int)
+        |> Pipeline.optional "sentiment" (D.nullable decodeSentiment) Nothing
+
+
 encodeActive : Active -> Value
 encodeActive { index, session, elapsed } =
     E.object
@@ -182,3 +309,11 @@ encodeActive { index, session, elapsed } =
         , ( "session", encodeSession session )
         , ( "elapsed", E.int elapsed )
         ]
+
+
+decodeActive : D.Decoder Active
+decodeActive =
+    D.succeed Active
+        |> Pipeline.required "index" D.int
+        |> Pipeline.required "session" decodeSession
+        |> Pipeline.required "elapsed" D.int
