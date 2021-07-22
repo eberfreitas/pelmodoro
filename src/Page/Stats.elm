@@ -1,15 +1,15 @@
 module Page.Stats exposing
     ( Msg
-    , StatState
+    , State
     , initialState
-    , loadedWith
     , logsFetchCmd
     , subscriptions
-    , unwrapDef
     , update
+    , view
     )
 
 import Date
+import Html.Styled as Html
 import Json.Decode as Decode
 import Json.Decode.Pipeline as Pipeline
 import Json.Encode as Encode
@@ -23,16 +23,25 @@ import Time
 -- MODEL-ISH
 
 
-type StatState
+type State
     = Loading
-    | Loaded StatsDef
+    | Loaded Def
 
 
-type alias StatsDef =
+type alias Def =
     { date : Date.Date
     , logs : List Session.Session
     , showLogs : Bool
     }
+
+
+
+-- VIEW
+
+
+view : a -> Html.Html msg
+view _ =
+    Html.text ""
 
 
 
@@ -47,7 +56,7 @@ type Msg
     | ToggleDailyLogs
 
 
-update : Msg -> Maybe StatState -> ( Maybe StatState, Cmd msg )
+update : Msg -> State -> ( State, Cmd msg )
 update msg state =
     case ( msg, state ) of
         ( GotLogs _, _ ) ->
@@ -70,24 +79,9 @@ update msg state =
 -- HELPERS
 
 
-initialState : StatState
+initialState : State
 initialState =
     Loading
-
-
-unwrapDef : StatState -> Maybe StatsDef
-unwrapDef state =
-    case state of
-        Loaded def ->
-            Just def
-
-        _ ->
-            Nothing
-
-
-loadedWith : StatsDef -> StatState
-loadedWith =
-    Loaded
 
 
 

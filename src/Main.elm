@@ -1,28 +1,28 @@
 module Main exposing (main)
 
-import Browser exposing (Document, UrlRequest(..))
-import Browser.Navigation as Nav exposing (Key)
+import Browser
+import Browser.Navigation as Navigation
 import Color
 import Css
-import Html.Styled as Html exposing (Html)
-import Html.Styled.Attributes as HtmlAttr
-import Iso8601
+import Elements
+import Html.Styled as Html
+import Html.Styled.Attributes as Attributes
 import Json.Decode as Decode
-import List.Extra as ListEx
 import Misc
+import Page.Credits as Credits
 import Page.Flash as Flash
 import Page.Settings as Settings
-import Page.Stats as Stats exposing (StatState)
+import Page.Stats as Stats
 import Page.Timer as Timer
-import Platform exposing (Program)
+import Platform
 import Platform.Sub as Sub
 import Session
 import Task
-import Theme.Common exposing (Theme)
+import Theme.Common
 import Theme.Theme as Theme
-import Time exposing (Posix, Zone)
-import Url exposing (Url)
-import VirtualDom exposing (Node)
+import Time
+import Url
+import VirtualDom
 
 
 
@@ -30,9 +30,9 @@ import VirtualDom exposing (Node)
 
 
 type alias Model =
-    { zone : Zone
-    , time : Posix
-    , key : Key
+    { zone : Time.Zone
+    , time : Time.Posix
+    , key : Navigation.Key
     , page : Page
     , uptime : Int
     , playing : Bool
@@ -40,13 +40,13 @@ type alias Model =
     , sessions : List Session.SessionDef
     , active : Session.Active
     , sentimentSession : Maybe Session.Session
-    , flash : Maybe (Flash.FlashMsg Msg)
+    , flash : Maybe (Flash.FlashMsg Flash.Msg)
     }
 
 
 type Page
     = TimerPage
-    | StatsPage StatState
+    | StatsPage Stats.State
     | SettingsPage
     | CreditsPage
 
@@ -62,7 +62,7 @@ type alias Flags =
 -- INIT
 
 
-init : Flags -> Url -> Key -> ( Model, Cmd Msg )
+init : Flags -> Url.Url -> Navigation.Key -> ( Model, Cmd Msg )
 init { active, settings, now } url key =
     let
         baseModel =
@@ -111,7 +111,7 @@ init { active, settings, now } url key =
 -- VIEW
 
 
-view : Model -> Document Msg
+view : Model -> Browser.Document Msg
 view model =
     let
         title =
@@ -139,11 +139,11 @@ view model =
     }
 
 
-viewBody : Model -> Node Msg
+viewBody : Model -> VirtualDom.Node Msg
 viewBody model =
     Html.div
-        [ HtmlAttr.class "container"
-        , HtmlAttr.css
+        [ Attributes.class "container"
+        , Attributes.css
             [ Css.width <| Css.vw 100.0
             , Css.position Css.relative
             , Css.backgroundColor <| (model.settings.theme |> Theme.backgroundColor |> Color.toCssColor)
@@ -158,14 +158,14 @@ viewBody model =
         |> Html.toUnstyled
 
 
-viewFlash : Theme -> Maybe (FlashMsg Msg) -> Html Msg
+viewFlash : Theme.Common.Theme -> Maybe (Flash.FlashMsg Flash.Msg) -> Html.Html Msg
 viewFlash theme flash =
     flash
-        |> Maybe.map (\f -> Flash.render theme f)
+        |> Maybe.map (\f -> Flash.view theme f |> Html.map Flash)
         |> Maybe.withDefault (Html.text "")
 
 
-viewNav : Theme -> Page -> Html Msg
+viewNav : Theme.Common.Theme -> Page -> Html.Html Msg
 viewNav theme page =
     let
         pages =
@@ -181,7 +181,7 @@ viewNav theme page =
                 , Css.backgroundColor Css.transparent
                 , Css.width <| Css.rem 3
                 , Css.height <| Css.rem 3
-                , Css.color <| (theme |> Theme.backgroundColor |> Colors.toCssColor)
+                , Css.color <| (theme |> Theme.backgroundColor |> Color.toCssColor)
                 , Css.outline Css.zero
                 , Css.displayFlex
                 , Css.justifyContent Css.center
@@ -207,20 +207,20 @@ viewNav theme page =
                     Css.opacity <| Css.num 0.4
     in
     Html.div
-        [ HtmlAttr.css
+        [ Attributes.css
             [ Css.position Css.absolute
             , Css.bottom <| Css.px 0
             , Css.left <| Css.px 0
             , Css.right <| Css.px 0
-            , Css.backgroundColor <| (theme |> Theme.foregroundColor |> Colors.toCssColor)
-            , Css.color <| (theme |> Theme.foregroundColor |> Colors.toCssColor)
+            , Css.backgroundColor <| (theme |> Theme.foregroundColor |> Color.toCssColor)
+            , Css.color <| (theme |> Theme.foregroundColor |> Color.toCssColor)
             , Css.displayFlex
             , Css.justifyContent Css.center
             , Css.padding <| Css.rem 0.25
             ]
         ]
         [ Html.ul
-            [ HtmlAttr.css
+            [ Attributes.css
                 [ Css.displayFlex
                 , Css.justifyContent Css.center
                 , Css.listStyle Css.none
@@ -231,23 +231,23 @@ viewNav theme page =
                     (\( path, icon ) ->
                         Html.li []
                             [ Html.a
-                                [ HtmlAttr.href path
-                                , HtmlAttr.css
+                                [ Attributes.href path
+                                , Attributes.css
                                     [ buttonStyle
                                     , isSelected path page
                                     ]
                                 ]
-                                [ Common.icon icon ]
+                                [ Elements.icon icon ]
                             ]
                     )
             )
         ]
 
 
-viewPage : Model -> Html Msg
+viewPage : Model -> Html.Html Msg
 viewPage model =
     Html.div
-        [ HtmlAttr.css
+        [ Attributes.css
             [ Css.height (Css.calc (Css.pct 100) Css.minus (Css.rem 3.5))
             , Css.overflow Css.auto
             ]
@@ -272,9 +272,9 @@ viewPage model =
 
 
 type Msg
-    = AdjustTimeZone Zone
-    | UrlChanged Url
-    | LinkCliked UrlRequest
+    = AdjustTimeZone Time.Zone
+    | UrlChanged Url.Url
+    | LinkCliked Browser.UrlRequest
     | Timer Timer.Msg
     | Stats Stats.Msg
     | Settings Settings.Msg
@@ -294,11 +294,11 @@ update msg model =
 
         ( LinkCliked urlRequest, _ ) ->
             case urlRequest of
-                Internal url ->
-                    ( model, Nav.pushUrl model.key (Url.toString url) )
+                Browser.Internal url ->
+                    ( model, Navigation.pushUrl model.key (Url.toString url) )
 
-                External href ->
-                    ( model, Nav.load href )
+                Browser.External href ->
+                    ( model, Navigation.load href )
 
         ( Timer subMsg, TimerPage ) ->
             Timer.update subMsg model
@@ -309,106 +309,94 @@ update msg model =
         ( Settings subMsg, SettingsPage ) ->
             Settings.update subMsg model |> Misc.updateWith Settings
 
-        ChangeLogDate newDate ->
-            case model.page of
-                StatsPage (Loaded def) ->
-                    done { model | page = StatsPage (Loaded { def | date = newDate }) }
-
-                _ ->
-                    done model
-
-        ChangeLogMonth newDate ->
-            case newDate |> Date.add Date.Days 1 |> Date.toIsoString |> Iso8601.toTime of
-                Ok posix ->
-                    ( model, fetchLogs <| Time.posixToMillis posix )
-
-                Err _ ->
-                    done model
-
-        GotStatsLogs raw ->
-            case ( model.page, D.decodeValue Decoder.decodeLog raw ) of
-                ( StatsPage Loading, Ok { ts, logs } ) ->
-                    let
-                        date =
-                            ts |> Time.millisToPosix |> Date.fromPosix model.zone
-                    in
-                    done { model | page = StatsPage (Loaded (StatsDef date logs False)) }
-
-                ( StatsPage (Loaded def), Ok { ts, logs } ) ->
-                    let
-                        newDef =
-                            { def
-                                | date =
-                                    ts
-                                        |> Time.millisToPosix
-                                        |> Date.fromPosix model.zone
-                                , logs = logs
-                            }
-                    in
-                    done { model | page = StatsPage (Loaded newDef) }
-
-                _ ->
-                    done model
-
-        CloseFlashMsg ->
-            { model | flash = Nothing } |> done
-
-        GotFlashMsg raw ->
-            case D.decodeValue decodeFlash raw of
-                Ok flash ->
-                    { model | flash = Just flash } |> done
-
-                Err _ ->
-                    done model
-
-        UpdateSentiment start sentiment ->
-            let
-                newModel =
-                    case model.page of
-                        StatsPage (Loaded def) ->
-                            let
-                                newLogs =
-                                    def.logs
-                                        |> ListEx.findIndex (.start >> (==) (Just start))
-                                        |> Maybe.map
-                                            (\idx ->
-                                                def.logs
-                                                    |> ListEx.updateAt idx
-                                                        (\cycle -> { cycle | sentiment = Just sentiment })
-                                            )
-                                        |> Maybe.withDefault def.logs
-                            in
-                            { model
-                                | page = StatsPage (Loaded { def | logs = newLogs })
-                                , sentimentCycle = Nothing
-                            }
-
-                        _ ->
-                            { model | sentimentCycle = Nothing }
-            in
-            ( newModel, updateCycle ( Time.posixToMillis start, Tools.sentimentToString sentiment ) )
-
-        ToggleLogs ->
-            case model.page of
-                StatsPage (Loaded def) ->
-                    let
-                        newDef =
-                            { def | showLogs = not def.showLogs }
-                    in
-                    done { model | page = StatsPage (Loaded newDef) }
-
-                _ ->
-                    done model
-
-        ClearLogs ->
-            ( model, clearLogs () )
+        -- ChangeLogDate newDate ->
+        --     case model.page of
+        --         StatsPage (Loaded def) ->
+        --             done { model | page = StatsPage (Loaded { def | date = newDate }) }
+        --         _ ->
+        --             done model
+        -- ChangeLogMonth newDate ->
+        --     case newDate |> Date.add Date.Days 1 |> Date.toIsoString |> Iso8601.toTime of
+        --         Ok posix ->
+        --             ( model, fetchLogs <| Time.posixToMillis posix )
+        --         Err _ ->
+        --             done model
+        -- GotStatsLogs raw ->
+        --     case ( model.page, D.decodeValue Decoder.decodeLog raw ) of
+        --         ( StatsPage Loading, Ok { ts, logs } ) ->
+        --             let
+        --                 date =
+        --                     ts |> Time.millisToPosix |> Date.fromPosix model.zone
+        --             in
+        --             done { model | page = StatsPage (Loaded (StatsDef date logs False)) }
+        --         ( StatsPage (Loaded def), Ok { ts, logs } ) ->
+        --             let
+        --                 newDef =
+        --                     { def
+        --                         | date =
+        --                             ts
+        --                                 |> Time.millisToPosix
+        --                                 |> Date.fromPosix model.zone
+        --                         , logs = logs
+        --                     }
+        --             in
+        --             done { model | page = StatsPage (Loaded newDef) }
+        --         _ ->
+        --             done model
+        -- CloseFlashMsg ->
+        --     { model | flash = Nothing } |> done
+        -- GotFlashMsg raw ->
+        --     case D.decodeValue decodeFlash raw of
+        --         Ok flash ->
+        --             { model | flash = Just flash } |> done
+        --         Err _ ->
+        --             done model
+        -- UpdateSentiment start sentiment ->
+        --     let
+        --         newModel =
+        --             case model.page of
+        --                 StatsPage (Loaded def) ->
+        --                     let
+        --                         newLogs =
+        --                             def.logs
+        --                                 |> ListEx.findIndex (.start >> (==) (Just start))
+        --                                 |> Maybe.map
+        --                                     (\idx ->
+        --                                         def.logs
+        --                                             |> ListEx.updateAt idx
+        --                                                 (\cycle -> { cycle | sentiment = Just sentiment })
+        --                                     )
+        --                                 |> Maybe.withDefault def.logs
+        --                     in
+        --                     { model
+        --                         | page = StatsPage (Loaded { def | logs = newLogs })
+        --                         , sentimentCycle = Nothing
+        --                     }
+        --                 _ ->
+        --                     { model | sentimentCycle = Nothing }
+        --     in
+        --     ( newModel, updateCycle ( Time.posixToMillis start, Tools.sentimentToString sentiment ) )
+        -- ToggleLogs ->
+        --     case model.page of
+        --         StatsPage (Loaded def) ->
+        --             let
+        --                 newDef =
+        --                     { def | showLogs = not def.showLogs }
+        --             in
+        --             done { model | page = StatsPage (Loaded newDef) }
+        --         _ ->
+        --             done model
+        -- ClearLogs ->
+        --     ( model, clearLogs () )
+        _ ->
+            Misc.withCmd model
 
 
 
 -- HELPERS
 
 
-default : Key -> Model
+default : Navigation.Key -> Model
 default key =
     let
         ( sessions, active ) =
@@ -428,7 +416,7 @@ default key =
     }
 
 
-urlToPage : Time.Posix -> Url -> ( Page, Cmd Msg )
+urlToPage : Time.Posix -> Url.Url -> ( Page, Cmd Msg )
 urlToPage time { path } =
     case path of
         "/settings" ->

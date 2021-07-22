@@ -1,7 +1,16 @@
-module Page.Flash exposing (FlashMsg, Msg, empty, new, setFlash, updateFlashTime)
+module Page.Flash exposing (FlashMsg, Msg, empty, new, setFlash, updateFlashTime, view)
 
 import Html.Styled as Html
-import Json.Decode exposing (Value)
+import Json.Decode as Decode
+import Theme.Common
+
+
+
+-- MODEL
+
+
+type alias Model a msg =
+    { a | flash : Maybe (FlashMsg msg) }
 
 
 type alias FlashMsg msg =
@@ -11,13 +20,26 @@ type alias FlashMsg msg =
     }
 
 
+
+-- VIEW
+
+
+view : Theme.Common.Theme -> FlashMsg Msg -> Html.Html Msg
+view _ _ =
+    Html.text ""
+
+
+
+-- UPDATE
+
+
 type Msg
     = Close
-    | GotMsg Value
+    | GotMsg Decode.Value
 
 
-type alias Model a msg =
-    { a | flash : Maybe (FlashMsg msg) }
+
+-- HELPERS
 
 
 new : String -> Html.Html msg -> FlashMsg msg

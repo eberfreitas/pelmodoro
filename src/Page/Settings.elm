@@ -10,6 +10,7 @@ module Page.Settings exposing
     , shouldKeepPlaying
     , subscriptions
     , update
+    , view
     )
 
 import File
@@ -78,6 +79,15 @@ type AlarmSound
     | Bong
     | RelaxingPercussion
     | BirdSong
+
+
+
+-- VIEW
+
+
+view : a -> Html.Html msg
+view _ =
+    Html.text ""
 
 
 

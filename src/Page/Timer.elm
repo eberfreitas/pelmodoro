@@ -1,5 +1,6 @@
-module Page.Timer exposing (Msg, secondsToDisplay, subscriptions, update)
+module Page.Timer exposing (Msg, secondsToDisplay, subscriptions, update, view)
 
+import Html.Styled as Html
 import Json.Decode as Decode
 import Json.Encode as Encode
 import List.Extra
@@ -16,7 +17,7 @@ import Time
 -- MODEL
 
 
-type alias Model a msg =
+type alias Model a =
     { a
         | time : Time.Posix
         , playing : Bool
@@ -24,7 +25,7 @@ type alias Model a msg =
         , settings : Settings.Settings
         , sessions : List Session.SessionDef
         , uptime : Seconds
-        , flash : Maybe (Flash.FlashMsg msg)
+        , flash : Maybe (Flash.FlashMsg Flash.Msg)
         , sentimentSession : Maybe Session.Session
     }
 
@@ -43,6 +44,15 @@ type alias EvalResult msg =
 
 
 
+-- VIEW
+
+
+view : a -> Html.Html msg
+view _ =
+    Html.text ""
+
+
+
 -- UPDATE
 
 
@@ -52,9 +62,10 @@ type Msg
     | Pause
     | Skip
     | Reset
+    | SetSentiment Time.Posix Session.Sentiment
 
 
-update : Msg -> Model a msg -> ( Model a msg, Cmd msg )
+update : Msg -> Model a -> ( Model a, Cmd msg )
 update msg ({ settings, active, time, sessions } as model) =
     case msg of
         Tick raw ->
@@ -128,6 +139,9 @@ update msg ({ settings, active, time, sessions } as model) =
                         ]
                     )
 
+        SetSentiment _ _ ->
+            Debug.todo ""
+
 
 
 -- HELPERS
@@ -150,7 +164,7 @@ secondsToDisplay secs =
         String.fromInt min ++ ":" ++ pad (secs - (min * 60))
 
 
-evalElapsedTime : Model a msg -> EvalResult msg
+evalElapsedTime : Model a -> EvalResult msg
 evalElapsedTime { active, sessions, settings, time } =
     if Session.secondsLeft active == 0 then
         let
@@ -199,7 +213,7 @@ evalElapsedTime { active, sessions, settings, time } =
         EvalResult (Session.addElapsed 1 active) True Nothing Cmd.none Nothing
 
 
-updateTime : Time.Posix -> Model a msg -> Model a msg
+updateTime : Time.Posix -> Model a -> Model a
 updateTime now model =
     { model | time = now, uptime = model.uptime + 1 }
 
@@ -207,8 +221,8 @@ updateTime now model =
 setupSentimentSession :
     Maybe Session.Session
     -> Session.SessionDef
-    -> Model a msg
-    -> Model a msg
+    -> Model a
+    -> Model a
 setupSentimentSession session sessionDef model =
     let
         newSession =
@@ -228,7 +242,7 @@ setupSentimentSession session sessionDef model =
     { model | sentimentSession = newSession }
 
 
-tick : Time.Posix -> Model a msg -> ( Model a msg, Cmd msg )
+tick : Time.Posix -> Model a -> ( Model a, Cmd msg )
 tick posix ({ playing, flash, active } as model) =
     if playing then
         let

@@ -7,6 +7,7 @@ module Session exposing
     , buildSessions
     , decodeActive
     , decodeSession
+    , elapsedPct
     , encodeActive
     , encodeSentiment
     , firstSession
@@ -20,9 +21,13 @@ module Session exposing
     , sendToLog
     , sessionChangeToFlash
     , sessionDefToString
+    , sessionSeconds
     , sessionStart
+    , sessionsTotalRun
+    , toColor
     )
 
+import Color
 import Json.Decode as Decode
 import Json.Decode.Pipeline as Pipeline
 import Json.Encode as Encode
@@ -33,6 +38,8 @@ import Page.Settings as Settings
 import Ports
 import Quotes
 import String.Extra
+import Theme.Common
+import Theme.Theme as Theme
 import Time
 
 
@@ -420,3 +427,16 @@ decodeActive =
         |> Pipeline.required "index" Decode.int
         |> Pipeline.required "session" decodeSession
         |> Pipeline.required "elapsed" Decode.int
+
+
+toColor : Theme.Common.Theme -> SessionDef -> Color.Color
+toColor theme def =
+    case def of
+        Work _ ->
+            Theme.workColor theme
+
+        Break _ ->
+            Theme.breakColor theme
+
+        LongBreak _ ->
+            Theme.longBreakColor theme
