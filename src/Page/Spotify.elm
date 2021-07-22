@@ -8,13 +8,20 @@ module Page.Spotify exposing
     , play
     , subscriptions
     , update
+    , view
     )
 
+import Css
+import Elements
+import Html.Styled as Html
+import Html.Styled.Attributes as Attributes
+import Html.Styled.Events as Events
 import Json.Decode as Decode
 import Json.Encode as Encode
 import List.Extra
 import Misc
 import Ports
+import Theme.Common
 
 
 
@@ -30,6 +37,52 @@ type State
 
 type alias SpotifyPlaylist =
     ( String, String )
+
+
+
+-- VIEW
+
+
+view : Theme.Common.Theme -> State -> Html.Html Msg
+view theme state =
+    Html.div [ Attributes.css [ Css.marginBottom <| Css.rem 2 ] ]
+        [ Html.div [ Attributes.css [ Elements.labelStyle ] ] [ Html.text "Spotify" ]
+        , Html.div []
+            (case state of
+                NotConnected url ->
+                    [ Elements.largeLinkButton theme url "Connect to Spotify " ]
+
+                ConnectionError url ->
+                    [ Html.p [ Attributes.css [ Css.marginBottom <| Css.rem 1 ] ]
+                        [ Html.text "There was an error trying to connect. Please, try again!" ]
+                    , Elements.largeLinkButton theme url "Connect to Spotify"
+                    ]
+
+                Connected playlists current ->
+                    [ Html.select [ Attributes.css [ Elements.selectStyle theme ], Events.onInput UpdatePlaylist ]
+                        (playlists
+                            |> List.sortBy Tuple.second
+                            |> List.map
+                                (\( uri, title ) ->
+                                    Html.option
+                                        [ Attributes.value uri, Attributes.selected (current == Just uri) ]
+                                        [ Html.text title ]
+                                )
+                            |> (::) (Html.option [ Attributes.value "" ] [ Html.text "--" ])
+                            |> (::)
+                                (Html.option
+                                    [ Attributes.value "", Attributes.selected (current == Nothing) ]
+                                    [ Html.text "Don't play anything" ]
+                                )
+                        )
+                    , Elements.largeButton theme RefreshPlaylists [ Html.text "Refresh playlists" ]
+                    , Elements.largeButton theme Disconnect [ Html.text "Disconnect" ]
+                    ]
+
+                Uninitialized ->
+                    [ Html.text "Can't connect to Spotify" ]
+            )
+        ]
 
 
 

@@ -13,19 +13,25 @@ module Page.Settings exposing
     , view
     )
 
+import Css
+import Elements
 import File
 import File.Select as Select
 import Html.Styled as Html
+import Html.Styled.Attributes as Attributes
 import Json.Decode as Decode
 import Json.Decode.Pipeline as Pipeline
 import Json.Encode as Encode
 import Misc
 import Page.Flash as Flash
+import Page.MiniTimer as MiniTimer
 import Page.Spotify as Spotify
 import Ports
+import Session
 import Task
 import Theme.Common
 import Theme.Theme as Theme
+import Tuple.Trio as Trio
 
 
 
@@ -33,7 +39,12 @@ import Theme.Theme as Theme
 
 
 type alias Model a =
-    { a | settings : Settings, flash : Maybe (Flash.FlashMsg Flash.Msg) }
+    { a
+        | settings : Settings
+        , flash : Maybe (Flash.FlashMsg Flash.Msg)
+        , active : Session.Active
+        , sessions : List Session.SessionDef
+    }
 
 
 type alias Settings =
@@ -85,9 +96,77 @@ type AlarmSound
 -- VIEW
 
 
-view : a -> Html.Html msg
-view _ =
-    Html.text ""
+view : Model a -> Html.Html Msg
+view ({ settings } as model) =
+    let
+        inMinutes seconds =
+            seconds // 60
+
+        toTrio ( a, b ) =
+            ( a, b, b )
+    in
+    Html.div []
+        [ MiniTimer.view model
+        , Html.div
+            [ Attributes.css
+                [ Css.margin2 (Css.rem 2) Css.auto
+                , Css.width <| Css.px 280
+                ]
+            ]
+            [ Elements.h1 settings.theme "Settings"
+            , Elements.inputContainer settings.theme "Rounds" <|
+                Elements.numberInput settings.theme 1 8 UpdateRounds settings.rounds
+            , Elements.inputContainer settings.theme "Session duration" <|
+                Elements.numberInput settings.theme 1 60 UpdateWorkDuration <|
+                    inMinutes settings.workDuration
+            , Elements.inputContainer settings.theme "Break duration" <|
+                Elements.numberInput settings.theme 1 60 UpdateBreakDuration <|
+                    inMinutes settings.breakDuration
+            , Elements.inputContainer settings.theme "Long break duration" <|
+                Elements.numberInput settings.theme 1 60 UpdateLongBreakDuration <|
+                    inMinutes settings.longBreakDuration
+            , Elements.inputContainer settings.theme "Rounds flow" <|
+                Elements.selectInput settings.theme
+                    (Trio.first >> (==) settings.flow)
+                    UpdateFlow
+                    (flowPairs |> List.map toTrio)
+            , Elements.inputContainer settings.theme
+                "Notifications"
+                ([ ( settings.notifications.inApp, InApp, "In app messages" )
+                 , ( settings.notifications.alarmSound, AlarmSound, "Play sounds" )
+                 , ( settings.notifications.browser, Browser, "Browser notification" )
+                 ]
+                    |> List.map (\( v, t, l ) -> Elements.checkbox settings.theme v (ToggleNotification t) l)
+                    |> Html.div []
+                )
+            , if settings.notifications.alarmSound then
+                Elements.inputContainer settings.theme "Alarm sound" <|
+                    Html.div []
+                        [ Elements.selectInput settings.theme
+                            (Trio.first >> (==) settings.alarmSound)
+                            UpdateAlarmSound
+                            (alarmSoundPairs |> List.map toTrio)
+                        , Elements.largeButton settings.theme
+                            (TestAlarmSound settings.alarmSound)
+                            [ Elements.styledIcon [ Css.verticalAlign Css.middle ] "play_arrow" ]
+                        ]
+
+              else
+                Html.text ""
+            , Elements.inputContainer settings.theme "Color theme" <|
+                Elements.selectInput settings.theme
+                    (Trio.first >> (==) settings.theme)
+                    UpdateTheme
+                    (Theme.themePairs |> List.map toTrio)
+            , Spotify.view settings.theme settings.spotify |> Html.map Spotify
+            , Elements.inputContainer settings.theme "Import / Export" <|
+                Html.div []
+                    [ Elements.largeButton settings.theme ExportRequest [ Html.text "Export" ]
+                    , Elements.largeButton settings.theme ImportRequest [ Html.text "Import" ]
+                    , Elements.largeButton settings.theme ClearLogs [ Html.text "Clear logs" ]
+                    ]
+            ]
+        ]
 
 
 

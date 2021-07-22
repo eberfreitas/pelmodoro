@@ -18,15 +18,15 @@ module Session exposing
     , newActiveSession
     , newSession
     , positive
-    , rollActiveSession
     , saveActive
     , secondsLeft
     , sendToLog
-    , sessionChangeToFlash
+    , sessionChangeToLabel
     , sessionDefToString
     , sessionSeconds
     , sessionStart
     , sessionsTotalRun
+    , setSessionStart
     , toColor
     )
 
@@ -36,10 +36,7 @@ import Json.Decode.Pipeline as Pipeline
 import Json.Encode as Encode
 import List.Extra
 import Misc
-import Page.Flash as Flash
-import Page.Settings as Settings
 import Ports
-import Quotes
 import String.Extra
 import Theme.Common
 import Theme.Theme as Theme
@@ -78,56 +75,6 @@ type alias Active =
     }
 
 
-sessionChangeToFlash : Time.Posix -> SessionDef -> SessionDef -> ( Flash.FlashMsg msg, String )
-sessionChangeToFlash now from to =
-    case ( from, to ) of
-        ( Work _, Break _ ) ->
-            ( Flash.new "Time to take a break" (Quotes.randomHtmlQuote now)
-            , "Time to take a break"
-            )
-
-        ( Break _, Work _ ) ->
-            ( Flash.new "Back to work" (Quotes.randomHtmlQuote now)
-            , "Back to work"
-            )
-
-        ( Work _, LongBreak _ ) ->
-            ( Flash.new "Time to relax" (Quotes.randomHtmlQuote now)
-            , "Time to relax"
-            )
-
-        ( LongBreak _, Work _ ) ->
-            ( Flash.new "What is next?" (Quotes.randomHtmlQuote now)
-            , "What is next?"
-            )
-
-        _ ->
-            ( Flash.empty, "" )
-
-
-rollActiveSession : Time.Posix -> Int -> Settings.Flow -> List SessionDef -> ( Active, Bool )
-rollActiveSession now nextIndex flow sessions =
-    let
-        firstSession_ =
-            sessions |> firstSession
-
-        nextActive =
-            case sessions |> List.Extra.getAt nextIndex of
-                Nothing ->
-                    Active 0 (newSession firstSession_) 0
-
-                Just nextSession ->
-                    Active nextIndex (newSession nextSession) 0
-    in
-    if Settings.shouldKeepPlaying nextActive.index flow then
-        ( { nextActive | session = setSessionStart now nextActive.session }
-        , True
-        )
-
-    else
-        ( nextActive, False )
-
-
 sendToLog : Session -> Cmd msg
 sendToLog session =
     session |> encodeSession |> Ports.log
@@ -158,7 +105,10 @@ setSessionStart now session =
     { session | start = Just now }
 
 
-buildSessions : Settings.Settings -> Maybe Active -> ( List SessionDef, Active )
+buildSessions :
+    { a | workDuration : Int, breakDuration : Int, longBreakDuration : Int, rounds : Int }
+    -> Maybe Active
+    -> ( List SessionDef, Active )
 buildSessions settings active =
     let
         sessions =
@@ -458,3 +408,22 @@ neutral =
 negative : Sentiment
 negative =
     Negative
+
+
+sessionChangeToLabel : SessionDef -> SessionDef -> String
+sessionChangeToLabel from to =
+    case ( from, to ) of
+        ( Work _, Break _ ) ->
+            "Time to take a break"
+
+        ( Break _, Work _ ) ->
+            "Back to work"
+
+        ( Work _, LongBreak _ ) ->
+            "Time to relax"
+
+        ( LongBreak _, Work _ ) ->
+            "What is next?"
+
+        _ ->
+            ""

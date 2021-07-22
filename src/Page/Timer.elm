@@ -15,6 +15,7 @@ import Page.Settings as Settings
 import Page.Spotify as Spotify
 import Page.Stats as Stats
 import Ports
+import Quotes
 import Session
 import Svg.Styled as Svg
 import Svg.Styled.Attributes as SvgAttributes
@@ -418,6 +419,39 @@ secondsToDisplay secs =
         String.fromInt min ++ ":" ++ pad (secs - (min * 60))
 
 
+rollActiveSession : Time.Posix -> Int -> Settings.Flow -> List Session.SessionDef -> ( Session.Active, Bool )
+rollActiveSession now nextIndex flow sessions =
+    let
+        firstSession_ =
+            sessions |> Session.firstSession
+
+        nextActive =
+            case sessions |> List.Extra.getAt nextIndex of
+                Nothing ->
+                    Session.Active 0 (Session.newSession firstSession_) 0
+
+                Just nextSession ->
+                    Session.Active nextIndex (Session.newSession nextSession) 0
+    in
+    if Settings.shouldKeepPlaying nextActive.index flow then
+        ( { nextActive | session = Session.setSessionStart now nextActive.session }
+        , True
+        )
+
+    else
+        ( nextActive, False )
+
+
+sessionChangeToFlash : Time.Posix -> Session.SessionDef -> Session.SessionDef -> ( Flash.FlashMsg msg, String )
+sessionChangeToFlash now from to =
+    case Session.sessionChangeToLabel from to of
+        "" ->
+            ( Flash.empty, "" )
+
+        label ->
+            ( Flash.new label (Quotes.randomHtmlQuote now), label )
+
+
 evalElapsedTime : Model a -> EvalResult msg
 evalElapsedTime { active, sessions, settings, time } =
     if Session.secondsLeft active == 0 then
@@ -426,10 +460,10 @@ evalElapsedTime { active, sessions, settings, time } =
                 active.index + 1
 
             ( newActive, playing ) =
-                Session.rollActiveSession time nextIndex settings.flow sessions
+                rollActiveSession time nextIndex settings.flow sessions
 
             ( flashMsg, notificationMsg ) =
-                Session.sessionChangeToFlash time active.session.def newActive.session.def
+                sessionChangeToFlash time active.session.def newActive.session.def
 
             sentimentSession =
                 if active.session.def |> Session.isWork then

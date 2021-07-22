@@ -4,8 +4,8 @@ import Color
 import Css
 import Html.Styled as Html
 import Html.Styled.Attributes as Attributes
-import Page.Settings as Settings
 import Session
+import Theme.Common
 import Theme.Theme as Theme
 
 
@@ -13,11 +13,11 @@ import Theme.Theme as Theme
 -- MODEL
 
 
-type alias Model a =
+type alias Model a b =
     { a
         | sessions : List Session.SessionDef
-        , settings : Settings.Settings
         , active : Session.Active
+        , settings : { b | theme : Theme.Common.Theme }
     }
 
 
@@ -25,8 +25,8 @@ type alias Model a =
 -- VIEW
 
 
-view : Model a -> Html.Html msg
-view { sessions, settings, active } =
+view : Model a b -> Html.Html msg
+view { sessions, active, settings } =
     let
         totalRun =
             sessions |> Session.sessionsTotalRun |> toFloat
