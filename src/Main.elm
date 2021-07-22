@@ -309,6 +309,9 @@ update msg model =
         ( Settings subMsg, SettingsPage ) ->
             Settings.update subMsg model |> Misc.updateWith Settings
 
+        ( Flash subMsg, _ ) ->
+            Flash.update subMsg model |> Misc.updateWith Flash
+
         -- ChangeLogDate newDate ->
         --     case model.page of
         --         StatsPage (Loaded def) ->
@@ -342,14 +345,6 @@ update msg model =
         --             in
         --             done { model | page = StatsPage (Loaded newDef) }
         --         _ ->
-        --             done model
-        -- CloseFlashMsg ->
-        --     { model | flash = Nothing } |> done
-        -- GotFlashMsg raw ->
-        --     case D.decodeValue decodeFlash raw of
-        --         Ok flash ->
-        --             { model | flash = Just flash } |> done
-        --         Err _ ->
         --             done model
         -- UpdateSentiment start sentiment ->
         --     let
@@ -386,8 +381,6 @@ update msg model =
         --             done { model | page = StatsPage (Loaded newDef) }
         --         _ ->
         --             done model
-        -- ClearLogs ->
-        --     ( model, clearLogs () )
         _ ->
             Misc.withCmd model
 
@@ -438,11 +431,11 @@ urlToPage time { path } =
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    --     , gotFlashMsg GotFlashMsg
     Sub.batch
         [ Timer.subscriptions |> Sub.map Timer
         , Settings.subscriptions |> Sub.map Settings
         , Stats.subscriptions |> Sub.map Stats
+        , Flash.subscriptions |> Sub.map Flash
         ]
 
 
@@ -460,12 +453,3 @@ main =
         , onUrlChange = UrlChanged
         , onUrlRequest = LinkCliked
         }
-
-
-
--- decodeFlash : D.Decoder (FlashMsg msg)
--- decodeFlash =
---     D.map2
---         (\title msg -> newFlash title (Html.div [] [ Html.text msg ]))
---         (D.field "title" D.string)
---         (D.field "msg" D.string)

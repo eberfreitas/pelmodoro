@@ -32,8 +32,8 @@ import Theme.Theme as Theme
 -- MODEL
 
 
-type alias Model a msg =
-    { a | settings : Settings, flash : Maybe (Flash.FlashMsg msg) }
+type alias Model a =
+    { a | settings : Settings, flash : Maybe (Flash.FlashMsg Flash.Msg) }
 
 
 type alias Settings =
@@ -113,7 +113,7 @@ type Msg
     | Spotify Spotify.Msg
 
 
-update : Msg -> Model a msg -> ( Model a msg, Cmd Msg )
+update : Msg -> Model a -> ( Model a, Cmd Msg )
 update msg ({ settings } as model) =
     case msg of
         UpdateRounds rounds ->
@@ -261,12 +261,12 @@ update msg ({ settings } as model) =
 -- HELPERS
 
 
-mapSettings : (Settings -> Settings) -> Model a msg -> Model a msg
+mapSettings : (Settings -> Settings) -> Model a -> Model a
 mapSettings fn model =
     { model | settings = fn model.settings }
 
 
-save : ( Model a msg, Cmd Msg ) -> ( Model a msg, Cmd Msg )
+save : ( Model a, Cmd Msg ) -> ( Model a, Cmd Msg )
 save (( { settings }, _ ) as pair) =
     settings
         |> encodeSettings

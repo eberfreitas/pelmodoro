@@ -1,5 +1,6 @@
 port module Ports exposing
-    ( gotFromLog
+    ( gotFlashMsg
+    , gotFromLog
     , gotFromSettings
     , gotFromSpotify
     , localStorageHelper
@@ -64,3 +65,6 @@ port gotFromSettings : (Decode.Value -> msg) -> Sub msg
 
 
 port gotFromSpotify : (Decode.Value -> msg) -> Sub msg
+
+
+port gotFlashMsg : (Decode.Value -> msg) -> Sub msg
