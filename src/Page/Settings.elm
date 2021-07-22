@@ -174,8 +174,8 @@ update msg ({ settings } as model) =
                         |> Misc.addCmd
                             (settings.notifications.browser
                                 |> not
-                                |> Encode.bool
-                                |> Ports.reqBrowserNotificationPermission
+                                |> RequestBrowserPermission
+                                |> toPort
                             )
 
                 _ ->
@@ -197,7 +197,6 @@ update msg ({ settings } as model) =
                         flashMsg =
                             if res.msg /= "" then
                                 Flash.new "Attention" (Html.div [] [ Html.text res.msg ]) |> Just
-                                -- Effect.add (Effect.flash "Attention" (Html.div [] [ Html.text res.msg ]))
 
                             else
                                 Nothing
@@ -388,6 +387,7 @@ type PortAction
     | Import String
     | Delete
     | TestAlarm String
+    | RequestBrowserPermission Bool
 
 
 encodePortAction : PortAction -> Encode.Value
@@ -411,6 +411,12 @@ encodePortAction actions =
                 , ( "data", Encode.string sound )
                 ]
 
+        RequestBrowserPermission val ->
+            Encode.object
+                [ ( "type", Encode.string "browserPermission" )
+                , ( "data", Encode.bool val )
+                ]
+
 
 toPort : PortAction -> Cmd msg
 toPort =
@@ -424,7 +430,7 @@ toPort =
 subscriptions : Sub Msg
 subscriptions =
     Sub.batch
-        [ Ports.gotBrowserNotificationPermission GotBrowserNotificationPermission
+        [ Ports.gotFromSettings GotBrowserNotificationPermission
         , Spotify.subscriptions |> Sub.map Spotify
         ]
 

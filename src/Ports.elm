@@ -1,11 +1,10 @@
 port module Ports exposing
-    ( gotBrowserNotificationPermission
-    , gotFromLog
+    ( gotFromLog
+    , gotFromSettings
     , gotFromSpotify
     , localStorageHelper
     , log
     , notify
-    , reqBrowserNotificationPermission
     , tick
     , toLog
     , toSettings
@@ -42,9 +41,6 @@ port log : Encode.Value -> Cmd msg
 port notify : Encode.Value -> Cmd msg
 
 
-port reqBrowserNotificationPermission : Encode.Value -> Cmd msg
-
-
 port toLog : Encode.Value -> Cmd msg
 
 
@@ -61,10 +57,10 @@ port toSpotify : Encode.Value -> Cmd msg
 port tick : (Decode.Value -> msg) -> Sub msg
 
 
-port gotBrowserNotificationPermission : (Decode.Value -> msg) -> Sub msg
+port gotFromLog : (Decode.Value -> msg) -> Sub msg
+
+
+port gotFromSettings : (Decode.Value -> msg) -> Sub msg
 
 
 port gotFromSpotify : (Decode.Value -> msg) -> Sub msg
-
-
-port gotFromLog : (Decode.Value -> msg) -> Sub msg
