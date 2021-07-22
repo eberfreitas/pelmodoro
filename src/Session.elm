@@ -5,12 +5,14 @@ module Session exposing
     , SessionDef
     , addElapsed
     , buildSessions
+    , calculateSentiment
     , decodeActive
     , decodeSession
     , elapsedPct
     , encodeActive
     , encodeSentiment
     , firstSession
+    , isAnyBreak
     , isWork
     , logSession
     , negative
@@ -21,8 +23,11 @@ module Session exposing
     , saveActive
     , secondsLeft
     , sendToLog
+    , sentimentToDisplay
+    , sentimentToIcon
     , sessionChangeToLabel
     , sessionDefToString
+    , sessionMaterialized
     , sessionSeconds
     , sessionStart
     , sessionsTotalRun
@@ -427,3 +432,45 @@ sessionChangeToLabel from to =
 
         _ ->
             ""
+
+
+calculateSentiment : List Session -> Sentiment
+calculateSentiment =
+    List.filter (.def >> isWork)
+        >> List.map (.sentiment >> Maybe.withDefault Neutral)
+        >> List.foldl
+            (\sentiment ( pos, neu, neg ) ->
+                case sentiment of
+                    Positive ->
+                        ( pos + 1, neu, neg )
+
+                    Neutral ->
+                        ( pos, neu + 1, neg )
+
+                    Negative ->
+                        ( pos, neu, neg + 1 )
+            )
+            ( 0, 0, 0 )
+        >> (\( pos, neu, neg ) ->
+                if neg >= neu && neg >= pos then
+                    Negative
+
+                else if neu >= pos && neu >= neg then
+                    Neutral
+
+                else
+                    Positive
+           )
+
+
+sentimentToIcon : Sentiment -> String
+sentimentToIcon sentiment =
+    case sentiment of
+        Positive ->
+            "sentiment_satisfied"
+
+        Neutral ->
+            "sentiment_neutral"
+
+        Negative ->
+            "sentiment_dissatisfied"

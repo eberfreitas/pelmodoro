@@ -259,8 +259,8 @@ viewPage model =
             SettingsPage ->
                 Settings.view model |> Html.map Settings
 
-            StatsPage _ ->
-                Stats.view model |> Html.map Stats
+            StatsPage state ->
+                Stats.view model state |> Html.map Stats
 
             CreditsPage ->
                 Credits.view model
