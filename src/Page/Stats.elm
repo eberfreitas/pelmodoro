@@ -3,6 +3,7 @@ module Page.Stats exposing
     , State
     , initialState
     , logsFetchCmd
+    , setSentimentCmd
     , subscriptions
     , update
     , view
@@ -10,9 +11,11 @@ module Page.Stats exposing
 
 import Date
 import Html.Styled as Html
+import Iso8601
 import Json.Decode as Decode
 import Json.Decode.Pipeline as Pipeline
 import Json.Encode as Encode
+import List.Extra
 import Misc
 import Ports
 import Session
@@ -56,27 +59,77 @@ type Msg
     | ToggleDailyLogs
 
 
-update : Msg -> State -> ( State, Cmd msg )
-update msg state =
-    case ( msg, state ) of
-        ( GotLogs _, _ ) ->
-            Misc.withCmd state
+update : Time.Zone -> Msg -> State -> ( State, Cmd msg )
+update zone msg state =
+    case msg of
+        GotLogs raw ->
+            let
+                toDate : Int -> Date.Date
+                toDate =
+                    Time.millisToPosix >> Date.fromPosix zone
+            in
+            case ( Decode.decodeValue decodeLogs raw, state ) of
+                ( Ok { ts, logs }, Loading ) ->
+                    Loaded (Def (ts |> toDate) logs False) |> Misc.withCmd
 
-        ( GoToDate _, _ ) ->
-            Misc.withCmd state
+                ( Ok { ts, logs }, Loaded def ) ->
+                    Loaded { def | date = ts |> toDate, logs = logs } |> Misc.withCmd
 
-        ( GoToMonth _, _ ) ->
-            Misc.withCmd state
+                _ ->
+                    state |> Misc.withCmd
 
-        ( UpdateSentiment _ _, _ ) ->
-            Misc.withCmd state
+        GoToDate newDate ->
+            state
+                |> mapDef (\d -> { d | date = newDate })
+                |> Misc.withCmd
 
-        ( ToggleDailyLogs, _ ) ->
-            Misc.withCmd state
+        GoToMonth date ->
+            date
+                |> Date.add Date.Days 1
+                |> Date.toIsoString
+                |> Iso8601.toTime
+                |> Result.map (logsFetchCmd >> Tuple.pair state)
+                |> Result.withDefault (state |> Misc.withCmd)
+
+        UpdateSentiment start sentiment ->
+            state
+                |> mapDef
+                    (\def ->
+                        let
+                            newLogs =
+                                def.logs
+                                    |> List.Extra.findIndex (.start >> (==) (Just start))
+                                    |> Maybe.map
+                                        (\idx ->
+                                            def.logs
+                                                |> List.Extra.updateAt idx
+                                                    (\cycle -> { cycle | sentiment = Just sentiment })
+                                        )
+                                    |> Maybe.withDefault def.logs
+                        in
+                        { def | logs = newLogs }
+                    )
+                |> Misc.withCmd
+                |> Misc.addCmd (setSentimentCmd start sentiment)
+
+        ToggleDailyLogs ->
+            state
+                |> mapDef (\d -> { d | showLogs = not d.showLogs })
+                |> Misc.withCmd
 
 
 
 -- HELPERS
+
+
+mapDef : (Def -> Def) -> State -> State
+mapDef map state =
+    case state of
+        Loaded def ->
+            Loaded <| map def
+
+        Loading ->
+            Loading
 
 
 initialState : State
@@ -113,6 +166,11 @@ encodePortAction action =
 toPort : PortAction -> Cmd msg
 toPort =
     encodePortAction >> Ports.toLog
+
+
+setSentimentCmd : Time.Posix -> Session.Sentiment -> Cmd msg
+setSentimentCmd start sentiment =
+    SetSentiment start sentiment |> toPort
 
 
 logsFetchCmd : Time.Posix -> Cmd msg

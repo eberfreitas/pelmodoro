@@ -300,87 +300,20 @@ update msg model =
                 Browser.External href ->
                     ( model, Navigation.load href )
 
+        ( Flash subMsg, _ ) ->
+            Flash.update subMsg model |> Misc.updateWith Flash
+
         ( Timer subMsg, TimerPage ) ->
             Timer.update subMsg model
 
         ( Stats subMsg, StatsPage state ) ->
-            Misc.withCmd model
+            Stats.update model.zone subMsg state
+                |> Tuple.mapFirst (\s -> { model | page = StatsPage s })
+                |> Misc.updateWith Stats
 
         ( Settings subMsg, SettingsPage ) ->
             Settings.update subMsg model |> Misc.updateWith Settings
 
-        ( Flash subMsg, _ ) ->
-            Flash.update subMsg model |> Misc.updateWith Flash
-
-        -- ChangeLogDate newDate ->
-        --     case model.page of
-        --         StatsPage (Loaded def) ->
-        --             done { model | page = StatsPage (Loaded { def | date = newDate }) }
-        --         _ ->
-        --             done model
-        -- ChangeLogMonth newDate ->
-        --     case newDate |> Date.add Date.Days 1 |> Date.toIsoString |> Iso8601.toTime of
-        --         Ok posix ->
-        --             ( model, fetchLogs <| Time.posixToMillis posix )
-        --         Err _ ->
-        --             done model
-        -- GotStatsLogs raw ->
-        --     case ( model.page, D.decodeValue Decoder.decodeLog raw ) of
-        --         ( StatsPage Loading, Ok { ts, logs } ) ->
-        --             let
-        --                 date =
-        --                     ts |> Time.millisToPosix |> Date.fromPosix model.zone
-        --             in
-        --             done { model | page = StatsPage (Loaded (StatsDef date logs False)) }
-        --         ( StatsPage (Loaded def), Ok { ts, logs } ) ->
-        --             let
-        --                 newDef =
-        --                     { def
-        --                         | date =
-        --                             ts
-        --                                 |> Time.millisToPosix
-        --                                 |> Date.fromPosix model.zone
-        --                         , logs = logs
-        --                     }
-        --             in
-        --             done { model | page = StatsPage (Loaded newDef) }
-        --         _ ->
-        --             done model
-        -- UpdateSentiment start sentiment ->
-        --     let
-        --         newModel =
-        --             case model.page of
-        --                 StatsPage (Loaded def) ->
-        --                     let
-        --                         newLogs =
-        --                             def.logs
-        --                                 |> ListEx.findIndex (.start >> (==) (Just start))
-        --                                 |> Maybe.map
-        --                                     (\idx ->
-        --                                         def.logs
-        --                                             |> ListEx.updateAt idx
-        --                                                 (\cycle -> { cycle | sentiment = Just sentiment })
-        --                                     )
-        --                                 |> Maybe.withDefault def.logs
-        --                     in
-        --                     { model
-        --                         | page = StatsPage (Loaded { def | logs = newLogs })
-        --                         , sentimentCycle = Nothing
-        --                     }
-        --                 _ ->
-        --                     { model | sentimentCycle = Nothing }
-        --     in
-        --     ( newModel, updateCycle ( Time.posixToMillis start, Tools.sentimentToString sentiment ) )
-        -- ToggleLogs ->
-        --     case model.page of
-        --         StatsPage (Loaded def) ->
-        --             let
-        --                 newDef =
-        --                     { def | showLogs = not def.showLogs }
-        --             in
-        --             done { model | page = StatsPage (Loaded newDef) }
-        --         _ ->
-        --             done model
         _ ->
             Misc.withCmd model
 

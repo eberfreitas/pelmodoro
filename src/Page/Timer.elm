@@ -8,6 +8,7 @@ import Misc
 import Page.Flash as Flash
 import Page.Settings as Settings
 import Page.Spotify as Spotify
+import Page.Stats as Stats
 import Ports
 import Session
 import Time
@@ -139,8 +140,10 @@ update msg ({ settings, active, time, sessions } as model) =
                         ]
                     )
 
-        SetSentiment _ _ ->
-            Debug.todo ""
+        SetSentiment start sentiment ->
+            model
+                |> Misc.withCmd
+                |> Misc.addCmd (Stats.setSentimentCmd start sentiment)
 
 
 
