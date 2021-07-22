@@ -6,7 +6,7 @@ module Page.Spotify exposing
     , encodeState
     , pause
     , play
-    , subs
+    , subscriptions
     , update
     )
 
@@ -15,6 +15,10 @@ import Json.Encode as Encode
 import List.Extra
 import Misc
 import Ports
+
+
+
+-- MODEL-ISH
 
 
 type State
@@ -26,6 +30,10 @@ type State
 
 type alias SpotifyPlaylist =
     ( String, String )
+
+
+
+-- UPDATE
 
 
 type Msg
@@ -60,12 +68,12 @@ update msg state =
         RefreshPlaylists ->
             state
                 |> Misc.withCmd
-                |> Misc.addCmd (Refresh |> encodeAction |> Ports.toSpotify)
+                |> Misc.addCmd (Refresh |> toPort)
 
         Disconnect ->
             state
                 |> Misc.withCmd
-                |> Misc.addCmd (Disconn |> encodeAction |> Ports.toSpotify)
+                |> Misc.addCmd (Disconn |> toPort)
 
         UpdatePlaylist playlist ->
             case state of
@@ -80,16 +88,8 @@ update msg state =
                     Misc.withCmd state
 
 
-subs : Sub Msg
-subs =
-    Ports.gotFromSpotify GotState
 
-
-type Action
-    = Play String
-    | Pause
-    | Refresh
-    | Disconn
+-- HELPERS
 
 
 default : State
@@ -102,7 +102,7 @@ play state =
     case state of
         Connected _ url ->
             url
-                |> Maybe.map (Play >> sendToSpotify)
+                |> Maybe.map (Play >> toPort)
                 |> Maybe.withDefault Cmd.none
 
         _ ->
@@ -113,23 +113,25 @@ pause : State -> Cmd msg
 pause state =
     case state of
         Connected _ _ ->
-            Pause |> sendToSpotify
+            Pause |> toPort
 
         _ ->
             Cmd.none
 
 
-sendToSpotify : Action -> Cmd msg
-sendToSpotify action =
-    action |> encodeAction |> Ports.toSpotify
+
+-- PORTS INTERFACE
 
 
+type PortAction
+    = Play String
+    | Pause
+    | Refresh
+    | Disconn
 
--- CODECS
 
-
-encodeAction : Action -> Encode.Value
-encodeAction action =
+encodePortAction : PortAction -> Encode.Value
+encodePortAction action =
     case action of
         Play url ->
             Encode.object
@@ -145,6 +147,24 @@ encodeAction action =
 
         Disconn ->
             Encode.object [ ( "type", Encode.string "disconnect" ) ]
+
+
+toPort : PortAction -> Cmd msg
+toPort =
+    encodePortAction >> Ports.toSpotify
+
+
+
+-- SUBSCRIPTIONS
+
+
+subscriptions : Sub Msg
+subscriptions =
+    Ports.gotFromSpotify GotState
+
+
+
+-- CODECS
 
 
 encodeSpotifyPlaylist : SpotifyPlaylist -> Encode.Value

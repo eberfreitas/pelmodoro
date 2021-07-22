@@ -1,4 +1,4 @@
-module Page.Timer exposing (Msg, subs, update)
+module Page.Timer exposing (Msg, secondsToDisplay, subscriptions, update)
 
 import Json.Decode as Decode
 import Json.Encode as Encode
@@ -12,12 +12,8 @@ import Session
 import Time
 
 
-type Msg
-    = Tick Decode.Value
-    | Play
-    | Pause
-    | Skip
-    | Reset
+
+-- MODEL
 
 
 type alias Model a msg =
@@ -27,10 +23,14 @@ type alias Model a msg =
         , active : Session.Active
         , settings : Settings.Settings
         , sessions : List Session.SessionDef
-        , uptime : Int
+        , uptime : Seconds
         , flash : Maybe (Flash.FlashMsg msg)
         , sentimentSession : Maybe Session.Session
     }
+
+
+type alias Seconds =
+    Int
 
 
 type alias EvalResult msg =
@@ -40,6 +40,114 @@ type alias EvalResult msg =
     , cmd : Cmd msg
     , sentimentSession : Maybe Session.Session
     }
+
+
+
+-- UPDATE
+
+
+type Msg
+    = Tick Decode.Value
+    | Play
+    | Pause
+    | Skip
+    | Reset
+
+
+update : Msg -> Model a msg -> ( Model a msg, Cmd msg )
+update msg ({ settings, active, time, sessions } as model) =
+    case msg of
+        Tick raw ->
+            case Decode.decodeValue Decode.int raw of
+                Ok millis ->
+                    model |> tick (Time.millisToPosix millis)
+
+                Err _ ->
+                    Misc.withCmd model
+
+        Play ->
+            let
+                newActive =
+                    if active.elapsed == 0 then
+                        Session.Active active.index (Session.sessionStart time active.session) 0
+
+                    else
+                        active
+
+                cmds =
+                    Cmd.batch
+                        [ Session.saveActive newActive
+                        , Spotify.play settings.spotify
+                        ]
+            in
+            { model | playing = True, active = newActive }
+                |> Misc.withCmd
+                |> Misc.addCmd cmds
+
+        Pause ->
+            { model | playing = False }
+                |> Misc.withCmd
+                |> Misc.addCmd (Spotify.pause settings.spotify)
+
+        Skip ->
+            let
+                ( nextIndex, nextSessionDef ) =
+                    case List.Extra.getAt (active.index + 1) model.sessions of
+                        Just next ->
+                            ( active.index + 1, next )
+
+                        Nothing ->
+                            ( 0, model.sessions |> Session.firstSession )
+
+                newActive =
+                    Session.Active nextIndex (Session.newSession nextSessionDef) 0
+
+                cmds =
+                    Cmd.batch
+                        [ Session.logSession time active
+                        , Session.saveActive newActive
+                        , Spotify.pause settings.spotify
+                        ]
+            in
+            { model | active = newActive, playing = False }
+                |> Misc.withCmd
+                |> Misc.addCmd cmds
+
+        Reset ->
+            let
+                newActive =
+                    Session.newActiveSession sessions
+            in
+            { model | active = newActive, playing = False }
+                |> Misc.withCmd
+                |> Misc.addCmd
+                    (Cmd.batch
+                        [ Session.logSession time active
+                        , Session.saveActive newActive
+                        , Spotify.pause settings.spotify
+                        ]
+                    )
+
+
+
+-- HELPERS
+
+
+secondsToDisplay : Seconds -> String
+secondsToDisplay secs =
+    let
+        pad num =
+            num |> String.fromInt |> String.padLeft 2 '0'
+    in
+    if secs < 60 then
+        "0:" ++ pad secs
+
+    else
+        let
+            min =
+                (toFloat secs / 60) |> floor
+        in
+        String.fromInt min ++ ":" ++ pad (secs - (min * 60))
 
 
 evalElapsedTime : Model a msg -> EvalResult msg
@@ -145,83 +253,12 @@ tick posix ({ playing, flash, active } as model) =
             |> Misc.withCmd
 
 
-update : Msg -> Model a msg -> ( Model a msg, Cmd msg )
-update msg ({ settings, active, time, sessions } as model) =
-    case msg of
-        Tick raw ->
-            case Decode.decodeValue Decode.int raw of
-                Ok millis ->
-                    model |> tick (Time.millisToPosix millis)
 
-                Err _ ->
-                    Misc.withCmd model
-
-        Play ->
-            let
-                newActive =
-                    if active.elapsed == 0 then
-                        Session.Active active.index (Session.sessionStart time active.session) 0
-
-                    else
-                        active
-
-                cmds =
-                    Cmd.batch
-                        [ Session.saveActive newActive
-                        , Spotify.play settings.spotify
-                        ]
-            in
-            { model | playing = True, active = newActive }
-                |> Misc.withCmd
-                |> Misc.addCmd cmds
-
-        Pause ->
-            { model | playing = False }
-                |> Misc.withCmd
-                |> Misc.addCmd (Spotify.pause settings.spotify)
-
-        Skip ->
-            let
-                ( nextIndex, nextSessionDef ) =
-                    case List.Extra.getAt (active.index + 1) model.sessions of
-                        Just next ->
-                            ( active.index + 1, next )
-
-                        Nothing ->
-                            ( 0, model.sessions |> Session.firstSession )
-
-                newActive =
-                    Session.Active nextIndex (Session.newSession nextSessionDef) 0
-
-                cmds =
-                    Cmd.batch
-                        [ Session.logSession time active
-                        , Session.saveActive newActive
-                        , Spotify.pause settings.spotify
-                        ]
-            in
-            { model | active = newActive, playing = False }
-                |> Misc.withCmd
-                |> Misc.addCmd cmds
-
-        Reset ->
-            let
-                newActive =
-                    Session.newActiveSession sessions
-            in
-            { model | active = newActive, playing = False }
-                |> Misc.withCmd
-                |> Misc.addCmd
-                    (Cmd.batch
-                        [ Session.logSession time active
-                        , Session.saveActive newActive
-                        , Spotify.pause settings.spotify
-                        ]
-                    )
+-- SUBSCRIPTIONS
 
 
-subs : Model a msg -> Sub Msg
-subs _ =
+subscriptions : Sub Msg
+subscriptions =
     Ports.tick Tick
 
 

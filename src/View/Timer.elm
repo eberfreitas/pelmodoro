@@ -15,23 +15,6 @@ import Types exposing (Current, Cycle, Interval, Seconds, Sentiment(..))
 import View.Common as Common
 
 
-secondsToDisplay : Seconds -> String
-secondsToDisplay secs =
-    let
-        pad num =
-            num |> String.fromInt |> String.padLeft 2 '0'
-    in
-    if secs < 60 then
-        "0:" ++ pad secs
-
-    else
-        let
-            min =
-                (toFloat secs / 60) |> floor
-        in
-        String.fromInt min ++ ":" ++ pad (secs - (min * 60))
-
-
 renderTimer : Bool -> Int -> Theme -> Current -> Svg Msg
 renderTimer playing uptime theme current =
     let

@@ -2,12 +2,12 @@ module Main exposing (main)
 
 import Browser exposing (Document, UrlRequest(..))
 import Browser.Navigation as Nav exposing (Key)
+import Color
 import Css
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as HtmlAttr
 import Iso8601
 import Json.Decode as Decode
-import Json.Encode as Encode
 import List.Extra as ListEx
 import Misc
 import Page.Flash as Flash
@@ -16,7 +16,6 @@ import Page.Stats as Stats exposing (StatState)
 import Page.Timer as Timer
 import Platform exposing (Program)
 import Platform.Sub as Sub
-import Ports
 import Session
 import Task
 import Theme.Common exposing (Theme)
@@ -24,6 +23,10 @@ import Theme.Theme as Theme
 import Time exposing (Posix, Zone)
 import Url exposing (Url)
 import VirtualDom exposing (Node)
+
+
+
+-- MODEL
 
 
 type alias Model =
@@ -48,26 +51,6 @@ type Page
     | CreditsPage
 
 
-default : Key -> Model
-default key =
-    let
-        ( sessions, active ) =
-            Session.buildSessions Settings.default Nothing
-    in
-    { zone = Time.utc
-    , time = Time.millisToPosix 0
-    , key = key
-    , page = TimerPage
-    , uptime = 0
-    , playing = False
-    , settings = Settings.default
-    , sessions = sessions
-    , active = active
-    , sentimentSession = Nothing
-    , flash = Nothing
-    }
-
-
 type alias Flags =
     { active : Decode.Value
     , settings : Decode.Value
@@ -75,22 +58,8 @@ type alias Flags =
     }
 
 
-urlToPage : Int -> Url -> ( Page, Cmd Msg )
-urlToPage time { path } =
-    case path of
-        "/settings" ->
-            ( SettingsPage, Cmd.none )
 
-        "/stats" ->
-            ( StatsPage Stats.initialState
-            , time |> Encode.int |> Ports.fetchLogs
-            )
-
-        "/credits" ->
-            ( CreditsPage, Cmd.none )
-
-        _ ->
-            ( TimerPage, Cmd.none )
+-- INIT
 
 
 init : Flags -> Url -> Key -> ( Model, Cmd Msg )
@@ -115,11 +84,14 @@ init { active, settings, now } url key =
                 Err _ ->
                     baseModel.settings
 
+        time =
+            Time.millisToPosix now
+
         ( newSessions, newActive_ ) =
             Session.buildSessions newSettings (Just newActive)
 
         ( page, pageCmd ) =
-            urlToPage now url
+            urlToPage time url
     in
     ( { baseModel
         | active = newActive_
@@ -135,6 +107,10 @@ init { active, settings, now } url key =
     )
 
 
+
+-- VIEW
+
+
 view : Model -> Document Msg
 view model =
     let
@@ -142,8 +118,8 @@ view model =
             case model.page of
                 TimerPage ->
                     if model.playing then
-                        [ model.current |> Model.currentSecondsLeft |> truncate |> Timer.secondsToDisplay
-                        , Model.intervalToString model.current.cycle.interval
+                        [ model.active |> Session.secondsLeft |> truncate |> Timer.secondsToDisplay
+                        , Session.sessionDefToString model.active.session.def
                         ]
 
                     else
@@ -170,27 +146,27 @@ viewBody model =
         , HtmlAttr.css
             [ Css.width <| Css.vw 100.0
             , Css.position Css.relative
-            , Css.backgroundColor <| (model.settings.theme |> Theme.backgroundColor |> Colors.toCssColor)
+            , Css.backgroundColor <| (model.settings.theme |> Theme.backgroundColor |> Color.toCssColor)
             , Css.fontFamilies [ "Montserrat" ]
-            , Css.color (model.settings.theme |> Theme.textColor |> Colors.toCssColor)
+            , Css.color (model.settings.theme |> Theme.textColor |> Color.toCssColor)
             ]
         ]
-        [ renderPage model
-        , renderFlash model.settings.theme model.flash
-        , renderNav model.settings.theme model.page
+        [ viewPage model
+        , viewFlash model.settings.theme model.flash
+        , viewNav model.settings.theme model.page
         ]
         |> Html.toUnstyled
 
 
-renderFlash : Theme -> Maybe (FlashMsg Msg) -> Html Msg
-renderFlash theme flash =
+viewFlash : Theme -> Maybe (FlashMsg Msg) -> Html Msg
+viewFlash theme flash =
     flash
         |> Maybe.map (\f -> Flash.render theme f)
         |> Maybe.withDefault (Html.text "")
 
 
-renderNav : Theme -> Page -> Html Msg
-renderNav theme page =
+viewNav : Theme -> Page -> Html Msg
+viewNav theme page =
     let
         pages =
             [ ( "/", "timer" )
@@ -268,8 +244,8 @@ renderNav theme page =
         ]
 
 
-renderPage : Model -> Html Msg
-renderPage model =
+viewPage : Model -> Html Msg
+viewPage model =
     Html.div
         [ HtmlAttr.css
             [ Css.height (Css.calc (Css.pct 100) Css.minus (Css.rem 3.5))
@@ -278,30 +254,25 @@ renderPage model =
         ]
         [ case model.page of
             TimerPage ->
-                Timer.render model
+                Timer.view model |> Html.map Timer
 
             SettingsPage ->
-                Settings.render model
+                Settings.view model |> Html.map Settings
 
             StatsPage _ ->
-                Stats.render model
+                Stats.view model |> Html.map Stats
 
             CreditsPage ->
-                Credits.render model
+                Credits.view model
         ]
 
 
-decodeFlash : D.Decoder (FlashMsg msg)
-decodeFlash =
-    D.map2
-        (\title msg -> newFlash title (Html.div [] [ Html.text msg ]))
-        (D.field "title" D.string)
-        (D.field "msg" D.string)
+
+-- UPDATE
 
 
 type Msg
-    = NoOp
-    | AdjustTimeZone Zone
+    = AdjustTimeZone Zone
     | UrlChanged Url
     | LinkCliked UrlRequest
     | Timer Timer.Msg
@@ -313,15 +284,12 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case ( msg, model.page ) of
-        ( NoOp, _ ) ->
-            Misc.withCmd model
-
         ( AdjustTimeZone newZone, _ ) ->
             Misc.withCmd { model | zone = newZone }
 
         ( UrlChanged url, _ ) ->
             url
-                |> urlToPage (Time.posixToMillis model.time)
+                |> urlToPage model.time
                 |> Tuple.mapFirst (\p -> { model | page = p })
 
         ( LinkCliked urlRequest, _ ) ->
@@ -332,8 +300,11 @@ update msg model =
                 External href ->
                     ( model, Nav.load href )
 
-        ( Timer subMsg, _ ) ->
+        ( Timer subMsg, TimerPage ) ->
             Timer.update subMsg model
+
+        ( Stats subMsg, StatsPage state ) ->
+            Misc.withCmd model
 
         ( Settings subMsg, SettingsPage ) ->
             Settings.update subMsg model |> Misc.updateWith Settings
@@ -433,16 +404,62 @@ update msg model =
             ( model, clearLogs () )
 
 
-subs : Model -> Sub Msg
-subs model =
-    -- Sub.batch
-    --     , gotStatsLogs GotStatsLogs
+
+-- HELPERS
+
+
+default : Key -> Model
+default key =
+    let
+        ( sessions, active ) =
+            Session.buildSessions Settings.default Nothing
+    in
+    { zone = Time.utc
+    , time = Time.millisToPosix 0
+    , key = key
+    , page = TimerPage
+    , uptime = 0
+    , playing = False
+    , settings = Settings.default
+    , sessions = sessions
+    , active = active
+    , sentimentSession = Nothing
+    , flash = Nothing
+    }
+
+
+urlToPage : Time.Posix -> Url -> ( Page, Cmd Msg )
+urlToPage time { path } =
+    case path of
+        "/settings" ->
+            ( SettingsPage, Cmd.none )
+
+        "/stats" ->
+            ( StatsPage Stats.initialState, time |> Stats.logsFetchCmd )
+
+        "/credits" ->
+            ( CreditsPage, Cmd.none )
+
+        _ ->
+            ( TimerPage, Cmd.none )
+
+
+
+-- SUBSCRIPTIONS
+
+
+subscriptions : Model -> Sub Msg
+subscriptions _ =
     --     , gotFlashMsg GotFlashMsg
-    --     ]
     Sub.batch
-        [ Timer.subs model |> Sub.map Timer
-        , Settings.subs model |> Sub.map Settings
+        [ Timer.subscriptions |> Sub.map Timer
+        , Settings.subscriptions |> Sub.map Settings
+        , Stats.subscriptions |> Sub.map Stats
         ]
+
+
+
+-- MAIN
 
 
 main : Program Flags Model Msg
@@ -451,7 +468,16 @@ main =
         { init = init
         , view = view
         , update = update
-        , subscriptions = subs
+        , subscriptions = subscriptions
         , onUrlChange = UrlChanged
         , onUrlRequest = LinkCliked
         }
+
+
+
+-- decodeFlash : D.Decoder (FlashMsg msg)
+-- decodeFlash =
+--     D.map2
+--         (\title msg -> newFlash title (Html.div [] [ Html.text msg ]))
+--         (D.field "title" D.string)
+--         (D.field "msg" D.string)

@@ -8,6 +8,7 @@ module Session exposing
     , decodeActive
     , decodeSession
     , encodeActive
+    , encodeSentiment
     , firstSession
     , isWork
     , logSession
@@ -18,6 +19,7 @@ module Session exposing
     , secondsLeft
     , sendToLog
     , sessionChangeToFlash
+    , sessionDefToString
     , sessionStart
     )
 
@@ -293,8 +295,8 @@ isAnyBreak type_ =
             True
 
 
-sessionTypeToString : SessionDef -> String
-sessionTypeToString def =
+sessionDefToString : SessionDef -> String
+sessionDefToString def =
     case def of
         Work _ ->
             "Work"

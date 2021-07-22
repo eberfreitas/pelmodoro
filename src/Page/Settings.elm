@@ -8,7 +8,7 @@ module Page.Settings exposing
     , default
     , encodeNotifications
     , shouldKeepPlaying
-    , subs
+    , subscriptions
     , update
     )
 
@@ -23,12 +23,39 @@ import Page.Flash as Flash
 import Page.Spotify as Spotify
 import Ports
 import Task
-import Theme.Common exposing (Theme(..))
+import Theme.Common
 import Theme.Theme as Theme
+
+
+
+-- MODEL
+
+
+type alias Model a msg =
+    { a | settings : Settings, flash : Maybe (Flash.FlashMsg msg) }
+
+
+type alias Settings =
+    { rounds : Int
+    , workDuration : Seconds
+    , breakDuration : Seconds
+    , longBreakDuration : Seconds
+    , theme : Theme.Common.Theme
+    , flow : Flow
+    , spotify : Spotify.State
+    , notifications : Notifications
+    , alarmSound : AlarmSound
+    }
 
 
 type alias Seconds =
     Int
+
+
+type Flow
+    = None
+    | Simple
+    | Loop
 
 
 type alias Notifications =
@@ -53,27 +80,8 @@ type AlarmSound
     | BirdSong
 
 
-type Flow
-    = None
-    | Simple
-    | Loop
 
-
-type alias Settings =
-    { rounds : Int
-    , workDuration : Seconds
-    , breakDuration : Seconds
-    , longBreakDuration : Seconds
-    , theme : Theme
-    , flow : Flow
-    , spotify : Spotify.State
-    , notifications : Notifications
-    , alarmSound : AlarmSound
-    }
-
-
-type alias Model a msg =
-    { a | settings : Settings, flash : Maybe (Flash.FlashMsg msg) }
+-- UPDATE
 
 
 type Msg
@@ -89,27 +97,10 @@ type Msg
     | ExportRequest
     | ImportRequest
     | ImportSelect File.File
+    | ClearLogs
     | ImportData String
     | TestAlarmSound AlarmSound
     | Spotify Spotify.Msg
-
-
-type ImportExportActions
-    = RequestExport
-    | Import String
-
-
-mapSettings : (Settings -> Settings) -> Model a msg -> Model a msg
-mapSettings fn model =
-    { model | settings = fn model.settings }
-
-
-save : ( Model a msg, Cmd Msg ) -> ( Model a msg, Cmd Msg )
-save (( { settings }, _ ) as pair) =
-    settings
-        |> encodeSettings
-        |> Ports.localStorageHelper "settings"
-        |> Misc.flip Misc.addCmd pair
 
 
 update : Msg -> Model a msg -> ( Model a msg, Cmd Msg )
@@ -223,11 +214,7 @@ update msg ({ settings } as model) =
         ExportRequest ->
             model
                 |> Misc.withCmd
-                |> Misc.addCmd
-                    (RequestExport
-                        |> encodeImportExportActions
-                        |> Ports.logImportExport
-                    )
+                |> Misc.addCmd (RequestExport |> toPort)
 
         ImportRequest ->
             model
@@ -239,19 +226,20 @@ update msg ({ settings } as model) =
                 |> Misc.withCmd
                 |> Misc.addCmd (Task.perform ImportData (File.toString file))
 
+        ClearLogs ->
+            model
+                |> Misc.withCmd
+                |> Misc.addCmd (Delete |> toPort)
+
         ImportData data ->
             model
                 |> Misc.withCmd
-                |> Misc.addCmd
-                    (Import data
-                        |> encodeImportExportActions
-                        |> Ports.logImportExport
-                    )
+                |> Misc.addCmd (Import data |> toPort)
 
         TestAlarmSound alarmSound ->
             model
                 |> Misc.withCmd
-                |> Misc.addCmd (alarmSound |> alarmSoundToString |> Encode.string |> Ports.testAlarmSound)
+                |> Misc.addCmd (alarmSound |> alarmSoundToString |> TestAlarm |> toPort)
 
         Spotify subMsg ->
             Spotify.update subMsg settings.spotify
@@ -260,12 +248,21 @@ update msg ({ settings } as model) =
                 |> save
 
 
-subs : Model a msg -> Sub Msg
-subs _ =
-    Sub.batch
-        [ Ports.gotBrowserNotificationPermission GotBrowserNotificationPermission
-        , Spotify.subs |> Sub.map Spotify
-        ]
+
+-- HELPERS
+
+
+mapSettings : (Settings -> Settings) -> Model a msg -> Model a msg
+mapSettings fn model =
+    { model | settings = fn model.settings }
+
+
+save : ( Model a msg, Cmd Msg ) -> ( Model a msg, Cmd Msg )
+save (( { settings }, _ ) as pair) =
+    settings
+        |> encodeSettings
+        |> Ports.localStorageHelper "settings"
+        |> Misc.flip Misc.addCmd pair
 
 
 toggleNotification : NotificationType -> Notifications -> Notifications
@@ -288,7 +285,7 @@ default =
         (25 * 60)
         (5 * 60)
         (15 * 60)
-        Tomato
+        Theme.Common.Tomato
         None
         Spotify.default
         notificationsDefault
@@ -383,6 +380,56 @@ alarmSoundFromString =
 
 
 
+-- PORTS INTERFACE
+
+
+type PortAction
+    = RequestExport
+    | Import String
+    | Delete
+    | TestAlarm String
+
+
+encodePortAction : PortAction -> Encode.Value
+encodePortAction actions =
+    case actions of
+        RequestExport ->
+            Encode.object [ ( "type", Encode.string "requestExport" ) ]
+
+        Import data ->
+            Encode.object
+                [ ( "type", Encode.string "import" )
+                , ( "data", Encode.string data )
+                ]
+
+        Delete ->
+            Encode.object [ ( "type", Encode.string "delete" ) ]
+
+        TestAlarm sound ->
+            Encode.object
+                [ ( "type", Encode.string "testAlarm" )
+                , ( "data", Encode.string sound )
+                ]
+
+
+toPort : PortAction -> Cmd msg
+toPort =
+    encodePortAction >> Ports.toSettings
+
+
+
+-- SUBSCRIPTIONS
+
+
+subscriptions : Sub Msg
+subscriptions =
+    Sub.batch
+        [ Ports.gotBrowserNotificationPermission GotBrowserNotificationPermission
+        , Spotify.subscriptions |> Sub.map Spotify
+        ]
+
+
+
 -- CODECS
 
 
@@ -468,16 +515,3 @@ decodeBrowserNotificationPermission =
         (\val msg -> { val = val, msg = msg })
         (Decode.field "val" Decode.bool)
         (Decode.field "msg" Decode.string)
-
-
-encodeImportExportActions : ImportExportActions -> Encode.Value
-encodeImportExportActions actions =
-    case actions of
-        RequestExport ->
-            Encode.object [ ( "type", Encode.string "requestExport" ) ]
-
-        Import data ->
-            Encode.object
-                [ ( "type", Encode.string "import" )
-                , ( "data", Encode.string data )
-                ]
