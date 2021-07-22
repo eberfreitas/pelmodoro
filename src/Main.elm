@@ -1,21 +1,22 @@
-port module Main exposing (main)
+module Main exposing (main)
 
 import Browser exposing (Document, UrlRequest(..))
 import Browser.Navigation as Nav exposing (Key)
 import Css
-import File
-import File.Select as Select
 import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as HtmlAttr
 import Iso8601
-import Json.Decode as D
+import Json.Decode as Decode
+import Json.Encode as Encode
 import List.Extra as ListEx
+import Misc
 import Page.Flash as Flash
 import Page.Settings as Settings
 import Page.Stats as Stats exposing (StatState)
 import Page.Timer as Timer
 import Platform exposing (Program)
 import Platform.Sub as Sub
+import Ports
 import Session
 import Task
 import Theme.Common exposing (Theme)
@@ -42,8 +43,8 @@ type alias Model =
 
 type Page
     = TimerPage
-    | SettingsPage
     | StatsPage StatState
+    | SettingsPage
     | CreditsPage
 
 
@@ -67,42 +68,9 @@ default key =
     }
 
 
-port fetchLogs : Int -> Cmd msg
-
-
-port requestBrowserNotif : Bool -> Cmd msg
-
-
-port requestDataExport : () -> Cmd msg
-
-
-port importData : String -> Cmd msg
-
-
-port updateCycle : ( Int, String ) -> Cmd msg
-
-
-port testSound : String -> Cmd msg
-
-
-port clearLogs : () -> Cmd msg
-
-
-port gotSpotifyState : (D.Value -> msg) -> Sub msg
-
-
-port gotStatsLogs : (D.Value -> msg) -> Sub msg
-
-
-port gotFlashMsg : (D.Value -> msg) -> Sub msg
-
-
-port gotBrowserNotifRes : (D.Value -> msg) -> Sub msg
-
-
 type alias Flags =
-    { current : D.Value
-    , settings : D.Value
+    { active : Decode.Value
+    , settings : Decode.Value
     , now : Int
     }
 
@@ -114,7 +82,9 @@ urlToPage time { path } =
             ( SettingsPage, Cmd.none )
 
         "/stats" ->
-            ( StatsPage Loading, fetchLogs time )
+            ( StatsPage Stats.initialState
+            , time |> Encode.int |> Ports.fetchLogs
+            )
 
         "/credits" ->
             ( CreditsPage, Cmd.none )
@@ -124,38 +94,38 @@ urlToPage time { path } =
 
 
 init : Flags -> Url -> Key -> ( Model, Cmd Msg )
-init { current, settings, now } url key =
+init { active, settings, now } url key =
     let
         baseModel =
-            Model.default key
+            default key
 
-        newCurrent =
-            case D.decodeValue Decoder.decodeCurrent current of
-                Ok curr ->
-                    curr
+        newActive =
+            case Decode.decodeValue Session.decodeActive active of
+                Ok active_ ->
+                    active_
 
                 Err _ ->
-                    baseModel.current
+                    baseModel.active
 
         newSettings =
-            case D.decodeValue Decoder.decodeSettings settings of
+            case Decode.decodeValue Settings.decodeSettings settings of
                 Ok settings_ ->
                     settings_
 
                 Err _ ->
                     baseModel.settings
 
-        ( newIntervals, newCurrent_ ) =
-            Model.buildIntervals newSettings (Just newCurrent)
+        ( newSessions, newActive_ ) =
+            Session.buildSessions newSettings (Just newActive)
 
         ( page, pageCmd ) =
             urlToPage now url
     in
     ( { baseModel
-        | current = newCurrent_
+        | active = newActive_
         , time = Time.millisToPosix now
         , settings = newSettings
-        , intervals = newIntervals
+        , sessions = newSessions
         , page = page
       }
     , Cmd.batch
@@ -321,32 +291,11 @@ renderPage model =
         ]
 
 
-handleFlashMsg : Maybe (FlashMsg msg) -> Maybe (FlashMsg msg)
-handleFlashMsg flashMsg =
-    flashMsg
-        |> Maybe.andThen
-            (\({ time } as flash) ->
-                if (time - 1) < 1 then
-                    Nothing
-
-                else
-                    Just { flash | time = time - 1 }
-            )
-
-
 decodeFlash : D.Decoder (FlashMsg msg)
 decodeFlash =
     D.map2
         (\title msg -> newFlash title (Html.div [] [ Html.text msg ]))
         (D.field "title" D.string)
-        (D.field "msg" D.string)
-
-
-decodeBrowserNotifRes : D.Decoder { val : Bool, msg : String }
-decodeBrowserNotifRes =
-    D.map2
-        (\val msg -> { val = val, msg = msg })
-        (D.field "val" D.bool)
         (D.field "msg" D.string)
 
 
@@ -363,159 +312,31 @@ type Msg
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    let
-        done m =
-            ( m, Cmd.none )
+    case ( msg, model.page ) of
+        ( NoOp, _ ) ->
+            Misc.withCmd model
 
-        playPlaylist uri ( model_, cmd ) =
-            spotifyPlay uri
-                |> Helpers.flip (::) [ cmd ]
-                |> Cmd.batch
-                |> Tuple.pair model_
+        ( AdjustTimeZone newZone, _ ) ->
+            Misc.withCmd { model | zone = newZone }
 
-        pausePlaylist ( model_, cmd ) =
-            spotifyPause ()
-                |> Helpers.flip (::) [ cmd ]
-                |> Cmd.batch
-                |> Tuple.pair model_
+        ( UrlChanged url, _ ) ->
+            url
+                |> urlToPage (Time.posixToMillis model.time)
+                |> Tuple.mapFirst (\p -> { model | page = p })
 
-        persistCurrent_ ( model_, cmd ) =
-            model_.current
-                |> Encoder.encodeCurrent
-                |> persistCurrent
-                |> Helpers.flip (::) [ cmd ]
-                |> Cmd.batch
-                |> Tuple.pair model_
+        ( LinkCliked urlRequest, _ ) ->
+            case urlRequest of
+                Internal url ->
+                    ( model, Nav.pushUrl model.key (Url.toString url) )
 
-        persistSettings_ ( model_, cmd ) =
-            model_.settings
-                |> Encoder.encodeSettings
-                |> persistSettings
-                |> Helpers.flip (::) [ cmd ]
-                |> Cmd.batch
-                |> Tuple.pair model_
+                External href ->
+                    ( model, Nav.load href )
 
-        updateFlash ( model_, cmd ) =
-            { model_ | flash = handleFlashMsg model_.flash }
-                |> Helpers.flip Tuple.pair cmd
-
-        updateSettings model_ =
-            let
-                ( newIntervals, newCurrent ) =
-                    Model.buildIntervals model_.settings (Just model_.current)
-            in
-            { model_ | current = newCurrent, intervals = newIntervals, playing = False }
-                |> done
-                |> persistSettings_
-                |> persistCurrent_
-                |> pausePlaylist
-    in
-    case msg of
-        NoOp ->
-            done model
-
-        Timer subMsg ->
+        ( Timer subMsg, _ ) ->
             Timer.update subMsg model
 
-        AdjustTimeZone newZone ->
-            done { model | zone = newZone }
-
-        ChangeRounds rounds ->
-            model
-                |> Model.mapSettings (\s -> { s | rounds = rounds })
-                |> updateSettings
-
-        ChangeActivity mins ->
-            model
-                |> Model.mapSettings (\s -> { s | activity = mins * 60 })
-                |> updateSettings
-
-        ChangeBreak mins ->
-            model
-                |> Model.mapSettings (\s -> { s | break = mins * 60 })
-                |> updateSettings
-
-        ChangeLongBreak mins ->
-            model
-                |> Model.mapSettings (\s -> { s | longBreak = mins * 60 })
-                |> updateSettings
-
-        ChangeContinuity cont ->
-            case Tools.continuityFromDisplay cont of
-                Just c ->
-                    model
-                        |> Model.mapSettings (\s -> { s | continuity = c })
-                        |> updateSettings
-
-                Nothing ->
-                    done model
-
-        ChangeTheme theme ->
-            case Themes.Types.themeFromString theme of
-                Just t ->
-                    model
-                        |> Model.mapSettings (\s -> { s | theme = t })
-                        |> updateSettings
-
-                Nothing ->
-                    done model
-
-        ChangePlaylist uri ->
-            model
-                |> Model.mapSettings
-                    (\s ->
-                        let
-                            newSpotify =
-                                case s.spotify of
-                                    Connected playlists _ ->
-                                        Connected
-                                            playlists
-                                            (ListEx.find
-                                                (Tuple.first >> (==) uri)
-                                                playlists
-                                                |> Maybe.map Tuple.first
-                                            )
-
-                                    _ ->
-                                        s.spotify
-                        in
-                        { s | spotify = newSpotify }
-                    )
-                |> updateSettings
-
-        GotSpotifyState raw ->
-            case D.decodeValue Decoder.decodeSpotify raw of
-                Ok newState ->
-                    model
-                        |> Model.mapSettings
-                            (\s ->
-                                let
-                                    newSpotify =
-                                        case ( s.spotify, newState ) of
-                                            ( Connected _ (Just current), Connected playlists _ ) ->
-                                                let
-                                                    newCurrent =
-                                                        playlists
-                                                            |> ListEx.find (Tuple.first >> (==) current)
-                                                            |> Maybe.map Tuple.first
-                                                in
-                                                Connected playlists newCurrent
-
-                                            _ ->
-                                                newState
-                                in
-                                { s | spotify = newSpotify }
-                            )
-                        |> updateSettings
-
-                Err _ ->
-                    done model
-
-        SpotifyRefresh ->
-            ( model, spotifyRefresh () )
-
-        SpotifyDisconnect ->
-            ( model, spotifyDisconnect () )
+        ( Settings subMsg, SettingsPage ) ->
+            Settings.update subMsg model |> Misc.updateWith Settings
 
         ChangeLogDate newDate ->
             case model.page of
@@ -558,19 +379,6 @@ update msg model =
                 _ ->
                     done model
 
-        UrlChanged url ->
-            url
-                |> urlToPage (Time.posixToMillis model.time)
-                |> Tuple.mapFirst (\p -> { model | page = p })
-
-        LinkCliked urlRequest ->
-            case urlRequest of
-                Internal url ->
-                    ( model, Nav.pushUrl model.key (Url.toString url) )
-
-                External href ->
-                    ( model, Nav.load href )
-
         CloseFlashMsg ->
             { model | flash = Nothing } |> done
 
@@ -581,72 +389,6 @@ update msg model =
 
                 Err _ ->
                     done model
-
-        ToggleNotification type_ ->
-            let
-                notificationSettings =
-                    model.settings.notifications
-            in
-            case type_ of
-                InApp ->
-                    let
-                        newNotifications =
-                            { notificationSettings | inApp = not notificationSettings.inApp }
-                    in
-                    model
-                        |> Model.mapSettings (\s -> { s | notifications = newNotifications })
-                        |> updateSettings
-
-                Sound ->
-                    let
-                        newNotifications =
-                            { notificationSettings | sound = not notificationSettings.sound }
-                    in
-                    model
-                        |> Model.mapSettings (\s -> { s | notifications = newNotifications })
-                        |> updateSettings
-
-                Browser ->
-                    ( model, requestBrowserNotif (not model.settings.notifications.browser) )
-
-        GotBrowserNotifRes raw ->
-            case D.decodeValue decodeBrowserNotifRes raw of
-                Ok res ->
-                    let
-                        flashFn =
-                            if res.msg /= "" then
-                                newFlash "Attention" (Html.div [] [ Html.text res.msg ])
-                                    |> Just
-                                    |> setFlash
-
-                            else
-                                identity
-
-                        notifications =
-                            model.settings.notifications
-
-                        newNotifications =
-                            { notifications | browser = res.val }
-                    in
-                    model
-                        |> Model.mapSettings (\s -> { s | notifications = newNotifications })
-                        |> updateSettings
-                        |> flashFn
-
-                Err _ ->
-                    done model
-
-        RequestDataExport ->
-            ( model, requestDataExport () )
-
-        ImportRequest ->
-            ( model, Select.file [ "application/json" ] ImportSelect )
-
-        ImportSelect file ->
-            ( model, Task.perform ImportData (File.toString file) )
-
-        ImportData data ->
-            ( model, importData data )
 
         UpdateSentiment start sentiment ->
             let
@@ -687,31 +429,19 @@ update msg model =
                 _ ->
                     done model
 
-        ChangeSound sound ->
-            case Tools.soundFromDisplay sound of
-                Just s ->
-                    model
-                        |> Model.mapSettings (\se -> { se | sound = s })
-                        |> updateSettings
-
-                Nothing ->
-                    done model
-
-        TestSound sound ->
-            ( model, testSound (sound |> Tools.soundToString) )
-
         ClearLogs ->
             ( model, clearLogs () )
 
 
 subs : Model -> Sub Msg
-subs _ =
+subs model =
+    -- Sub.batch
+    --     , gotStatsLogs GotStatsLogs
+    --     , gotFlashMsg GotFlashMsg
+    --     ]
     Sub.batch
-        [ tick Tick
-        , gotSpotifyState GotSpotifyState
-        , gotStatsLogs GotStatsLogs
-        , gotFlashMsg GotFlashMsg
-        , gotBrowserNotifRes GotBrowserNotifRes
+        [ Timer.subs model |> Sub.map Timer
+        , Settings.subs model |> Sub.map Settings
         ]
 
 

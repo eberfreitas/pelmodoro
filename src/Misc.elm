@@ -7,13 +7,14 @@ module Misc exposing
     , fromPairs
     , maybeTrio
     , toPairs
+    , updateWith
     , withCmd
     )
 
-import Json.Decode as D
-import Json.Encode as E
-import List.Extra as ListEx
-import Time exposing (Posix)
+import Json.Decode as Decode
+import Json.Encode as Encode
+import List.Extra
+import Time
 
 
 addCmd : Cmd msg -> ( a, Cmd msg ) -> ( a, Cmd msg )
@@ -26,6 +27,11 @@ withCmd a =
     ( a, Cmd.none )
 
 
+updateWith : (subMsg -> msg) -> ( a, Cmd subMsg ) -> ( a, Cmd msg )
+updateWith fn ( a, cmd ) =
+    ( a, Cmd.map fn cmd )
+
+
 toPairs : (a -> String) -> List a -> List ( a, String )
 toPairs fn =
     List.map (\a -> ( a, fn a ))
@@ -34,7 +40,7 @@ toPairs fn =
 fromPairs : List ( a, String ) -> String -> Maybe a
 fromPairs list s =
     list
-        |> ListEx.find (Tuple.second >> (==) s)
+        |> List.Extra.find (Tuple.second >> (==) s)
         |> Maybe.map Tuple.first
 
 
@@ -53,21 +59,21 @@ maybeTrio ( a, b, c ) =
             Nothing
 
 
-encodeMaybe : (a -> E.Value) -> Maybe a -> E.Value
+encodeMaybe : (a -> Encode.Value) -> Maybe a -> Encode.Value
 encodeMaybe fn value =
     case value of
         Just a ->
             fn a
 
         Nothing ->
-            E.null
+            Encode.null
 
 
-encodePosix : Posix -> E.Value
+encodePosix : Time.Posix -> Encode.Value
 encodePosix =
-    Time.posixToMillis >> E.int
+    Time.posixToMillis >> Encode.int
 
 
-decodePosix : D.Decoder Posix
+decodePosix : Decode.Decoder Time.Posix
 decodePosix =
-    D.map Time.millisToPosix D.int
+    Decode.map Time.millisToPosix Decode.int

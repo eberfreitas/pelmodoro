@@ -4,17 +4,25 @@ module Page.Settings exposing
     , Notifications
     , Settings
     , alarmSoundToString
+    , decodeSettings
     , default
     , encodeNotifications
     , shouldKeepPlaying
+    , subs
+    , update
     )
 
-import File exposing (File)
-import Json.Decode as D exposing (Value)
+import File
+import File.Select as Select
+import Html.Styled as Html
+import Json.Decode as Decode
 import Json.Decode.Pipeline as Pipeline
-import Json.Encode as E
+import Json.Encode as Encode
 import Misc
+import Page.Flash as Flash
 import Page.Spotify as Spotify
+import Ports
+import Task
 import Theme.Common exposing (Theme(..))
 import Theme.Theme as Theme
 
@@ -25,14 +33,14 @@ type alias Seconds =
 
 type alias Notifications =
     { inApp : Bool
-    , sound : Bool
+    , alarmSound : Bool
     , browser : Bool
     }
 
 
 type NotificationType
     = InApp
-    | Sound
+    | AlarmSound
     | Browser
 
 
@@ -64,8 +72,12 @@ type alias Settings =
     }
 
 
+type alias Model a msg =
+    { a | settings : Settings, flash : Maybe (Flash.FlashMsg msg) }
+
+
 type Msg
-    = UpdateCount Int
+    = UpdateRounds Int
     | UpdateWorkDuration Int
     | UpdateBreakDuration Int
     | UpdateLongBreakDuration Int
@@ -73,13 +85,200 @@ type Msg
     | UpdateTheme String
     | UpdateAlarmSound String
     | ToggleNotification NotificationType
-    | GotBrowserNotificationPermission Value
+    | GotBrowserNotificationPermission Decode.Value
     | ExportRequest
     | ImportRequest
-    | ImportSelect File
+    | ImportSelect File.File
     | ImportData String
-    | TestSound AlarmSound
-    | SpotifyMsg Spotify.Msg
+    | TestAlarmSound AlarmSound
+    | Spotify Spotify.Msg
+
+
+type ImportExportActions
+    = RequestExport
+    | Import String
+
+
+mapSettings : (Settings -> Settings) -> Model a msg -> Model a msg
+mapSettings fn model =
+    { model | settings = fn model.settings }
+
+
+save : ( Model a msg, Cmd Msg ) -> ( Model a msg, Cmd Msg )
+save (( { settings }, _ ) as pair) =
+    settings
+        |> encodeSettings
+        |> Ports.localStorageHelper "settings"
+        |> Misc.flip Misc.addCmd pair
+
+
+update : Msg -> Model a msg -> ( Model a msg, Cmd Msg )
+update msg ({ settings } as model) =
+    case msg of
+        UpdateRounds rounds ->
+            model
+                |> mapSettings (\s -> { s | rounds = rounds })
+                |> Misc.withCmd
+                |> save
+
+        UpdateWorkDuration secs ->
+            model
+                |> mapSettings (\s -> { s | workDuration = secs })
+                |> Misc.withCmd
+                |> save
+
+        UpdateBreakDuration secs ->
+            model
+                |> mapSettings (\s -> { s | breakDuration = secs })
+                |> Misc.withCmd
+                |> save
+
+        UpdateLongBreakDuration secs ->
+            model
+                |> mapSettings (\s -> { s | longBreakDuration = secs })
+                |> Misc.withCmd
+                |> save
+
+        UpdateFlow flow ->
+            model
+                |> mapSettings
+                    (\s ->
+                        flow
+                            |> flowFromString
+                            |> Maybe.map (\f -> { s | flow = f })
+                            |> Maybe.withDefault s
+                    )
+                |> Misc.withCmd
+                |> save
+
+        UpdateTheme theme ->
+            model
+                |> mapSettings
+                    (\s ->
+                        theme
+                            |> Theme.themeFromString
+                            |> Maybe.map (\t -> { s | theme = t })
+                            |> Maybe.withDefault s
+                    )
+                |> Misc.withCmd
+                |> save
+
+        UpdateAlarmSound alarm ->
+            model
+                |> mapSettings
+                    (\s ->
+                        alarm
+                            |> alarmSoundFromString
+                            |> Maybe.map (\a -> { s | alarmSound = a })
+                            |> Maybe.withDefault s
+                    )
+                |> Misc.withCmd
+                |> save
+
+        ToggleNotification type_ ->
+            case type_ of
+                Browser ->
+                    model
+                        |> Misc.withCmd
+                        |> Misc.addCmd
+                            (settings.notifications.browser
+                                |> not
+                                |> Encode.bool
+                                |> Ports.reqBrowserNotificationPermission
+                            )
+
+                _ ->
+                    model
+                        |> mapSettings (\s -> { s | notifications = toggleNotification type_ s.notifications })
+                        |> Misc.withCmd
+                        |> save
+
+        GotBrowserNotificationPermission raw ->
+            case Decode.decodeValue decodeBrowserNotificationPermission raw of
+                Ok res ->
+                    let
+                        notifications =
+                            settings.notifications
+
+                        newNotifications =
+                            { notifications | browser = res.val }
+
+                        flashMsg =
+                            if res.msg /= "" then
+                                Flash.new "Attention" (Html.div [] [ Html.text res.msg ]) |> Just
+                                -- Effect.add (Effect.flash "Attention" (Html.div [] [ Html.text res.msg ]))
+
+                            else
+                                Nothing
+                    in
+                    model
+                        |> mapSettings (\s -> { s | notifications = newNotifications })
+                        |> Flash.setFlash flashMsg
+                        |> Misc.withCmd
+                        |> save
+
+                Err _ ->
+                    Misc.withCmd model
+
+        ExportRequest ->
+            model
+                |> Misc.withCmd
+                |> Misc.addCmd
+                    (RequestExport
+                        |> encodeImportExportActions
+                        |> Ports.logImportExport
+                    )
+
+        ImportRequest ->
+            model
+                |> Misc.withCmd
+                |> Misc.addCmd (Select.file [ "application/json" ] ImportSelect)
+
+        ImportSelect file ->
+            model
+                |> Misc.withCmd
+                |> Misc.addCmd (Task.perform ImportData (File.toString file))
+
+        ImportData data ->
+            model
+                |> Misc.withCmd
+                |> Misc.addCmd
+                    (Import data
+                        |> encodeImportExportActions
+                        |> Ports.logImportExport
+                    )
+
+        TestAlarmSound alarmSound ->
+            model
+                |> Misc.withCmd
+                |> Misc.addCmd (alarmSound |> alarmSoundToString |> Encode.string |> Ports.testAlarmSound)
+
+        Spotify subMsg ->
+            Spotify.update subMsg settings.spotify
+                |> Tuple.mapFirst (\state -> model |> mapSettings (\s -> { s | spotify = state }))
+                |> Misc.updateWith Spotify
+                |> save
+
+
+subs : Model a msg -> Sub Msg
+subs _ =
+    Sub.batch
+        [ Ports.gotBrowserNotificationPermission GotBrowserNotificationPermission
+        , Spotify.subs |> Sub.map Spotify
+        ]
+
+
+toggleNotification : NotificationType -> Notifications -> Notifications
+toggleNotification type_ notification =
+    case type_ of
+        InApp ->
+            { notification | inApp = not notification.inApp }
+
+        AlarmSound ->
+            { notification | alarmSound = not notification.alarmSound }
+
+        Browser ->
+            { notification | browser = not notification.browser }
 
 
 default : Settings
@@ -116,54 +315,27 @@ flowToString : Flow -> String
 flowToString flow =
     case flow of
         None ->
-            "none"
-
-        Simple ->
-            "simple"
-
-        Loop ->
-            "loop"
-
-
-flowToDisplay : Flow -> String
-flowToDisplay flow =
-    case flow of
-        None ->
             "No automatic flow"
 
         Simple ->
             "Simple flow"
 
         Loop ->
-            "Non-stop loop"
-
-
-flowList : List Flow
-flowList =
-    [ None
-    , Simple
-    , Loop
-    ]
+            "Non-stop flow"
 
 
 flowPairs : List ( Flow, String )
 flowPairs =
-    flowList |> Misc.toPairs flowToString
-
-
-flowDisplayPairs : List ( Flow, String )
-flowDisplayPairs =
-    flowList |> Misc.toPairs flowToDisplay
+    [ None
+    , Simple
+    , Loop
+    ]
+        |> Misc.toPairs flowToString
 
 
 flowFromString : String -> Maybe Flow
 flowFromString =
     Misc.fromPairs flowPairs
-
-
-flowFromDisplay : String -> Maybe Flow
-flowFromDisplay =
-    Misc.fromPairs flowDisplayPairs
 
 
 notificationsDefault : Notifications
@@ -173,28 +345,6 @@ notificationsDefault =
 
 alarmSoundToString : AlarmSound -> String
 alarmSoundToString alarmSound =
-    case alarmSound of
-        WindChimes ->
-            "wind-chimes"
-
-        Bell ->
-            "bell"
-
-        AlarmClock ->
-            "alarm-clock"
-
-        Bong ->
-            "bong"
-
-        RelaxingPercussion ->
-            "relaxing-percussion"
-
-        BirdSong ->
-            "bird-song"
-
-
-alarmSoundToDisplay : AlarmSound -> String
-alarmSoundToDisplay alarmSound =
     case alarmSound of
         WindChimes ->
             "Wind Chimes"
@@ -215,8 +365,8 @@ alarmSoundToDisplay alarmSound =
             "Bird Song"
 
 
-alarmSoundList : List AlarmSound
-alarmSoundList =
+alarmSoundPairs : List ( AlarmSound, String )
+alarmSoundPairs =
     [ WindChimes
     , Bell
     , AlarmClock
@@ -224,16 +374,7 @@ alarmSoundList =
     , RelaxingPercussion
     , BirdSong
     ]
-
-
-alarmSoundPairs : List ( AlarmSound, String )
-alarmSoundPairs =
-    alarmSoundList |> Misc.toPairs alarmSoundToString
-
-
-alarmSoundDisplayPairs : List ( AlarmSound, String )
-alarmSoundDisplayPairs =
-    alarmSoundList |> Misc.toPairs alarmSoundToDisplay
+        |> Misc.toPairs alarmSoundToString
 
 
 alarmSoundFromString : String -> Maybe AlarmSound
@@ -241,69 +382,64 @@ alarmSoundFromString =
     Misc.fromPairs alarmSoundPairs
 
 
-alarmSoundFromDisplay : String -> Maybe AlarmSound
-alarmSoundFromDisplay =
-    Misc.fromPairs alarmSoundDisplayPairs
-
-
 
 -- CODECS
 
 
-encodeFlow : Flow -> Value
+encodeFlow : Flow -> Encode.Value
 encodeFlow =
-    flowToString >> E.string
+    flowToString >> Encode.string
 
 
-decodeFlow : D.Decoder Flow
+decodeFlow : Decode.Decoder Flow
 decodeFlow =
-    D.string
-        |> D.andThen
+    Decode.string
+        |> Decode.andThen
             (flowFromString
-                >> Maybe.map D.succeed
-                >> Maybe.withDefault (D.fail "Invalid flow")
+                >> Maybe.map Decode.succeed
+                >> Maybe.withDefault (Decode.fail "Invalid flow")
             )
 
 
-encodeNotifications : Notifications -> Value
-encodeNotifications { inApp, sound, browser } =
-    E.object
-        [ ( "inapp", E.bool inApp )
-        , ( "sound", E.bool sound )
-        , ( "browser", E.bool browser )
+encodeNotifications : Notifications -> Encode.Value
+encodeNotifications { inApp, alarmSound, browser } =
+    Encode.object
+        [ ( "inApp", Encode.bool inApp )
+        , ( "alarmSound", Encode.bool alarmSound )
+        , ( "browser", Encode.bool browser )
         ]
 
 
-decodeNotifications : D.Decoder Notifications
+decodeNotifications : Decode.Decoder Notifications
 decodeNotifications =
-    D.succeed Notifications
-        |> Pipeline.required "inapp" D.bool
-        |> Pipeline.required "sound" D.bool
-        |> Pipeline.required "browser" D.bool
+    Decode.succeed Notifications
+        |> Pipeline.required "inApp" Decode.bool
+        |> Pipeline.required "alarmSound" Decode.bool
+        |> Pipeline.required "browser" Decode.bool
 
 
-encodeAlarmSound : AlarmSound -> Value
+encodeAlarmSound : AlarmSound -> Encode.Value
 encodeAlarmSound =
-    alarmSoundToString >> E.string
+    alarmSoundToString >> Encode.string
 
 
-decodeAlarmSound : D.Decoder AlarmSound
+decodeAlarmSound : Decode.Decoder AlarmSound
 decodeAlarmSound =
-    D.string
-        |> D.andThen
+    Decode.string
+        |> Decode.andThen
             (alarmSoundFromString
-                >> Maybe.map D.succeed
-                >> Maybe.withDefault (D.fail "Invalid alarm sound")
+                >> Maybe.map Decode.succeed
+                >> Maybe.withDefault (Decode.fail "Invalid alarm sound")
             )
 
 
-encodeSettings : Settings -> Value
+encodeSettings : Settings -> Encode.Value
 encodeSettings settings =
-    E.object
-        [ ( "rounds", E.int settings.rounds )
-        , ( "workDuration", E.int settings.workDuration )
-        , ( "breakDuration", E.int settings.breakDuration )
-        , ( "longBreakDuration", E.int settings.longBreakDuration )
+    Encode.object
+        [ ( "rounds", Encode.int settings.rounds )
+        , ( "workDuration", Encode.int settings.workDuration )
+        , ( "breakDuration", Encode.int settings.breakDuration )
+        , ( "longBreakDuration", Encode.int settings.longBreakDuration )
         , ( "theme", Theme.encodeTheme settings.theme )
         , ( "flow", encodeFlow settings.flow )
         , ( "spotify", Spotify.encodeState settings.spotify )
@@ -312,15 +448,36 @@ encodeSettings settings =
         ]
 
 
-decodeSettings : D.Decoder Settings
+decodeSettings : Decode.Decoder Settings
 decodeSettings =
-    D.succeed Settings
-        |> Pipeline.required "rounds" D.int
-        |> Pipeline.required "workDuration" D.int
-        |> Pipeline.required "breakDuration" D.int
-        |> Pipeline.required "longBreakDuration" D.int
+    Decode.succeed Settings
+        |> Pipeline.required "rounds" Decode.int
+        |> Pipeline.required "workDuration" Decode.int
+        |> Pipeline.required "breakDuration" Decode.int
+        |> Pipeline.required "longBreakDuration" Decode.int
         |> Pipeline.required "theme" Theme.decodeTheme
         |> Pipeline.required "flow" decodeFlow
         |> Pipeline.required "spotify" Spotify.decodeState
         |> Pipeline.optional "notifications" decodeNotifications notificationsDefault
         |> Pipeline.optional "alarmSound" decodeAlarmSound WindChimes
+
+
+decodeBrowserNotificationPermission : Decode.Decoder { val : Bool, msg : String }
+decodeBrowserNotificationPermission =
+    Decode.map2
+        (\val msg -> { val = val, msg = msg })
+        (Decode.field "val" Decode.bool)
+        (Decode.field "msg" Decode.string)
+
+
+encodeImportExportActions : ImportExportActions -> Encode.Value
+encodeImportExportActions actions =
+    case actions of
+        RequestExport ->
+            Encode.object [ ( "type", Encode.string "requestExport" ) ]
+
+        Import data ->
+            Encode.object
+                [ ( "type", Encode.string "import" )
+                , ( "data", Encode.string data )
+                ]

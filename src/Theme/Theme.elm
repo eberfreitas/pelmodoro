@@ -7,6 +7,7 @@ module Theme.Theme exposing
     , foregroundColor
     , longBreakColor
     , textColor
+    , themeFromString
     , workColor
     )
 

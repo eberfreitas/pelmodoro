@@ -1,4 +1,4 @@
-module Page.Timer exposing (Msg, update)
+module Page.Timer exposing (Msg, subs, update)
 
 import Json.Decode as Decode
 import Json.Encode as Encode
@@ -218,6 +218,11 @@ update msg ({ settings, active, time, sessions } as model) =
                         , Spotify.pause settings.spotify
                         ]
                     )
+
+
+subs : Model a msg -> Sub Msg
+subs _ =
+    Ports.tick Tick
 
 
 

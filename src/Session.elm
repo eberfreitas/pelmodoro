@@ -5,6 +5,7 @@ module Session exposing
     , SessionDef
     , addElapsed
     , buildSessions
+    , decodeActive
     , decodeSession
     , encodeActive
     , firstSession

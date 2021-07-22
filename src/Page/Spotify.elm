@@ -6,10 +6,13 @@ module Page.Spotify exposing
     , encodeState
     , pause
     , play
+    , subs
+    , update
     )
 
 import Json.Decode as Decode
 import Json.Encode as Encode
+import List.Extra
 import Misc
 import Ports
 
@@ -27,14 +30,66 @@ type alias SpotifyPlaylist =
 
 type Msg
     = GotState Decode.Value
-    | Refresh
+    | RefreshPlaylists
     | Disconnect
     | UpdatePlaylist String
+
+
+update : Msg -> State -> ( State, Cmd msg )
+update msg state =
+    case msg of
+        GotState raw ->
+            case Decode.decodeValue decodeState raw of
+                Ok protoState ->
+                    case ( state, protoState ) of
+                        ( Connected _ (Just playlist), Connected playlists _ ) ->
+                            let
+                                newPlaylist =
+                                    playlists
+                                        |> List.Extra.find (Tuple.first >> (==) playlist)
+                                        |> Maybe.map Tuple.first
+                            in
+                            Connected playlists newPlaylist |> Misc.withCmd
+
+                        _ ->
+                            protoState |> Misc.withCmd
+
+                Err _ ->
+                    Misc.withCmd state
+
+        RefreshPlaylists ->
+            state
+                |> Misc.withCmd
+                |> Misc.addCmd (Refresh |> encodeAction |> Ports.toSpotify)
+
+        Disconnect ->
+            state
+                |> Misc.withCmd
+                |> Misc.addCmd (Disconn |> encodeAction |> Ports.toSpotify)
+
+        UpdatePlaylist playlist ->
+            case state of
+                Connected playlists _ ->
+                    playlists
+                        |> List.Extra.find (Tuple.first >> (==) playlist)
+                        |> Maybe.map Tuple.first
+                        |> Connected playlists
+                        |> Misc.withCmd
+
+                _ ->
+                    Misc.withCmd state
+
+
+subs : Sub Msg
+subs =
+    Ports.gotFromSpotify GotState
 
 
 type Action
     = Play String
     | Pause
+    | Refresh
+    | Disconn
 
 
 default : State
@@ -64,16 +119,6 @@ pause state =
             Cmd.none
 
 
-playlistUrl : State -> Maybe String
-playlistUrl spotify =
-    case spotify of
-        Connected _ url ->
-            url
-
-        _ ->
-            Nothing
-
-
 sendToSpotify : Action -> Cmd msg
 sendToSpotify action =
     action |> encodeAction |> Ports.toSpotify
@@ -94,6 +139,12 @@ encodeAction action =
 
         Pause ->
             Encode.object [ ( "type", Encode.string "pause" ) ]
+
+        Refresh ->
+            Encode.object [ ( "type", Encode.string "refresh" ) ]
+
+        Disconn ->
+            Encode.object [ ( "type", Encode.string "disconnect" ) ]
 
 
 encodeSpotifyPlaylist : SpotifyPlaylist -> Encode.Value

@@ -1,10 +1,10 @@
-module Page.Stats exposing (Msg, StatState)
+module Page.Stats exposing (Msg, StatState, initialState)
 
-import Date exposing (Date)
-import Json.Decode as D exposing (Value)
+import Date
+import Json.Decode as Decode
 import Json.Decode.Pipeline as Pipeline
-import Session exposing (Sentiment, Session)
-import Time exposing (Posix)
+import Session
+import Time
 
 
 type StatState
@@ -13,27 +13,32 @@ type StatState
 
 
 type alias StatsDef =
-    { date : Date
-    , logs : List Session
+    { date : Date.Date
+    , logs : List Session.Session
     , showLogs : Bool
     }
 
 
 type Msg
-    = GotLogs Value
-    | GoToDate Date
-    | GoToMonth Date
-    | UpdateSentiment Posix Sentiment
+    = GotLogs Decode.Value
+    | GoToDate Date.Date
+    | GoToMonth Date.Date
+    | UpdateSentiment Time.Posix Session.Sentiment
     | ToggleDailyLogs
     | ClearLogs
+
+
+initialState : StatState
+initialState =
+    Loading
 
 
 
 -- CODECS
 
 
-decodeLogs : D.Decoder { ts : Int, logs : List Session }
+decodeLogs : Decode.Decoder { ts : Int, logs : List Session.Session }
 decodeLogs =
-    D.succeed (\ts l -> { ts = ts, logs = l })
-        |> Pipeline.required "ts" D.int
-        |> Pipeline.required "logs" (D.list Session.decodeSession)
+    Decode.succeed (\ts l -> { ts = ts, logs = l })
+        |> Pipeline.required "ts" Decode.int
+        |> Pipeline.required "logs" (Decode.list Session.decodeSession)
