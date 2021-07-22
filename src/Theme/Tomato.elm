@@ -1,39 +1,39 @@
 module Theme.Tomato exposing (theme)
 
-import Color exposing (Color)
-import Theme.Common exposing (ThemeColors)
+import Color
+import Theme.Common
 
 
-tomato : Color
+tomato : Color.Color
 tomato =
     Color.new 255 99 71 1.0
 
 
-washedTomato : Color
+washedTomato : Color.Color
 washedTomato =
     Color.new 255 243 240 1.0
 
 
-white : Color
+white : Color.Color
 white =
     Color.new 255 255 255 1.0
 
 
-darkGrey : Color
+darkGrey : Color.Color
 darkGrey =
     Color.new 34 34 34 1.0
 
 
-purple : Color
+purple : Color.Color
 purple =
     Color.new 130 2 99 1.0
 
 
-green : Color
+green : Color.Color
 green =
     Color.new 122 199 79 1.0
 
 
-theme : ThemeColors
+theme : Theme.Common.ThemeColors
 theme =
-    ThemeColors washedTomato tomato purple green tomato white darkGrey
+    Theme.Common.ThemeColors washedTomato tomato purple green tomato white darkGrey

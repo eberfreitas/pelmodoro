@@ -12,11 +12,11 @@ module Theme.Theme exposing
     , workColor
     )
 
-import Color exposing (Color)
-import Json.Decode as D
-import Json.Encode as E exposing (Value)
+import Color
+import Json.Decode as Decode
+import Json.Encode as Encode
 import Misc
-import Theme.Common exposing (Theme(..), ThemeColors)
+import Theme.Common
 import Theme.Dracula as Dracula
 import Theme.Gruvbox as Gruvbox
 import Theme.NightMood as NightMood
@@ -24,91 +24,91 @@ import Theme.Nord as Nord
 import Theme.Tomato as Tomato
 
 
-themeColors : Theme -> ThemeColors
+themeColors : Theme.Common.Theme -> Theme.Common.ThemeColors
 themeColors theme =
     case theme of
-        Tomato ->
+        Theme.Common.Tomato ->
             Tomato.theme
 
-        NightMood ->
+        Theme.Common.NightMood ->
             NightMood.theme
 
-        Gruvbox ->
+        Theme.Common.Gruvbox ->
             Gruvbox.theme
 
-        Dracula ->
+        Theme.Common.Dracula ->
             Dracula.theme
 
-        Nord ->
+        Theme.Common.Nord ->
             Nord.theme
 
 
-backgroundColor : Theme -> Color
+backgroundColor : Theme.Common.Theme -> Color.Color
 backgroundColor =
     themeColors >> .background
 
 
-foregroundColor : Theme -> Color
+foregroundColor : Theme.Common.Theme -> Color.Color
 foregroundColor =
     themeColors >> .foreground
 
 
-textColor : Theme -> Color
+textColor : Theme.Common.Theme -> Color.Color
 textColor =
     themeColors >> .text
 
 
-contrastColor : Theme -> Color
+contrastColor : Theme.Common.Theme -> Color.Color
 contrastColor =
     themeColors >> .contrast
 
 
-workColor : Theme -> Color
+workColor : Theme.Common.Theme -> Color.Color
 workColor =
     themeColors >> .work
 
 
-breakColor : Theme -> Color
+breakColor : Theme.Common.Theme -> Color.Color
 breakColor =
     themeColors >> .break
 
 
-longBreakColor : Theme -> Color
+longBreakColor : Theme.Common.Theme -> Color.Color
 longBreakColor =
     themeColors >> .longBreak
 
 
-themeToString : Theme -> String
+themeToString : Theme.Common.Theme -> String
 themeToString theme =
     case theme of
-        Tomato ->
+        Theme.Common.Tomato ->
             "Tomato"
 
-        NightMood ->
+        Theme.Common.NightMood ->
             "Night Mood"
 
-        Gruvbox ->
+        Theme.Common.Gruvbox ->
             "Gruvbox"
 
-        Dracula ->
+        Theme.Common.Dracula ->
             "Dracula"
 
-        Nord ->
+        Theme.Common.Nord ->
             "Nord"
 
 
-themePairs : List ( Theme, String )
+themePairs : List ( Theme.Common.Theme, String )
 themePairs =
-    [ Tomato
-    , NightMood
-    , Gruvbox
-    , Dracula
-    , Nord
+    [ Theme.Common.Tomato
+    , Theme.Common.NightMood
+    , Theme.Common.Gruvbox
+    , Theme.Common.Dracula
+    , Theme.Common.Nord
     ]
         |> Misc.toPairs themeToString
 
 
-themeFromString : String -> Maybe Theme
+themeFromString : String -> Maybe Theme.Common.Theme
 themeFromString =
     Misc.fromPairs themePairs
 
@@ -117,16 +117,16 @@ themeFromString =
 -- CODECS
 
 
-encodeTheme : Theme -> Value
+encodeTheme : Theme.Common.Theme -> Encode.Value
 encodeTheme =
-    themeToString >> E.string
+    themeToString >> Encode.string
 
 
-decodeTheme : D.Decoder Theme
+decodeTheme : Decode.Decoder Theme.Common.Theme
 decodeTheme =
-    D.string
-        |> D.andThen
+    Decode.string
+        |> Decode.andThen
             (themeFromString
-                >> Maybe.map D.succeed
-                >> Maybe.withDefault (D.fail "Invalid theme")
+                >> Maybe.map Decode.succeed
+                >> Maybe.withDefault (Decode.fail "Invalid theme")
             )
