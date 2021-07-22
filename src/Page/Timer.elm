@@ -392,7 +392,7 @@ update msg ({ settings, active, time, sessions } as model) =
                     )
 
         SetSentiment start sentiment ->
-            model
+            { model | sentimentSession = Nothing }
                 |> Misc.withCmd
                 |> Misc.addCmd (Stats.setSentimentCmd start sentiment)
 
