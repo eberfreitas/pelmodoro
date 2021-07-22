@@ -13,8 +13,11 @@ module Session exposing
     , firstSession
     , isWork
     , logSession
+    , negative
+    , neutral
     , newActiveSession
     , newSession
+    , positive
     , rollActiveSession
     , saveActive
     , secondsLeft
@@ -440,3 +443,18 @@ toColor theme def =
 
         LongBreak _ ->
             Theme.longBreakColor theme
+
+
+positive : Sentiment
+positive =
+    Positive
+
+
+neutral : Sentiment
+neutral =
+    Neutral
+
+
+negative : Sentiment
+negative =
+    Negative
