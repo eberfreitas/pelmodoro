@@ -41,5 +41,5 @@ export default function (app) {
     }
   });
 
-  // app.ports.logCycle.subscribe(insert);
+  app.ports.log.subscribe(insert);
 }

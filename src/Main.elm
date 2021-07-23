@@ -303,7 +303,7 @@ update msg model =
         ( Flash subMsg, _ ) ->
             Flash.update subMsg model |> Misc.updateWith Flash
 
-        ( Timer subMsg, TimerPage ) ->
+        ( Timer subMsg, _ ) ->
             Timer.update subMsg model
 
         ( Stats subMsg, StatsPage state ) ->
@@ -311,7 +311,7 @@ update msg model =
                 |> Tuple.mapFirst (\s -> { model | page = StatsPage s })
                 |> Misc.updateWith Stats
 
-        ( Settings subMsg, SettingsPage ) ->
+        ( Settings subMsg, _ ) ->
             Settings.update subMsg model |> Misc.updateWith Settings
 
         _ ->

@@ -19,17 +19,15 @@ const app = Elm.Main.init({
   }
 });
 
-app.ports.localStorage.subscribe(payload => {
-  storage.set(payload["key"], payload["data"]);
-});
+app.ports.localStorage.subscribe(payload => storage.set(payload["key"], payload["data"]));
 
 viewportFix();
-//notify(app);
+notify(app);
 spotify(app);
 logs(app);
 settings(app);
-// pwa();
+pwa();
 
-// const tickWorker = new Worker('./src/js/tick.js');
+const tickWorker = new Worker('./src/js/tick.js');
 
-// tickWorker.onmessage = ({ data }) => app.ports.tick.send(data);
+tickWorker.onmessage = ({ data }) => app.ports.tick.send(data);

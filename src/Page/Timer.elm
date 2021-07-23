@@ -531,11 +531,18 @@ setupSentimentSession session sessionDef model =
 
 
 tick : Time.Posix -> Model a -> ( Model a, Cmd msg )
-tick posix ({ playing, flash, active } as model) =
+tick posix ({ playing, flash, active, settings } as model) =
     if playing then
         let
             newState =
                 evalElapsedTime model
+
+            setFlashFn =
+                if settings.notifications.inApp then
+                    Flash.setFlash newState.flash
+
+                else
+                    identity
         in
         { model
             | active = newState.active
@@ -544,7 +551,7 @@ tick posix ({ playing, flash, active } as model) =
         }
             |> setupSentimentSession newState.sentimentSession newState.active.session.def
             |> updateTime posix
-            |> Flash.setFlash newState.flash
+            |> setFlashFn
             |> Misc.withCmd
             |> Misc.addCmd newState.cmd
             |> Misc.addCmd (Session.saveActive active)
