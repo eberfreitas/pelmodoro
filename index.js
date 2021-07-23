@@ -23,7 +23,7 @@ app.ports.localStorage.subscribe(payload => storage.get(payload["key"], payload[
 
 // viewportFix();
 //notify(app);
-// spotify(app);
+spotify(app);
 logs(app);
 settings(app);
 // pwa();

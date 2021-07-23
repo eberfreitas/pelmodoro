@@ -129,7 +129,7 @@ const getAuthToken = (code, state) => {
 };
 
 const notConnected = (app, flash = true) => {
-  app.ports.gotSpotifyState.send({ type: "notconnected", url: connectData().url });
+  app.ports.gotFromSpotify.send({ type: "notconnected", url: connectData().url });
 
   if (flash) {
     setFlash(app, "Spotify disconnected", "Your Spotify account is disconnected.")
@@ -137,12 +137,12 @@ const notConnected = (app, flash = true) => {
 };
 
 const connectionError = app => {
-  app.ports.gotSpotifyState.send({ type: "connectionerror", url: connectData().url });
+  app.ports.gotFromSpotify.send({ type: "connectionerror", url: connectData().url });
   setFlash(app, "Connection error", "There was an error trying to connect to your Spotify account. Note: you need a Premium account to connect.");
 };
 
 const connected = (app, playlists, flash = true) => {
-  app.ports.gotSpotifyState.send({ type: "connected", playlists: playlists, playlist: null });
+  app.ports.gotFromSpotify.send({ type: "connected", playlists: playlists, playlist: null });
 
   if (flash) {
     setFlash(app, "Spotify connected", "Your Spotify account is connected.");
@@ -322,10 +322,25 @@ const init = (app, token, flash) => {
   setupPlaylists(app, token, flash);
   checkState(token);
 
-  app.ports.spotifyPlay.subscribe(uri => play(token, uri));
-  app.ports.spotifyPause.subscribe(() => pause(token));
-  app.ports.spotifyDisconnect.subscribe(() => disconnect(app));
-  app.ports.spotifyRefresh.subscribe(() => setupPlaylists(app, token));
+  app.ports.toSpotify.subscribe(data => {
+    switch (data["type"]) {
+      case "play":
+        play(token, data["url"]);
+        break;
+
+      case "pause":
+        pause(token);
+        break;
+
+      case "refresh":
+        setupPlaylists(app, token);
+        break;
+      
+      case "disconnect":
+        disconnect(app);
+        break;
+    }
+  });
 };
 
 export default function (app) {
