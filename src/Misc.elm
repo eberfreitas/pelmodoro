@@ -1,12 +1,17 @@
 module Misc exposing
-    ( addCmd
+    ( TypeAndStrings
+    , addCmd
     , decodePosix
+    , displayToType
+    , encodableToType
     , encodeMaybe
     , encodePosix
     , flip
     , fromPairs
     , maybeTrio
     , toPairs
+    , typeToDisplay
+    , typeToEncodable
     , updateWith
     , withCmd
     )
@@ -15,6 +20,44 @@ import Json.Decode as Decode
 import Json.Encode as Encode
 import List.Extra
 import Time
+import Tuple.Trio as Trio
+
+
+{-| The idea of this type is to create a standard pattern when
+joining union types constructors with their respectives strings,
+beign the first a "encodable" representation and the other a
+display representation.
+-}
+type alias TypeAndStrings a =
+    List ( a, String, String )
+
+
+typeToEncodable : TypeAndStrings a -> a -> Maybe String
+typeToEncodable list type_ =
+    list
+        |> List.Extra.find (Trio.first >> (==) type_)
+        |> Maybe.map Trio.second
+
+
+typeToDisplay : TypeAndStrings a -> a -> Maybe String
+typeToDisplay list type_ =
+    list
+        |> List.Extra.find (Trio.first >> (==) type_)
+        |> Maybe.map Trio.third
+
+
+encodableToType : TypeAndStrings a -> String -> Maybe a
+encodableToType list str =
+    list
+        |> List.Extra.find (Trio.second >> (==) str)
+        |> Maybe.map Trio.first
+
+
+displayToType : TypeAndStrings a -> String -> Maybe a
+displayToType list str =
+    list
+        |> List.Extra.find (Trio.third >> (==) str)
+        |> Maybe.map Trio.first
 
 
 addCmd : Cmd msg -> ( a, Cmd msg ) -> ( a, Cmd msg )

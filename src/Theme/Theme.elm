@@ -7,8 +7,7 @@ module Theme.Theme exposing
     , foregroundColor
     , longBreakColor
     , textColor
-    , themeFromString
-    , themePairs
+    , themeTypeAndStrings
     , workColor
     )
 
@@ -78,39 +77,14 @@ longBreakColor =
     themeColors >> .longBreak
 
 
-themeToString : Theme.Common.Theme -> String
-themeToString theme =
-    case theme of
-        Theme.Common.Tomato ->
-            "Tomato"
-
-        Theme.Common.NightMood ->
-            "Night Mood"
-
-        Theme.Common.Gruvbox ->
-            "Gruvbox"
-
-        Theme.Common.Dracula ->
-            "Dracula"
-
-        Theme.Common.Nord ->
-            "Nord"
-
-
-themePairs : List ( Theme.Common.Theme, String )
-themePairs =
-    [ Theme.Common.Tomato
-    , Theme.Common.NightMood
-    , Theme.Common.Gruvbox
-    , Theme.Common.Dracula
-    , Theme.Common.Nord
+themeTypeAndStrings : Misc.TypeAndStrings Theme.Common.Theme
+themeTypeAndStrings =
+    [ ( Theme.Common.Tomato, "light", "Tomato" )
+    , ( Theme.Common.NightMood, "dark", "Night Mood" )
+    , ( Theme.Common.Gruvbox, "gruvbox", "Gruvbox" )
+    , ( Theme.Common.Dracula, "dracula", "Dracula" )
+    , ( Theme.Common.Nord, "nord", "Nord" )
     ]
-        |> Misc.toPairs themeToString
-
-
-themeFromString : String -> Maybe Theme.Common.Theme
-themeFromString =
-    Misc.fromPairs themePairs
 
 
 
@@ -119,14 +93,14 @@ themeFromString =
 
 encodeTheme : Theme.Common.Theme -> Encode.Value
 encodeTheme =
-    themeToString >> Encode.string
+    Misc.typeToEncodable themeTypeAndStrings >> Maybe.withDefault "" >> Encode.string
 
 
 decodeTheme : Decode.Decoder Theme.Common.Theme
 decodeTheme =
     Decode.string
         |> Decode.andThen
-            (themeFromString
+            (Misc.encodableToType themeTypeAndStrings
                 >> Maybe.map Decode.succeed
                 >> Maybe.withDefault (Decode.fail "Invalid theme")
             )

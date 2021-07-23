@@ -473,7 +473,7 @@ evalElapsedTime { active, sessions, settings, time } =
                     Nothing
 
             notificationCmd =
-                { sound = Settings.alarmSoundToString settings.alarmSound
+                { sound = Settings.alarmSoundToEncodable settings.alarmSound
                 , msg = notificationMsg
                 , config = settings.notifications
                 }

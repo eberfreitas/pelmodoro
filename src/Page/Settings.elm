@@ -3,7 +3,7 @@ module Page.Settings exposing
     , Msg
     , Notifications
     , Settings
-    , alarmSoundToString
+    , alarmSoundToEncodable
     , decodeSettings
     , default
     , encodeNotifications
@@ -129,7 +129,7 @@ view ({ settings } as model) =
                 Elements.selectInput settings.theme
                     (Trio.first >> (==) settings.flow)
                     UpdateFlow
-                    (flowPairs |> List.map toTrio)
+                    flowTypeAndStrings
             , Elements.inputContainer settings.theme
                 "Notifications"
                 ([ ( settings.notifications.inApp, InApp, "In app messages" )
@@ -145,7 +145,7 @@ view ({ settings } as model) =
                         [ Elements.selectInput settings.theme
                             (Trio.first >> (==) settings.alarmSound)
                             UpdateAlarmSound
-                            (alarmSoundPairs |> List.map toTrio)
+                            alarmSoundTypeAndStrings
                         , Elements.largeButton settings.theme
                             (TestAlarmSound settings.alarmSound)
                             [ Elements.styledIcon [ Css.verticalAlign Css.middle ] "play_arrow" ]
@@ -157,7 +157,7 @@ view ({ settings } as model) =
                 Elements.selectInput settings.theme
                     (Trio.first >> (==) settings.theme)
                     UpdateTheme
-                    (Theme.themePairs |> List.map toTrio)
+                    Theme.themeTypeAndStrings
             , Spotify.view settings.theme settings.spotify |> Html.map Spotify
             , Elements.inputContainer settings.theme "Import / Export" <|
                 Html.div []
@@ -224,7 +224,7 @@ update msg ({ settings } as model) =
                 |> mapSettings
                     (\s ->
                         flow
-                            |> flowFromString
+                            |> Misc.encodableToType flowTypeAndStrings
                             |> Maybe.map (\f -> { s | flow = f })
                             |> Maybe.withDefault s
                     )
@@ -236,7 +236,7 @@ update msg ({ settings } as model) =
                 |> mapSettings
                     (\s ->
                         theme
-                            |> Theme.themeFromString
+                            |> Misc.encodableToType Theme.themeTypeAndStrings
                             |> Maybe.map (\t -> { s | theme = t })
                             |> Maybe.withDefault s
                     )
@@ -248,7 +248,7 @@ update msg ({ settings } as model) =
                 |> mapSettings
                     (\s ->
                         alarm
-                            |> alarmSoundFromString
+                            |> Misc.encodableToType alarmSoundTypeAndStrings
                             |> Maybe.map (\a -> { s | alarmSound = a })
                             |> Maybe.withDefault s
                     )
@@ -327,7 +327,13 @@ update msg ({ settings } as model) =
         TestAlarmSound alarmSound ->
             model
                 |> Misc.withCmd
-                |> Misc.addCmd (alarmSound |> alarmSoundToString |> TestAlarm |> toPort)
+                |> Misc.addCmd
+                    (alarmSound
+                        |> Misc.typeToEncodable alarmSoundTypeAndStrings
+                        |> Maybe.withDefault ""
+                        |> TestAlarm
+                        |> toPort
+                    )
 
         Spotify subMsg ->
             Spotify.update subMsg settings.spotify
@@ -396,31 +402,12 @@ shouldKeepPlaying index flow =
             True
 
 
-flowToString : Flow -> String
-flowToString flow =
-    case flow of
-        None ->
-            "No automatic flow"
-
-        Simple ->
-            "Simple flow"
-
-        Loop ->
-            "Non-stop flow"
-
-
-flowPairs : List ( Flow, String )
-flowPairs =
-    [ None
-    , Simple
-    , Loop
+flowTypeAndStrings : Misc.TypeAndStrings Flow
+flowTypeAndStrings =
+    [ ( None, "nocont", "No automatic flow" )
+    , ( Simple, "simplecont", "Simple flow" )
+    , ( Loop, "fullcont", "Non-stop flow" )
     ]
-        |> Misc.toPairs flowToString
-
-
-flowFromString : String -> Maybe Flow
-flowFromString =
-    Misc.fromPairs flowPairs
 
 
 notificationsDefault : Notifications
@@ -428,43 +415,20 @@ notificationsDefault =
     Notifications True True False
 
 
-alarmSoundToString : AlarmSound -> String
-alarmSoundToString alarmSound =
-    case alarmSound of
-        WindChimes ->
-            "Wind Chimes"
-
-        Bell ->
-            "Bell"
-
-        AlarmClock ->
-            "Alarm Clock"
-
-        Bong ->
-            "Bong"
-
-        RelaxingPercussion ->
-            "Relaxing Percussion"
-
-        BirdSong ->
-            "Bird Song"
-
-
-alarmSoundPairs : List ( AlarmSound, String )
-alarmSoundPairs =
-    [ WindChimes
-    , Bell
-    , AlarmClock
-    , Bong
-    , RelaxingPercussion
-    , BirdSong
+alarmSoundTypeAndStrings : Misc.TypeAndStrings AlarmSound
+alarmSoundTypeAndStrings =
+    [ ( WindChimes, "wind-chimes", "Wind Chimes" )
+    , ( Bell, "bell", "Bell" )
+    , ( AlarmClock, "alarm-clock", "Alarm Clock" )
+    , ( Bong, "bong", "Bong" )
+    , ( RelaxingPercussion, "relaxing-percussion", "Relaxing Percussion" )
+    , ( BirdSong, "bird-song", "Bird Song" )
     ]
-        |> Misc.toPairs alarmSoundToString
 
 
-alarmSoundFromString : String -> Maybe AlarmSound
-alarmSoundFromString =
-    Misc.fromPairs alarmSoundPairs
+alarmSoundToEncodable : AlarmSound -> String
+alarmSoundToEncodable =
+    Misc.typeToEncodable alarmSoundTypeAndStrings >> Maybe.withDefault ""
 
 
 
@@ -530,14 +494,14 @@ subscriptions =
 
 encodeFlow : Flow -> Encode.Value
 encodeFlow =
-    flowToString >> Encode.string
+    Misc.typeToEncodable flowTypeAndStrings >> Maybe.withDefault "" >> Encode.string
 
 
 decodeFlow : Decode.Decoder Flow
 decodeFlow =
     Decode.string
         |> Decode.andThen
-            (flowFromString
+            (Misc.encodableToType flowTypeAndStrings
                 >> Maybe.map Decode.succeed
                 >> Maybe.withDefault (Decode.fail "Invalid flow")
             )
@@ -546,8 +510,8 @@ decodeFlow =
 encodeNotifications : Notifications -> Encode.Value
 encodeNotifications { inApp, alarmSound, browser } =
     Encode.object
-        [ ( "inApp", Encode.bool inApp )
-        , ( "alarmSound", Encode.bool alarmSound )
+        [ ( "inapp", Encode.bool inApp )
+        , ( "sound", Encode.bool alarmSound )
         , ( "browser", Encode.bool browser )
         ]
 
@@ -555,21 +519,21 @@ encodeNotifications { inApp, alarmSound, browser } =
 decodeNotifications : Decode.Decoder Notifications
 decodeNotifications =
     Decode.succeed Notifications
-        |> Pipeline.required "inApp" Decode.bool
-        |> Pipeline.required "alarmSound" Decode.bool
+        |> Pipeline.required "inapp" Decode.bool
+        |> Pipeline.required "sound" Decode.bool
         |> Pipeline.required "browser" Decode.bool
 
 
 encodeAlarmSound : AlarmSound -> Encode.Value
 encodeAlarmSound =
-    alarmSoundToString >> Encode.string
+    Misc.typeToEncodable alarmSoundTypeAndStrings >> Maybe.withDefault "" >> Encode.string
 
 
 decodeAlarmSound : Decode.Decoder AlarmSound
 decodeAlarmSound =
     Decode.string
         |> Decode.andThen
-            (alarmSoundFromString
+            (Misc.encodableToType alarmSoundTypeAndStrings
                 >> Maybe.map Decode.succeed
                 >> Maybe.withDefault (Decode.fail "Invalid alarm sound")
             )
@@ -579,14 +543,14 @@ encodeSettings : Settings -> Encode.Value
 encodeSettings settings =
     Encode.object
         [ ( "rounds", Encode.int settings.rounds )
-        , ( "workDuration", Encode.int settings.workDuration )
-        , ( "breakDuration", Encode.int settings.breakDuration )
-        , ( "longBreakDuration", Encode.int settings.longBreakDuration )
+        , ( "activity", Encode.int settings.workDuration )
+        , ( "break", Encode.int settings.breakDuration )
+        , ( "longBreak", Encode.int settings.longBreakDuration )
         , ( "theme", Theme.encodeTheme settings.theme )
-        , ( "flow", encodeFlow settings.flow )
+        , ( "continuity", encodeFlow settings.flow )
         , ( "spotify", Spotify.encodeState settings.spotify )
         , ( "notifications", encodeNotifications settings.notifications )
-        , ( "alarmSound", encodeAlarmSound settings.alarmSound )
+        , ( "sound", encodeAlarmSound settings.alarmSound )
         ]
 
 
@@ -594,14 +558,14 @@ decodeSettings : Decode.Decoder Settings
 decodeSettings =
     Decode.succeed Settings
         |> Pipeline.required "rounds" Decode.int
-        |> Pipeline.required "workDuration" Decode.int
-        |> Pipeline.required "breakDuration" Decode.int
-        |> Pipeline.required "longBreakDuration" Decode.int
+        |> Pipeline.required "activity" Decode.int
+        |> Pipeline.required "break" Decode.int
+        |> Pipeline.required "longBreak" Decode.int
         |> Pipeline.required "theme" Theme.decodeTheme
-        |> Pipeline.required "flow" decodeFlow
+        |> Pipeline.required "continuity" decodeFlow
         |> Pipeline.required "spotify" Spotify.decodeState
         |> Pipeline.optional "notifications" decodeNotifications notificationsDefault
-        |> Pipeline.optional "alarmSound" decodeAlarmSound WindChimes
+        |> Pipeline.optional "sound" decodeAlarmSound WindChimes
 
 
 decodeBrowserNotificationPermission : Decode.Decoder { val : Bool, msg : String }

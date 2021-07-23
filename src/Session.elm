@@ -297,7 +297,7 @@ encodeSessionDef def =
     case def of
         Work s ->
             Encode.object
-                [ ( "type", Encode.string "work" )
+                [ ( "type", Encode.string "activity" )
                 , ( "secs", Encode.int s )
                 ]
 
@@ -320,7 +320,7 @@ decodeSessionDef =
         |> Decode.andThen
             (\def ->
                 case def of
-                    "work" ->
+                    "activity" ->
                         Decode.map Work <| Decode.field "secs" Decode.int
 
                     "break" ->
@@ -352,7 +352,7 @@ decodeSentiment =
 encodeSession : Session -> Encode.Value
 encodeSession { def, start, end, seconds, sentiment } =
     Encode.object
-        [ ( "def", encodeSessionDef def )
+        [ ( "interval", encodeSessionDef def )
         , ( "start", Misc.encodeMaybe Misc.encodePosix start )
         , ( "end", Misc.encodeMaybe Misc.encodePosix end )
         , ( "secs", Misc.encodeMaybe Encode.int seconds )
@@ -363,7 +363,7 @@ encodeSession { def, start, end, seconds, sentiment } =
 decodeSession : Decode.Decoder Session
 decodeSession =
     Decode.succeed Session
-        |> Pipeline.required "def" decodeSessionDef
+        |> Pipeline.required "interval" decodeSessionDef
         |> Pipeline.required "start" (Decode.nullable Misc.decodePosix)
         |> Pipeline.required "end" (Decode.nullable Misc.decodePosix)
         |> Pipeline.required "secs" (Decode.nullable Decode.int)
@@ -374,7 +374,7 @@ encodeActive : Active -> Encode.Value
 encodeActive { index, session, elapsed } =
     Encode.object
         [ ( "index", Encode.int index )
-        , ( "session", encodeSession session )
+        , ( "cycle", encodeSession session )
         , ( "elapsed", Encode.int elapsed )
         ]
 
@@ -383,7 +383,7 @@ decodeActive : Decode.Decoder Active
 decodeActive =
     Decode.succeed Active
         |> Pipeline.required "index" Decode.int
-        |> Pipeline.required "session" decodeSession
+        |> Pipeline.required "cycle" decodeSession
         |> Pipeline.required "elapsed" Decode.int
 
 
