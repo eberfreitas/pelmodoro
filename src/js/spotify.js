@@ -245,10 +245,6 @@ const pause = token => {
   }
 };
 
-const shuffle = (token, deviceId) => {
-  return fetch(`https://api.spotify.com/v1/me/player/shuffle?state=true&device_id=${deviceId}`, apiReqParams(token));
-};
-
 const play = (token, uri) => {
   if (window.spotify.canPlay == false) {
     return false;
@@ -293,10 +289,6 @@ const checkState = token => {
       checkStateReq(token)
         .then(promiseByStatus)
         .then(state => {
-          if (state.shuffle_state == false) {
-            shuffle(token, window.spotify.deviceId);
-          }
-
           storage.set("spotifyLastState", state);
         });
     }
@@ -335,7 +327,7 @@ const init = (app, token, flash) => {
       case "refresh":
         setupPlaylists(app, token);
         break;
-      
+
       case "disconnect":
         disconnect(app);
         break;

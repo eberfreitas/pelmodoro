@@ -337,7 +337,11 @@ update msg ({ settings, active, time, sessions } as model) =
                 cmds =
                     Cmd.batch
                         [ Session.saveActive newActive
-                        , Spotify.play settings.spotify
+                        , if Session.isWork newActive.session.def then
+                            Spotify.play settings.spotify
+
+                          else
+                            Cmd.none
                         ]
             in
             { model | playing = True, active = newActive }
@@ -477,7 +481,7 @@ evalElapsedTime { active, sessions, settings, time } =
                     |> Ports.notify
 
             spotifyCmd =
-                if Session.isWork active.session.def then
+                if Session.isWork newActive.session.def then
                     Spotify.play settings.spotify
 
                 else

@@ -360,6 +360,7 @@ save ( model, cmd ) =
             (Cmd.batch
                 [ model.settings |> encodeSettings |> Ports.localStorageHelper "settings"
                 , newActive |> Session.encodeActive |> Ports.localStorageHelper "active"
+                , Spotify.pause model.settings.spotify
                 ]
             )
 
