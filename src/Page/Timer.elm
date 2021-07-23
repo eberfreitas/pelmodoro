@@ -36,14 +36,10 @@ type alias Model a =
         , active : Session.Active
         , settings : Settings.Settings
         , sessions : List Session.SessionDef
-        , uptime : Seconds
+        , uptime : Int
         , flash : Maybe (Flash.FlashMsg Flash.Msg)
         , sentimentSession : Maybe Session.Session
     }
-
-
-type alias Seconds =
-    Int
 
 
 type alias EvalResult msg =
@@ -175,7 +171,7 @@ viewTimer : Bool -> Int -> Theme.Common.Theme -> Session.Active -> Svg.Svg Msg
 viewTimer playing uptime theme active =
     let
         timerOpacity =
-            if playing == True then
+            if playing then
                 "100"
 
             else if (uptime |> modBy 2) == 0 then
@@ -402,7 +398,7 @@ update msg ({ settings, active, time, sessions } as model) =
 -- HELPERS
 
 
-secondsToDisplay : Seconds -> String
+secondsToDisplay : Int -> String
 secondsToDisplay secs =
     let
         pad num =

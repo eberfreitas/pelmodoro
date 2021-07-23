@@ -242,8 +242,8 @@ numberInput theme min max msg val =
         ]
 
 
-inputContainer : Theme.Common.Theme -> String -> Html.Html msg -> Html.Html msg
-inputContainer theme label input =
+inputContainer : String -> Html.Html msg -> Html.Html msg
+inputContainer label input =
     Html.div [ Attributes.css [ Css.marginBottom <| Css.rem 2 ] ]
         [ Html.div [ Attributes.css [ labelStyle ] ] [ Html.text label ]
         , input

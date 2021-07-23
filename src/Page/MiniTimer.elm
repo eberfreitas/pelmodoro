@@ -6,7 +6,6 @@ import Html.Styled as Html
 import Html.Styled.Attributes as Attributes
 import Session
 import Theme.Common
-import Theme.Theme as Theme
 
 
 

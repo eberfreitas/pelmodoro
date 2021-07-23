@@ -14,7 +14,6 @@ import Page.Flash as Flash
 import Page.Settings as Settings
 import Page.Stats as Stats
 import Page.Timer as Timer
-import Platform
 import Platform.Sub as Sub
 import Session
 import Task

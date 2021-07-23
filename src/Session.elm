@@ -22,7 +22,6 @@ module Session exposing
     , positive
     , saveActive
     , secondsLeft
-    , sendToLog
     , sentimentToDisplay
     , sentimentToIcon
     , sessionChangeToLabel
@@ -48,14 +47,10 @@ import Theme.Theme as Theme
 import Time
 
 
-type alias Seconds =
-    Int
-
-
 type SessionDef
-    = Work Seconds
-    | Break Seconds
-    | LongBreak Seconds
+    = Work Int
+    | Break Int
+    | LongBreak Int
 
 
 type Sentiment
@@ -68,7 +63,7 @@ type alias Session =
     { def : SessionDef
     , start : Maybe Time.Posix
     , end : Maybe Time.Posix
-    , seconds : Maybe Seconds
+    , seconds : Maybe Int
     , sentiment : Maybe Sentiment
     }
 
@@ -76,7 +71,7 @@ type alias Session =
 type alias Active =
     { index : Int
     , session : Session
-    , elapsed : Seconds
+    , elapsed : Int
     }
 
 
@@ -207,7 +202,7 @@ sessionMaterialized :
             { def : SessionDef
             , start : Time.Posix
             , end : Time.Posix
-            , seconds : Seconds
+            , seconds : Int
             }
 sessionMaterialized { def, start, end, seconds } =
     ( start, end, seconds )
@@ -222,7 +217,7 @@ sessionMaterialized { def, start, end, seconds } =
             )
 
 
-sessionSeconds : SessionDef -> Seconds
+sessionSeconds : SessionDef -> Int
 sessionSeconds interval =
     case interval of
         Work s ->
@@ -235,7 +230,7 @@ sessionSeconds interval =
             s
 
 
-sessionsTotalRun : List SessionDef -> Seconds
+sessionsTotalRun : List SessionDef -> Int
 sessionsTotalRun sessions =
     sessions |> List.foldl (\i t -> i |> sessionSeconds |> (+) t) 0
 

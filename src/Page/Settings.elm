@@ -50,19 +50,15 @@ type alias Model a =
 
 type alias Settings =
     { rounds : Int
-    , workDuration : Seconds
-    , breakDuration : Seconds
-    , longBreakDuration : Seconds
+    , workDuration : Int
+    , breakDuration : Int
+    , longBreakDuration : Int
     , theme : Theme.Common.Theme
     , flow : Flow
     , spotify : Spotify.State
     , notifications : Notifications
     , alarmSound : AlarmSound
     }
-
-
-type alias Seconds =
-    Int
 
 
 type Flow
@@ -112,24 +108,23 @@ view ({ settings } as model) =
                 ]
             ]
             [ Elements.h1 settings.theme "Settings"
-            , Elements.inputContainer settings.theme "Rounds" <|
+            , Elements.inputContainer "Rounds" <|
                 Elements.numberInput settings.theme 1 8 UpdateRounds settings.rounds
-            , Elements.inputContainer settings.theme "Session duration" <|
+            , Elements.inputContainer "Session duration" <|
                 Elements.numberInput settings.theme 1 60 UpdateWorkDuration <|
                     inMinutes settings.workDuration
-            , Elements.inputContainer settings.theme "Break duration" <|
+            , Elements.inputContainer "Break duration" <|
                 Elements.numberInput settings.theme 1 60 UpdateBreakDuration <|
                     inMinutes settings.breakDuration
-            , Elements.inputContainer settings.theme "Long break duration" <|
+            , Elements.inputContainer "Long break duration" <|
                 Elements.numberInput settings.theme 1 60 UpdateLongBreakDuration <|
                     inMinutes settings.longBreakDuration
-            , Elements.inputContainer settings.theme "Rounds flow" <|
+            , Elements.inputContainer "Rounds flow" <|
                 Elements.selectInput settings.theme
                     (Trio.first >> (==) settings.flow)
                     UpdateFlow
                     flowTypeAndStrings
-            , Elements.inputContainer settings.theme
-                "Notifications"
+            , Elements.inputContainer "Notifications"
                 ([ ( settings.notifications.inApp, InApp, "In app messages" )
                  , ( settings.notifications.alarmSound, AlarmSound, "Play sounds" )
                  , ( settings.notifications.browser, Browser, "Browser notification" )
@@ -138,7 +133,7 @@ view ({ settings } as model) =
                     |> Html.div []
                 )
             , if settings.notifications.alarmSound then
-                Elements.inputContainer settings.theme "Alarm sound" <|
+                Elements.inputContainer "Alarm sound" <|
                     Html.div []
                         [ Elements.selectInput settings.theme
                             (Trio.first >> (==) settings.alarmSound)
@@ -151,13 +146,13 @@ view ({ settings } as model) =
 
               else
                 Html.text ""
-            , Elements.inputContainer settings.theme "Color theme" <|
+            , Elements.inputContainer "Color theme" <|
                 Elements.selectInput settings.theme
                     (Trio.first >> (==) settings.theme)
                     UpdateTheme
                     Theme.themeTypeAndStrings
             , Spotify.view settings.theme settings.spotify |> Html.map Spotify
-            , Elements.inputContainer settings.theme "Import / Export" <|
+            , Elements.inputContainer "Import / Export" <|
                 Html.div []
                     [ Elements.largeButton settings.theme ExportRequest [ Html.text "Export" ]
                     , Elements.largeButton settings.theme ImportRequest [ Html.text "Import" ]

@@ -2,7 +2,6 @@ module Misc exposing
     ( TypeAndStrings
     , addCmd
     , decodePosix
-    , displayToType
     , encodableToType
     , encodeMaybe
     , encodePosix
@@ -10,7 +9,6 @@ module Misc exposing
     , fromPairs
     , maybeTrio
     , toPairs
-    , typeToDisplay
     , typeToEncodable
     , updateWith
     , withCmd
@@ -39,24 +37,10 @@ typeToEncodable list type_ =
         |> Maybe.map Trio.second
 
 
-typeToDisplay : TypeAndStrings a -> a -> Maybe String
-typeToDisplay list type_ =
-    list
-        |> List.Extra.find (Trio.first >> (==) type_)
-        |> Maybe.map Trio.third
-
-
 encodableToType : TypeAndStrings a -> String -> Maybe a
 encodableToType list str =
     list
         |> List.Extra.find (Trio.second >> (==) str)
-        |> Maybe.map Trio.first
-
-
-displayToType : TypeAndStrings a -> String -> Maybe a
-displayToType list str =
-    list
-        |> List.Extra.find (Trio.third >> (==) str)
         |> Maybe.map Trio.first
 
 
