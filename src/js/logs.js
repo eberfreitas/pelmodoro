@@ -1,10 +1,6 @@
 import db from "./helpers/db.js";
-import download from "downloadjs";
-import { peakImportFile } from "dexie-export-import";
 
-import setFlash from "./helpers/flash.js";
-
-const insert = cycle => db.cycles.add(cycle);
+const insert = session => db.cycles.add(session);
 
 const monthlyLogs = millis => {
   const date = new Date(millis);
@@ -17,57 +13,33 @@ const monthlyLogs = millis => {
 const fetch = async (app, millis) => {
   const logs = await monthlyLogs(millis);
 
-  app.ports.gotStatsLogs.send({ ts: millis, logs: logs });
+  app.ports.gotFromLog.send({ ts: millis, logs: logs });
 };
 
-const exportData = async () => {
-  const blob = await db.export();
+const updateSentiment = async (time, sentiment) => {
+  const session = await db.cycles.where({ start: time}).toArray();
 
-  download(blob, "pelmodoro-data.json", "application/json")
-};
-
-
-const importData = async (app, str) => {
-  const blob = new Blob([str]);
-
-  try {
-    await peakImportFile(blob);
-    await db.cycles.clear();
-    await db.import(blob);
-
-    setFlash(app, "Success", "Data has been successfully imported.")
-  } catch (e) {
-    setFlash(app, "Error", "There was an error trying to import the data.")
-  }
-}
-
-const updateCycle = async data => {
-  const cycle = await db.cycles.where({ start: data[0]}).toArray();
-
-  if (!cycle[0]) {
+  if (!session[0]) {
     return;
   }
 
-  const updated = await db.cycles.update(cycle[0].id, { sentiment: data[1] });
+  const updated = await db.cycles.update(session[0].id, { sentiment: sentiment });
 
   return updated;
 }
 
-const clearLogs = () => {
-  const confirmed = confirm("Are you sure you wanna delete all log entries? This step is irreversible!");
-
-  if (!confirmed) {
-    return;
-  }
-
-  db.cycles.clear();
-}
-
 export default function (app) {
-  app.ports.logCycle.subscribe(insert);
-  app.ports.fetchLogs.subscribe(async millis => await fetch(app, millis));
-  app.ports.requestDataExport.subscribe(async () => await exportData());
-  app.ports.importData.subscribe(async blob => await importData(app, blob));
-  app.ports.updateCycle.subscribe(async data => await updateCycle(data));
-  app.ports.clearLogs.subscribe(clearLogs);
+  app.ports.toLog.subscribe(async data => {
+    switch (data["type"]) {
+      case "fetch":
+        await fetch(app, data["time"]);
+        break;
+
+      case "sentiment":
+        await updateSentiment(data["time"], data["sentiment"]);
+        break;
+    }
+  });
+
+  app.ports.log.subscribe(insert);
 }

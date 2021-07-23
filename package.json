@@ -2,6 +2,7 @@
   "devDependencies": {
     "elm": "^0.19.1-5",
     "elm-hot": "^1.1.6",
+    "elm-review": "^2.5.3",
     "node-elm-compiler": "^5.0.5",
     "parcel-bundler": "^1.12.3",
     "parcel-plugin-pwa-manifest": "^3.0.10",

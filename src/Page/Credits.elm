@@ -1,21 +1,38 @@
-module View.Credits exposing (render)
+module Page.Credits exposing (view)
 
-import Colors
+import Color
 import Css
-import Html.Styled as Html exposing (Html)
-import Html.Styled.Attributes as HtmlAttr
-import Model exposing (Model)
-import Themes.Theme as Theme
-import View.Common as Common
-import View.MiniTimer as MiniTimer
+import Elements
+import Html.Styled as Html
+import Html.Styled.Attributes as Attributes
+import Page.MiniTimer as MiniTimer
+import Page.Settings as Settings
+import Session
+import Theme.Theme as Theme
 
 
-render : Model -> Html msg
-render ({ settings } as model) =
+
+-- MODEL
+
+
+type alias Model a =
+    { a
+        | sessions : List Session.SessionDef
+        , settings : Settings.Settings
+        , active : Session.Active
+    }
+
+
+
+-- VIEW
+
+
+view : Model a -> Html.Html msg
+view ({ settings } as model) =
     let
         anchorStyle =
             Css.batch
-                [ Css.color (settings.theme |> Theme.textColor |> Colors.toCssColor)
+                [ Css.color (settings.theme |> Theme.textColor |> Color.toCssColor)
                 , Css.fontWeight Css.bold
                 ]
 
@@ -28,9 +45,9 @@ render ({ settings } as model) =
 
         anchor url text =
             Html.a
-                [ HtmlAttr.href url
-                , HtmlAttr.target "_blank"
-                , HtmlAttr.css [ anchorStyle ]
+                [ Attributes.href url
+                , Attributes.target "_blank"
+                , Attributes.css [ anchorStyle ]
                 ]
                 [ Html.text text ]
 
@@ -38,19 +55,19 @@ render ({ settings } as model) =
             Html.strong [] [ Html.text text ]
 
         h2 text =
-            Common.h2 settings.theme text [ HtmlAttr.css [ Css.marginBottom <| Css.rem 1 ] ] []
+            Elements.h2 settings.theme text [ Attributes.css [ Css.marginBottom <| Css.rem 1 ] ] []
     in
     Html.div []
-        [ MiniTimer.render model
+        [ MiniTimer.view model
         , Html.div
-            [ HtmlAttr.css
+            [ Attributes.css
                 [ Css.margin2 (Css.rem 2) Css.auto
                 , Css.maxWidth <| Css.px 520
                 ]
             ]
-            [ Common.h1 settings.theme "Credits"
+            [ Elements.h1 settings.theme "Credits"
             , Html.div
-                [ HtmlAttr.css [ sectionStyle ] ]
+                [ Attributes.css [ sectionStyle ] ]
                 [ Html.text "Created by "
                 , anchor "https://www.eberfdias.com" "Éber F. Dias"
                 , Html.text " with "
@@ -61,7 +78,7 @@ render ({ settings } as model) =
                 ]
             , h2 "Themes"
             , Html.div
-                [ HtmlAttr.css [ sectionStyle ] ]
+                [ Attributes.css [ sectionStyle ] ]
                 [ Html.p []
                     [ strong "Gruvbox"
                     , Html.text " originally by "
@@ -80,7 +97,7 @@ render ({ settings } as model) =
                 ]
             , h2 "Sounds"
             , Html.div
-                [ HtmlAttr.css [ sectionStyle ] ]
+                [ Attributes.css [ sectionStyle ] ]
                 [ Html.p []
                     [ strong "Wind Chimes, A.wav"
                     , Html.text " by "
@@ -113,7 +130,7 @@ render ({ settings } as model) =
                     ]
                 ]
             , Html.div
-                [ HtmlAttr.css [ sectionStyle ] ]
+                [ Attributes.css [ sectionStyle ] ]
                 [ anchor "https://www.buymeacoffee.com/eberfre" "🍕 buy me a pizza"
                 ]
             ]

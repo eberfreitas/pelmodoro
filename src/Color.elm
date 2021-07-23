@@ -1,17 +1,17 @@
-module Colors exposing
-    ( BaseColor
+module Color exposing
+    ( Color
     , new
     , setAlpha
     , toCssColor
     , toRgbaString
     )
 
-import Css exposing (Color)
-import Helpers
+import Css
+import Misc
 
 
-type BaseColor
-    = BaseColor
+type Color
+    = Color
         { red : Int
         , green : Int
         , blue : Int
@@ -43,9 +43,9 @@ normalizeAlpha alpha =
         alpha
 
 
-new : Int -> Int -> Int -> Float -> BaseColor
+new : Int -> Int -> Int -> Float -> Color
 new red green blue alpha =
-    BaseColor
+    Color
         { red = normalizeColor red
         , green = normalizeColor green
         , blue = normalizeColor blue
@@ -53,20 +53,20 @@ new red green blue alpha =
         }
 
 
-toCssColor : BaseColor -> Color
-toCssColor (BaseColor { red, green, blue, alpha }) =
+toCssColor : Color -> Css.Color
+toCssColor (Color { red, green, blue, alpha }) =
     Css.rgba red green blue alpha
 
 
-toRgbaString : BaseColor -> String
-toRgbaString (BaseColor { red, green, blue, alpha }) =
+toRgbaString : Color -> String
+toRgbaString (Color { red, green, blue, alpha }) =
     [ red, green, blue ]
         |> List.map String.fromInt
         |> String.join ","
-        |> Helpers.flip (++) ("," ++ String.fromFloat alpha)
+        |> Misc.flip (++) ("," ++ String.fromFloat alpha)
         |> (\c -> "rgba(" ++ c ++ ")")
 
 
-setAlpha : Float -> BaseColor -> BaseColor
-setAlpha alpha (BaseColor color) =
-    { color | alpha = alpha } |> BaseColor
+setAlpha : Float -> Color -> Color
+setAlpha alpha (Color color) =
+    { color | alpha = alpha } |> Color

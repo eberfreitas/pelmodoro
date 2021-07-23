@@ -1,9 +1,9 @@
-module Quotes exposing (..)
+module Quotes exposing (randomHtmlQuote)
 
-import Helpers
-import Html.Styled as Html exposing (Html)
+import Html.Styled as Html
+import Misc
 import Random
-import Time exposing (Posix)
+import Time
 
 
 type alias Quote =
@@ -37,13 +37,13 @@ allQuotes =
     ]
 
 
-pickQuote : Posix -> List Quote -> Maybe Quote
+pickQuote : Time.Posix -> List Quote -> Maybe Quote
 pickQuote time quotes =
     case quotes of
         head :: tail ->
             tail
                 |> Random.uniform head
-                |> Helpers.flip Random.step (time |> Time.posixToMillis |> Random.initialSeed)
+                |> Misc.flip Random.step (time |> Time.posixToMillis |> Random.initialSeed)
                 |> Tuple.first
                 |> Just
 
@@ -51,7 +51,7 @@ pickQuote time quotes =
             Nothing
 
 
-quoteToHtml : Quote -> Html msg
+quoteToHtml : Quote -> Html.Html msg
 quoteToHtml quote =
     Html.div []
         [ Html.strong [] [ Html.text quote.quote ]
@@ -60,8 +60,8 @@ quoteToHtml quote =
         ]
 
 
-getAquote : Posix -> Html msg
-getAquote time =
+randomHtmlQuote : Time.Posix -> Html.Html msg
+randomHtmlQuote time =
     allQuotes
         |> pickQuote time
         |> Maybe.map quoteToHtml

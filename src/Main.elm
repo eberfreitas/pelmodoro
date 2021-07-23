@@ -1,168 +1,102 @@
-port module Main exposing (main)
+module Main exposing (main)
 
-import Browser exposing (Document, UrlRequest(..))
-import Browser.Navigation as Nav exposing (Key)
-import Codecs.Decoders as Decoder
-import Codecs.Encoders as Encoder
-import Colors
+import Browser
+import Browser.Navigation as Navigation
+import Color
 import Css
-import Date
-import File
-import File.Select as Select
-import Helpers
-import Html.Styled as Html exposing (Html)
-import Html.Styled.Attributes as HtmlAttr
-import Iso8601
-import Json.Decode as D
-import Json.Encode as E
-import List.Extra as ListEx
-import Model exposing (Model)
-import Msg exposing (Msg(..))
-import Platform exposing (Program)
+import Elements
+import Html.Styled as Html
+import Html.Styled.Attributes as Attributes
+import Json.Decode as Decode
+import Misc
+import Page.Credits as Credits
+import Page.Flash as Flash
+import Page.Settings as Settings
+import Page.Stats as Stats
+import Page.Timer as Timer
 import Platform.Sub as Sub
-import Quotes
+import Session
 import Task
-import Themes.Theme as Theme
-import Themes.Types exposing (Theme)
+import Theme.Common
+import Theme.Theme as Theme
 import Time
-import Tools
-import Types
-    exposing
-        ( Continuity(..)
-        , Current
-        , Cycle
-        , FlashMsg
-        , Interval(..)
-        , NotificationType(..)
-        , Notifications
-        , Page(..)
-        , Spotify(..)
-        , StatState(..)
-        , StatsDef
-        )
-import Url exposing (Url)
-import View.Common as Common
-import View.Credits as Credits
-import View.Flash as Flash
-import View.Settings as Settings
-import View.Stats as Stats
-import View.Timer as Timer
-import VirtualDom exposing (Node)
+import Url
+import VirtualDom
 
 
-port notify : E.Value -> Cmd msg
+
+-- MODEL
 
 
-port persistCurrent : E.Value -> Cmd msg
+type alias Model =
+    { zone : Time.Zone
+    , time : Time.Posix
+    , key : Navigation.Key
+    , page : Page
+    , uptime : Int
+    , playing : Bool
+    , settings : Settings.Settings
+    , sessions : List Session.SessionDef
+    , active : Session.Active
+    , sentimentSession : Maybe Session.Session
+    , flash : Maybe (Flash.FlashMsg Flash.Msg)
+    }
 
 
-port persistSettings : E.Value -> Cmd msg
-
-
-port fetchLogs : Int -> Cmd msg
-
-
-port spotifyPlay : String -> Cmd msg
-
-
-port spotifyPause : () -> Cmd msg
-
-
-port spotifyRefresh : () -> Cmd msg
-
-
-port spotifyDisconnect : () -> Cmd msg
-
-
-port requestBrowserNotif : Bool -> Cmd msg
-
-
-port requestDataExport : () -> Cmd msg
-
-
-port importData : String -> Cmd msg
-
-
-port updateCycle : ( Int, String ) -> Cmd msg
-
-
-port testSound : String -> Cmd msg
-
-
-port clearLogs : () -> Cmd msg
-
-
-port tick : (Int -> msg) -> Sub msg
-
-
-port gotSpotifyState : (D.Value -> msg) -> Sub msg
-
-
-port gotStatsLogs : (D.Value -> msg) -> Sub msg
-
-
-port gotFlashMsg : (D.Value -> msg) -> Sub msg
-
-
-port gotBrowserNotifRes : (D.Value -> msg) -> Sub msg
+type Page
+    = TimerPage
+    | StatsPage Stats.State
+    | SettingsPage
+    | CreditsPage
 
 
 type alias Flags =
-    { current : D.Value
-    , settings : D.Value
+    { active : Decode.Value
+    , settings : Decode.Value
     , now : Int
     }
 
 
-urlToPage : Int -> Url -> ( Page, Cmd Msg )
-urlToPage time { path } =
-    case path of
-        "/settings" ->
-            ( SettingsPage, Cmd.none )
 
-        "/stats" ->
-            ( StatsPage Loading, fetchLogs time )
-
-        "/credits" ->
-            ( CreditsPage, Cmd.none )
-
-        _ ->
-            ( TimerPage, Cmd.none )
+-- INIT
 
 
-init : Flags -> Url -> Key -> ( Model, Cmd Msg )
-init { current, settings, now } url key =
+init : Flags -> Url.Url -> Navigation.Key -> ( Model, Cmd Msg )
+init { active, settings, now } url key =
     let
         baseModel =
-            Model.default key
+            default key
 
-        newCurrent =
-            case D.decodeValue Decoder.decodeCurrent current of
-                Ok curr ->
-                    curr
+        newActive =
+            case Decode.decodeValue Session.decodeActive active of
+                Ok active_ ->
+                    active_
 
                 Err _ ->
-                    baseModel.current
+                    baseModel.active
 
         newSettings =
-            case D.decodeValue Decoder.decodeSettings settings of
+            case Decode.decodeValue Settings.decodeSettings settings of
                 Ok settings_ ->
                     settings_
 
                 Err _ ->
                     baseModel.settings
 
-        ( newIntervals, newCurrent_ ) =
-            Model.buildIntervals newSettings (Just newCurrent)
+        time =
+            Time.millisToPosix now
+
+        ( newSessions, newActive_ ) =
+            Session.buildSessions newSettings (Just newActive)
 
         ( page, pageCmd ) =
-            urlToPage now url
+            urlToPage time url
     in
     ( { baseModel
-        | current = newCurrent_
+        | active = newActive_
         , time = Time.millisToPosix now
         , settings = newSettings
-        , intervals = newIntervals
+        , sessions = newSessions
         , page = page
       }
     , Cmd.batch
@@ -172,15 +106,19 @@ init { current, settings, now } url key =
     )
 
 
-view : Model -> Document Msg
+
+-- VIEW
+
+
+view : Model -> Browser.Document Msg
 view model =
     let
         title =
             case model.page of
                 TimerPage ->
                     if model.playing then
-                        [ model.current |> Model.currentSecondsLeft |> truncate |> Timer.secondsToDisplay
-                        , Model.intervalToString model.current.cycle.interval
+                        [ model.active |> Session.secondsLeft |> truncate |> Timer.secondsToDisplay
+                        , Session.sessionDefToString model.active.session.def
                         ]
 
                     else
@@ -200,34 +138,34 @@ view model =
     }
 
 
-viewBody : Model -> Node Msg
+viewBody : Model -> VirtualDom.Node Msg
 viewBody model =
     Html.div
-        [ HtmlAttr.class "container"
-        , HtmlAttr.css
+        [ Attributes.class "container"
+        , Attributes.css
             [ Css.width <| Css.vw 100.0
             , Css.position Css.relative
-            , Css.backgroundColor <| (model.settings.theme |> Theme.backgroundColor |> Colors.toCssColor)
+            , Css.backgroundColor <| (model.settings.theme |> Theme.backgroundColor |> Color.toCssColor)
             , Css.fontFamilies [ "Montserrat" ]
-            , Css.color (model.settings.theme |> Theme.textColor |> Colors.toCssColor)
+            , Css.color (model.settings.theme |> Theme.textColor |> Color.toCssColor)
             ]
         ]
-        [ renderPage model
-        , renderFlash model.settings.theme model.flash
-        , renderNav model.settings.theme model.page
+        [ viewPage model
+        , viewFlash model.settings.theme model.flash
+        , viewNav model.settings.theme model.page
         ]
         |> Html.toUnstyled
 
 
-renderFlash : Theme -> Maybe (FlashMsg Msg) -> Html Msg
-renderFlash theme flash =
+viewFlash : Theme.Common.Theme -> Maybe (Flash.FlashMsg Flash.Msg) -> Html.Html Msg
+viewFlash theme flash =
     flash
-        |> Maybe.map (\f -> Flash.render theme f)
+        |> Maybe.map (\f -> Flash.view theme f |> Html.map Flash)
         |> Maybe.withDefault (Html.text "")
 
 
-renderNav : Theme -> Page -> Html Msg
-renderNav theme page =
+viewNav : Theme.Common.Theme -> Page -> Html.Html Msg
+viewNav theme page =
     let
         pages =
             [ ( "/", "timer" )
@@ -242,7 +180,7 @@ renderNav theme page =
                 , Css.backgroundColor Css.transparent
                 , Css.width <| Css.rem 3
                 , Css.height <| Css.rem 3
-                , Css.color <| (theme |> Theme.backgroundColor |> Colors.toCssColor)
+                , Css.color <| (theme |> Theme.backgroundColor |> Color.toCssColor)
                 , Css.outline Css.zero
                 , Css.displayFlex
                 , Css.justifyContent Css.center
@@ -268,20 +206,20 @@ renderNav theme page =
                     Css.opacity <| Css.num 0.4
     in
     Html.div
-        [ HtmlAttr.css
+        [ Attributes.css
             [ Css.position Css.absolute
             , Css.bottom <| Css.px 0
             , Css.left <| Css.px 0
             , Css.right <| Css.px 0
-            , Css.backgroundColor <| (theme |> Theme.foregroundColor |> Colors.toCssColor)
-            , Css.color <| (theme |> Theme.foregroundColor |> Colors.toCssColor)
+            , Css.backgroundColor <| (theme |> Theme.foregroundColor |> Color.toCssColor)
+            , Css.color <| (theme |> Theme.foregroundColor |> Color.toCssColor)
             , Css.displayFlex
             , Css.justifyContent Css.center
             , Css.padding <| Css.rem 0.25
             ]
         ]
         [ Html.ul
-            [ HtmlAttr.css
+            [ Attributes.css
                 [ Css.displayFlex
                 , Css.justifyContent Css.center
                 , Css.listStyle Css.none
@@ -292,644 +230,149 @@ renderNav theme page =
                     (\( path, icon ) ->
                         Html.li []
                             [ Html.a
-                                [ HtmlAttr.href path
-                                , HtmlAttr.css
+                                [ Attributes.href path
+                                , Attributes.css
                                     [ buttonStyle
                                     , isSelected path page
                                     ]
                                 ]
-                                [ Common.icon icon ]
+                                [ Elements.icon icon ]
                             ]
                     )
             )
         ]
 
 
-renderPage : Model -> Html Msg
-renderPage model =
+viewPage : Model -> Html.Html Msg
+viewPage model =
     Html.div
-        [ HtmlAttr.css
+        [ Attributes.css
             [ Css.height (Css.calc (Css.pct 100) Css.minus (Css.rem 3.5))
             , Css.overflow Css.auto
             ]
         ]
         [ case model.page of
             TimerPage ->
-                Timer.render model
+                Timer.view model |> Html.map Timer
 
             SettingsPage ->
-                Settings.render model
+                Settings.view model |> Html.map Settings
 
-            StatsPage _ ->
-                Stats.render model
+            StatsPage state ->
+                Stats.view model state |> Html.map Stats
 
             CreditsPage ->
-                Credits.render model
+                Credits.view model
         ]
 
 
-newFlash : String -> Html msg -> FlashMsg msg
-newFlash title content =
-    FlashMsg 15 title content
+
+-- UPDATE
 
 
-handleFlashMsg : Maybe (FlashMsg msg) -> Maybe (FlashMsg msg)
-handleFlashMsg flashMsg =
-    flashMsg
-        |> Maybe.andThen
-            (\({ time } as flash) ->
-                if (time - 1) < 1 then
-                    Nothing
-
-                else
-                    Just { flash | time = time - 1 }
-            )
-
-
-decodeFlash : D.Decoder (FlashMsg msg)
-decodeFlash =
-    D.map2
-        (\title msg -> newFlash title (Html.div [] [ Html.text msg ]))
-        (D.field "title" D.string)
-        (D.field "msg" D.string)
-
-
-decodeBrowserNotifRes : D.Decoder { val : Bool, msg : String }
-decodeBrowserNotifRes =
-    D.map2
-        (\val msg -> { val = val, msg = msg })
-        (D.field "val" D.bool)
-        (D.field "msg" D.string)
-
-
-type alias EvalResult msg =
-    { current : Current
-    , playing : Bool
-    , flash : Maybe (FlashMsg msg)
-    , cmd : Cmd msg
-    , sentimentCycle : Maybe Cycle
-    }
-
-
-encodeNotifConfig : { sound : String, msg : String, config : Notifications } -> E.Value
-encodeNotifConfig { sound, msg, config } =
-    E.object
-        [ ( "sound", E.string sound )
-        , ( "msg", E.string msg )
-        , ( "config", Encoder.encodeNotifications config )
-        ]
-
-
-evalElapsedTime : Model -> EvalResult msg
-evalElapsedTime model =
-    if Model.currentSecondsLeft model.current == 0 then
-        let
-            firstInterval =
-                model.intervals |> Model.firstInterval
-
-            nextIdx =
-                model.current.index + 1
-
-            cmdFnByInterval interval =
-                case ( interval, model.settings.spotify ) of
-                    ( Activity _, Connected _ (Just uri) ) ->
-                        spotifyPlay uri
-
-                    ( _, Connected _ (Just _) ) ->
-                        spotifyPause ()
-
-                    _ ->
-                        Cmd.none
-
-            ( current_, playing ) =
-                case ( model.intervals |> ListEx.getAt nextIdx, model.settings.continuity ) of
-                    ( Nothing, FullCont ) ->
-                        ( Current 0 (Model.cycleBuild firstInterval (Just model.time)) 0, True )
-
-                    ( Nothing, _ ) ->
-                        ( Current 0 (Model.cycleBuild firstInterval Nothing) 0, False )
-
-                    ( Just nextInterval, NoCont ) ->
-                        ( Current nextIdx (Model.cycleBuild nextInterval Nothing) 0, False )
-
-                    ( Just nextInterval, _ ) ->
-                        ( Current nextIdx (Model.cycleBuild nextInterval (Just model.time)) 0, True )
-
-            ( flashMsg, notifMsg, sentimentCycle ) =
-                case ( model.current.cycle.interval, current_.cycle.interval ) of
-                    ( Activity _, Break _ ) ->
-                        ( Just (newFlash "Time to take a break" (Quotes.getAquote model.time))
-                        , "Time to take a break"
-                        , Just model.current.cycle
-                        )
-
-                    ( Break _, Activity _ ) ->
-                        ( Just (newFlash "Back to work" (Quotes.getAquote model.time))
-                        , "Back to work"
-                        , Nothing
-                        )
-
-                    ( Activity _, LongBreak _ ) ->
-                        ( Just (newFlash "Time to relax" (Quotes.getAquote model.time))
-                        , "Time to relax"
-                        , Just model.current.cycle
-                        )
-
-                    ( LongBreak _, Activity _ ) ->
-                        ( Just (newFlash "What is next?" (Quotes.getAquote model.time))
-                        , "What is next?"
-                        , Nothing
-                        )
-
-                    _ ->
-                        ( Nothing, "", Nothing )
-
-            notifyVal =
-                encodeNotifConfig
-                    { sound = model.settings.sound |> Tools.soundToString
-                    , msg = notifMsg
-                    , config = model.settings.notifications
-                    }
-        in
-        EvalResult
-            current_
-            playing
-            flashMsg
-            (Cmd.batch [ notify notifyVal, cmdFnByInterval current_.cycle.interval ])
-            sentimentCycle
-
-    else
-        EvalResult (Model.currentAddElapsed 1 model.current) True Nothing Cmd.none Nothing
+type Msg
+    = AdjustTimeZone Time.Zone
+    | UrlChanged Url.Url
+    | LinkCliked Browser.UrlRequest
+    | Timer Timer.Msg
+    | Stats Stats.Msg
+    | Settings Settings.Msg
+    | Flash Flash.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    let
-        done m =
-            ( m, Cmd.none )
+    case ( msg, model.page ) of
+        ( AdjustTimeZone newZone, _ ) ->
+            Misc.withCmd { model | zone = newZone }
 
-        playPlaylist uri ( model_, cmd ) =
-            spotifyPlay uri
-                |> Helpers.flip (::) [ cmd ]
-                |> Cmd.batch
-                |> Tuple.pair model_
-
-        pausePlaylist ( model_, cmd ) =
-            spotifyPause ()
-                |> Helpers.flip (::) [ cmd ]
-                |> Cmd.batch
-                |> Tuple.pair model_
-
-        persistCurrent_ ( model_, cmd ) =
-            model_.current
-                |> Encoder.encodeCurrent
-                |> persistCurrent
-                |> Helpers.flip (::) [ cmd ]
-                |> Cmd.batch
-                |> Tuple.pair model_
-
-        persistSettings_ ( model_, cmd ) =
-            model_.settings
-                |> Encoder.encodeSettings
-                |> persistSettings
-                |> Helpers.flip (::) [ cmd ]
-                |> Cmd.batch
-                |> Tuple.pair model_
-
-        updateFlash ( model_, cmd ) =
-            { model_ | flash = handleFlashMsg model_.flash }
-                |> Helpers.flip Tuple.pair cmd
-
-        setFlash : Maybe (FlashMsg Msg) -> ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
-        setFlash flashMsg ( model_, cmd ) =
-            flashMsg
-                |> Maybe.map (\f -> { model_ | flash = Just f })
-                |> Maybe.withDefault model_
-                |> Helpers.flip Tuple.pair cmd
-
-        updateSettings model_ =
-            let
-                ( newIntervals, newCurrent ) =
-                    Model.buildIntervals model_.settings (Just model_.current)
-            in
-            { model_ | current = newCurrent, intervals = newIntervals, playing = False }
-                |> done
-                |> persistSettings_
-                |> persistCurrent_
-                |> pausePlaylist
-    in
-    case msg of
-        NoOp ->
-            done model
-
-        Tick millis ->
-            let
-                posix =
-                    Time.millisToPosix millis
-
-                updateTime model_ =
-                    { model_ | time = posix, uptime = model_.uptime + 1 }
-            in
-            if model.playing == True then
-                let
-                    newState =
-                        evalElapsedTime model
-
-                    logCmd =
-                        if newState.cmd /= Cmd.none then
-                            Model.cycleLog model.time model.current
-
-                        else
-                            Cmd.none
-
-                    flashFn =
-                        if model.settings.notifications.inApp then
-                            setFlash newState.flash
-
-                        else
-                            identity
-
-                    setupSentimentCycle m =
-                        let
-                            newSentiment =
-                                case ( m.sentimentCycle, newState.sentimentCycle, newState.current.cycle.interval ) of
-                                    ( _, _, Activity _ ) ->
-                                        Nothing
-
-                                    ( sentiment, Nothing, _ ) ->
-                                        sentiment
-
-                                    ( Nothing, sentiment, _ ) ->
-                                        sentiment
-
-                                    _ ->
-                                        Nothing
-                        in
-                        { m | sentimentCycle = newSentiment }
-                in
-                { model | current = newState.current, playing = newState.playing }
-                    |> setupSentimentCycle
-                    |> updateTime
-                    |> Helpers.flip Tuple.pair (Cmd.batch [ newState.cmd, logCmd ])
-                    |> updateFlash
-                    |> flashFn
-                    |> persistCurrent_
-
-            else
-                model |> updateTime |> done |> updateFlash
-
-        AdjustTimeZone newZone ->
-            done { model | zone = newZone }
-
-        Pause ->
-            done { model | playing = False } |> pausePlaylist
-
-        Play ->
-            let
-                { index, cycle, elapsed } =
-                    model.current
-
-                newCurrent =
-                    if elapsed == 0 then
-                        Current index (Model.cycleStart model.time cycle) 0
-
-                    else
-                        model.current
-
-                cmdFn =
-                    case ( model.settings.spotify, newCurrent.cycle.interval ) of
-                        ( Connected _ (Just uri), Activity _ ) ->
-                            playPlaylist uri
-
-                        _ ->
-                            identity
-            in
-            { model | playing = True, current = newCurrent } |> done |> persistCurrent_ |> cmdFn
-
-        Skip ->
-            let
-                { index } =
-                    model.current
-
-                ( newIndex, newInterval ) =
-                    case ListEx.getAt (index + 1) model.intervals of
-                        Just next ->
-                            ( index + 1, next )
-
-                        Nothing ->
-                            ( 0, model.intervals |> Model.firstInterval )
-
-                newCurrent =
-                    Current newIndex (Model.cycleBuild newInterval Nothing) 0
-            in
-            { model | current = newCurrent, playing = False }
-                |> Helpers.flip Tuple.pair (Model.cycleLog model.time model.current)
-                |> persistCurrent_
-                |> pausePlaylist
-
-        Reset ->
-            let
-                newCurrent =
-                    Current 0 (Model.cycleBuild (Model.firstInterval model.intervals) Nothing) 0
-            in
-            { model | current = newCurrent, playing = False }
-                |> Helpers.flip Tuple.pair (Model.cycleLog model.time model.current)
-                |> persistCurrent_
-                |> pausePlaylist
-
-        ChangeRounds rounds ->
-            model
-                |> Model.mapSettings (\s -> { s | rounds = rounds })
-                |> updateSettings
-
-        ChangeActivity mins ->
-            model
-                |> Model.mapSettings (\s -> { s | activity = mins * 60 })
-                |> updateSettings
-
-        ChangeBreak mins ->
-            model
-                |> Model.mapSettings (\s -> { s | break = mins * 60 })
-                |> updateSettings
-
-        ChangeLongBreak mins ->
-            model
-                |> Model.mapSettings (\s -> { s | longBreak = mins * 60 })
-                |> updateSettings
-
-        ChangeContinuity cont ->
-            case Tools.continuityFromDisplay cont of
-                Just c ->
-                    model
-                        |> Model.mapSettings (\s -> { s | continuity = c })
-                        |> updateSettings
-
-                Nothing ->
-                    done model
-
-        ChangeTheme theme ->
-            case Themes.Types.themeFromString theme of
-                Just t ->
-                    model
-                        |> Model.mapSettings (\s -> { s | theme = t })
-                        |> updateSettings
-
-                Nothing ->
-                    done model
-
-        ChangePlaylist uri ->
-            model
-                |> Model.mapSettings
-                    (\s ->
-                        let
-                            newSpotify =
-                                case s.spotify of
-                                    Connected playlists _ ->
-                                        Connected
-                                            playlists
-                                            (ListEx.find
-                                                (Tuple.first >> (==) uri)
-                                                playlists
-                                                |> Maybe.map Tuple.first
-                                            )
-
-                                    _ ->
-                                        s.spotify
-                        in
-                        { s | spotify = newSpotify }
-                    )
-                |> updateSettings
-
-        GotSpotifyState raw ->
-            case D.decodeValue Decoder.decodeSpotify raw of
-                Ok newState ->
-                    model
-                        |> Model.mapSettings
-                            (\s ->
-                                let
-                                    newSpotify =
-                                        case ( s.spotify, newState ) of
-                                            ( Connected _ (Just current), Connected playlists _ ) ->
-                                                let
-                                                    newCurrent =
-                                                        playlists
-                                                            |> ListEx.find (Tuple.first >> (==) current)
-                                                            |> Maybe.map Tuple.first
-                                                in
-                                                Connected playlists newCurrent
-
-                                            _ ->
-                                                newState
-                                in
-                                { s | spotify = newSpotify }
-                            )
-                        |> updateSettings
-
-                Err _ ->
-                    done model
-
-        SpotifyRefresh ->
-            ( model, spotifyRefresh () )
-
-        SpotifyDisconnect ->
-            ( model, spotifyDisconnect () )
-
-        ChangeLogDate newDate ->
-            case model.page of
-                StatsPage (Loaded def) ->
-                    done { model | page = StatsPage (Loaded { def | date = newDate }) }
-
-                _ ->
-                    done model
-
-        ChangeLogMonth newDate ->
-            case newDate |> Date.add Date.Days 1 |> Date.toIsoString |> Iso8601.toTime of
-                Ok posix ->
-                    ( model, fetchLogs <| Time.posixToMillis posix )
-
-                Err _ ->
-                    done model
-
-        GotStatsLogs raw ->
-            case ( model.page, D.decodeValue Decoder.decodeLog raw ) of
-                ( StatsPage Loading, Ok { ts, logs } ) ->
-                    let
-                        date =
-                            ts |> Time.millisToPosix |> Date.fromPosix model.zone
-                    in
-                    done { model | page = StatsPage (Loaded (StatsDef date logs False)) }
-
-                ( StatsPage (Loaded def), Ok { ts, logs } ) ->
-                    let
-                        newDef =
-                            { def
-                                | date =
-                                    ts
-                                        |> Time.millisToPosix
-                                        |> Date.fromPosix model.zone
-                                , logs = logs
-                            }
-                    in
-                    done { model | page = StatsPage (Loaded newDef) }
-
-                _ ->
-                    done model
-
-        UrlChanged url ->
+        ( UrlChanged url, _ ) ->
             url
-                |> urlToPage (Time.posixToMillis model.time)
+                |> urlToPage model.time
                 |> Tuple.mapFirst (\p -> { model | page = p })
 
-        LinkCliked urlRequest ->
+        ( LinkCliked urlRequest, _ ) ->
             case urlRequest of
-                Internal url ->
-                    ( model, Nav.pushUrl model.key (Url.toString url) )
+                Browser.Internal url ->
+                    ( model, Navigation.pushUrl model.key (Url.toString url) )
 
-                External href ->
-                    ( model, Nav.load href )
+                Browser.External href ->
+                    ( model, Navigation.load href )
 
-        CloseFlashMsg ->
-            { model | flash = Nothing } |> done
+        ( Flash subMsg, _ ) ->
+            Flash.update subMsg model |> Misc.updateWith Flash
 
-        GotFlashMsg raw ->
-            case D.decodeValue decodeFlash raw of
-                Ok flash ->
-                    { model | flash = Just flash } |> done
+        ( Timer subMsg, _ ) ->
+            Timer.update subMsg model
 
-                Err _ ->
-                    done model
+        ( Stats subMsg, StatsPage state ) ->
+            Stats.update model.zone subMsg state
+                |> Tuple.mapFirst (\s -> { model | page = StatsPage s })
+                |> Misc.updateWith Stats
 
-        ToggleNotification type_ ->
-            let
-                notificationSettings =
-                    model.settings.notifications
-            in
-            case type_ of
-                InApp ->
-                    let
-                        newNotifications =
-                            { notificationSettings | inApp = not notificationSettings.inApp }
-                    in
-                    model
-                        |> Model.mapSettings (\s -> { s | notifications = newNotifications })
-                        |> updateSettings
+        ( Settings subMsg, _ ) ->
+            Settings.update subMsg model |> Misc.updateWith Settings
 
-                Sound ->
-                    let
-                        newNotifications =
-                            { notificationSettings | sound = not notificationSettings.sound }
-                    in
-                    model
-                        |> Model.mapSettings (\s -> { s | notifications = newNotifications })
-                        |> updateSettings
-
-                Browser ->
-                    ( model, requestBrowserNotif (not model.settings.notifications.browser) )
-
-        GotBrowserNotifRes raw ->
-            case D.decodeValue decodeBrowserNotifRes raw of
-                Ok res ->
-                    let
-                        flashFn =
-                            if res.msg /= "" then
-                                newFlash "Attention" (Html.div [] [ Html.text res.msg ])
-                                    |> Just
-                                    |> setFlash
-
-                            else
-                                identity
-
-                        notifications =
-                            model.settings.notifications
-
-                        newNotifications =
-                            { notifications | browser = res.val }
-                    in
-                    model
-                        |> Model.mapSettings (\s -> { s | notifications = newNotifications })
-                        |> updateSettings
-                        |> flashFn
-
-                Err _ ->
-                    done model
-
-        RequestDataExport ->
-            ( model, requestDataExport () )
-
-        ImportRequest ->
-            ( model, Select.file [ "application/json" ] ImportSelect )
-
-        ImportSelect file ->
-            ( model, Task.perform ImportData (File.toString file) )
-
-        ImportData data ->
-            ( model, importData data )
-
-        UpdateSentiment start sentiment ->
-            let
-                newModel =
-                    case model.page of
-                        StatsPage (Loaded def) ->
-                            let
-                                newLogs =
-                                    def.logs
-                                        |> ListEx.findIndex (.start >> (==) (Just start))
-                                        |> Maybe.map
-                                            (\idx ->
-                                                def.logs
-                                                    |> ListEx.updateAt idx
-                                                        (\cycle -> { cycle | sentiment = Just sentiment })
-                                            )
-                                        |> Maybe.withDefault def.logs
-                            in
-                            { model
-                                | page = StatsPage (Loaded { def | logs = newLogs })
-                                , sentimentCycle = Nothing
-                            }
-
-                        _ ->
-                            { model | sentimentCycle = Nothing }
-            in
-            ( newModel, updateCycle ( Time.posixToMillis start, Tools.sentimentToString sentiment ) )
-
-        ToggleLogs ->
-            case model.page of
-                StatsPage (Loaded def) ->
-                    let
-                        newDef =
-                            { def | showLogs = not def.showLogs }
-                    in
-                    done { model | page = StatsPage (Loaded newDef) }
-
-                _ ->
-                    done model
-
-        ChangeSound sound ->
-            case Tools.soundFromDisplay sound of
-                Just s ->
-                    model
-                        |> Model.mapSettings (\se -> { se | sound = s })
-                        |> updateSettings
-
-                Nothing ->
-                    done model
-
-        TestSound sound ->
-            ( model, testSound (sound |> Tools.soundToString) )
-
-        ClearLogs ->
-            ( model, clearLogs () )
+        _ ->
+            Misc.withCmd model
 
 
-subs : Model -> Sub Msg
-subs _ =
+
+-- HELPERS
+
+
+default : Navigation.Key -> Model
+default key =
+    let
+        ( sessions, active ) =
+            Session.buildSessions Settings.default Nothing
+    in
+    { zone = Time.utc
+    , time = Time.millisToPosix 0
+    , key = key
+    , page = TimerPage
+    , uptime = 0
+    , playing = False
+    , settings = Settings.default
+    , sessions = sessions
+    , active = active
+    , sentimentSession = Nothing
+    , flash = Nothing
+    }
+
+
+urlToPage : Time.Posix -> Url.Url -> ( Page, Cmd Msg )
+urlToPage time { path } =
+    case path of
+        "/settings" ->
+            ( SettingsPage, Cmd.none )
+
+        "/stats" ->
+            ( StatsPage Stats.initialState, time |> Stats.logsFetchCmd )
+
+        "/credits" ->
+            ( CreditsPage, Cmd.none )
+
+        _ ->
+            ( TimerPage, Cmd.none )
+
+
+
+-- SUBSCRIPTIONS
+
+
+subscriptions : Model -> Sub Msg
+subscriptions _ =
     Sub.batch
-        [ tick Tick
-        , gotSpotifyState GotSpotifyState
-        , gotStatsLogs GotStatsLogs
-        , gotFlashMsg GotFlashMsg
-        , gotBrowserNotifRes GotBrowserNotifRes
+        [ Timer.subscriptions |> Sub.map Timer
+        , Settings.subscriptions |> Sub.map Settings
+        , Stats.subscriptions |> Sub.map Stats
+        , Flash.subscriptions |> Sub.map Flash
         ]
+
+
+
+-- MAIN
 
 
 main : Program Flags Model Msg
@@ -938,7 +381,7 @@ main =
         { init = init
         , view = view
         , update = update
-        , subscriptions = subs
+        , subscriptions = subscriptions
         , onUrlChange = UrlChanged
         , onUrlRequest = LinkCliked
         }

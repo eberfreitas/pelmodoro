@@ -5,26 +5,27 @@ import viewportFix from "./src/js/viewport-fix.js";
 import notify from "./src/js/notify.js";
 import spotify from "./src/js/spotify.js";
 import logs from "./src/js/logs.js";
+import settings from "./src/js/settings.js";
 import pwa from "./src/js/pwa.js";
 
-const current = storage.get("current", {});
-const settings = storage.get("settings", {});
+const active = storage.get("active", storage.get("current", {}));
+const settings_ = storage.get("settings", {});
 
 const app = Elm.Main.init({
   flags: {
-    current: current,
-    settings: settings,
+    active: active,
+    settings: settings_,
     now: Date.now()
   }
 });
 
-app.ports.persistCurrent.subscribe(current => storage.set("current", current));
-app.ports.persistSettings.subscribe(settings => storage.set("settings", settings));
+app.ports.localStorage.subscribe(payload => storage.set(payload["key"], payload["data"]));
 
 viewportFix();
 notify(app);
 spotify(app);
 logs(app);
+settings(app);
 pwa();
 
 const tickWorker = new Worker('./src/js/tick.js');
