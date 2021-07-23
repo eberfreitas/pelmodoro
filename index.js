@@ -19,9 +19,11 @@ const app = Elm.Main.init({
   }
 });
 
-app.ports.localStorage.subscribe(payload => storage.get(payload["key"], payload["data"]));
+app.ports.localStorage.subscribe(payload => {
+  storage.set(payload["key"], payload["data"]);
+});
 
-// viewportFix();
+viewportFix();
 //notify(app);
 spotify(app);
 logs(app);

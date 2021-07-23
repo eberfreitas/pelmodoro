@@ -44,6 +44,7 @@ type alias Model a =
         , flash : Maybe (Flash.FlashMsg Flash.Msg)
         , active : Session.Active
         , sessions : List Session.SessionDef
+        , playing : Bool
     }
 
 
@@ -101,9 +102,6 @@ view ({ settings } as model) =
     let
         inMinutes seconds =
             seconds // 60
-
-        toTrio ( a, b ) =
-            ( a, b, b )
     in
     Html.div []
         [ MiniTimer.view model
@@ -203,19 +201,19 @@ update msg ({ settings } as model) =
 
         UpdateWorkDuration secs ->
             model
-                |> mapSettings (\s -> { s | workDuration = secs })
+                |> mapSettings (\s -> { s | workDuration = secs * 60 })
                 |> Misc.withCmd
                 |> save
 
         UpdateBreakDuration secs ->
             model
-                |> mapSettings (\s -> { s | breakDuration = secs })
+                |> mapSettings (\s -> { s | breakDuration = secs * 60 })
                 |> Misc.withCmd
                 |> save
 
         UpdateLongBreakDuration secs ->
             model
-                |> mapSettings (\s -> { s | longBreakDuration = secs })
+                |> mapSettings (\s -> { s | longBreakDuration = secs * 60 })
                 |> Misc.withCmd
                 |> save
 
@@ -352,11 +350,20 @@ mapSettings fn model =
 
 
 save : ( Model a, Cmd Msg ) -> ( Model a, Cmd Msg )
-save (( { settings }, _ ) as pair) =
-    settings
-        |> encodeSettings
-        |> Ports.localStorageHelper "settings"
-        |> Misc.flip Misc.addCmd pair
+save ( model, cmd ) =
+    let
+        ( newSessions, newActive ) =
+            Session.buildSessions model.settings (Just model.active)
+    in
+    { model | playing = False, sessions = newSessions, active = newActive }
+        |> Misc.withCmd
+        |> Misc.addCmd cmd
+        |> Misc.addCmd
+            (Cmd.batch
+                [ model.settings |> encodeSettings |> Ports.localStorageHelper "settings"
+                , newActive |> Session.encodeActive |> Ports.localStorageHelper "active"
+                ]
+            )
 
 
 toggleNotification : NotificationType -> Notifications -> Notifications
