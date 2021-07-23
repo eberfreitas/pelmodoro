@@ -11,6 +11,7 @@ module Elements exposing
     , numberInput
     , selectInput
     , selectStyle
+    , simpleSeparator
     , styledIcon
     )
 
@@ -97,8 +98,8 @@ largeButtonStyle theme =
         , Css.width <| Css.pct 100
         , Css.textAlign Css.center
         , Css.textDecoration Css.none
-        , Css.paddingTop <| Css.rem 1
         , Css.fontSize <| Css.rem 1
+        , Css.fontFamilies [ "Montserrat" ]
         ]
 
 
@@ -115,7 +116,10 @@ largeLinkButton : Theme.Common.Theme -> String -> String -> Html.Html msg
 largeLinkButton theme url label =
     Html.a
         [ Attributes.href url
-        , Attributes.css [ largeButtonStyle theme ]
+        , Attributes.css
+            [ largeButtonStyle theme
+            , Css.paddingTop <| Css.rem 1
+            ]
         ]
         [ Html.text label ]
 
@@ -248,3 +252,8 @@ inputContainer label input =
         [ Html.div [ Attributes.css [ labelStyle ] ] [ Html.text label ]
         , input
         ]
+
+
+simpleSeparator : Html.Html msg -> Html.Html msg
+simpleSeparator body =
+    Html.div [ Attributes.css [ Css.marginBottom <| Css.rem 1 ] ] [ body ]

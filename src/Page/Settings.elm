@@ -139,6 +139,7 @@ view ({ settings } as model) =
                             (Trio.first >> (==) settings.alarmSound)
                             UpdateAlarmSound
                             alarmSoundTypeAndStrings
+                            |> Elements.simpleSeparator
                         , Elements.largeButton settings.theme
                             (TestAlarmSound settings.alarmSound)
                             [ Elements.styledIcon [ Css.verticalAlign Css.middle ] "play_arrow" ]
@@ -155,7 +156,9 @@ view ({ settings } as model) =
             , Elements.inputContainer "Import / Export" <|
                 Html.div []
                     [ Elements.largeButton settings.theme ExportRequest [ Html.text "Export" ]
+                        |> Elements.simpleSeparator
                     , Elements.largeButton settings.theme ImportRequest [ Html.text "Import" ]
+                        |> Elements.simpleSeparator
                     , Elements.largeButton settings.theme ClearLogs [ Html.text "Clear logs" ]
                     ]
             ]
