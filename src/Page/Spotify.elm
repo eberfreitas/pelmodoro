@@ -75,7 +75,9 @@ view theme state =
                                     [ Html.text "Don't play anything" ]
                                 )
                         )
+                        |> Elements.simpleSeparator
                     , Elements.largeButton theme RefreshPlaylists [ Html.text "Refresh playlists" ]
+                        |> Elements.simpleSeparator
                     , Elements.largeButton theme Disconnect [ Html.text "Disconnect" ]
                     ]
 
