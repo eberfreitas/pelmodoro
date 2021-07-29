@@ -9,6 +9,7 @@ type Theme
     | Gruvbox
     | Dracula
     | Nord
+    | Fall
 
 
 type alias ThemeColors =
