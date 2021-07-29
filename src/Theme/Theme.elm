@@ -21,6 +21,7 @@ import Theme.Gruvbox as Gruvbox
 import Theme.NightMood as NightMood
 import Theme.Nord as Nord
 import Theme.Tomato as Tomato
+import Theme.Fall as Fall
 
 
 themeColors : Theme.Common.Theme -> Theme.Common.ThemeColors
@@ -40,6 +41,9 @@ themeColors theme =
 
         Theme.Common.Nord ->
             Nord.theme
+
+        Theme.Common.Fall ->
+            Fall.theme
 
 
 backgroundColor : Theme.Common.Theme -> Color.Color
@@ -84,6 +88,7 @@ themeTypeAndStrings =
     , ( Theme.Common.Gruvbox, "gruvbox", "Gruvbox" )
     , ( Theme.Common.Dracula, "dracula", "Dracula" )
     , ( Theme.Common.Nord, "nord", "Nord" )
+    , ( Theme.Common.Fall, "fall", "Fall" )
     ]
 
 
