@@ -27,7 +27,7 @@ import Page.Flash as Flash
 import Page.MiniTimer as MiniTimer
 import Page.Spotify as Spotify
 import Ports
-import Session
+import Sessions
 import Task
 import Theme.Common
 import Theme.Theme as Theme
@@ -42,9 +42,7 @@ type alias Model a =
     { a
         | settings : Settings
         , flash : Maybe (Flash.FlashMsg Flash.Msg)
-        , active : Session.Active
-        , sessions : List Session.SessionDef
-        , playing : Bool
+        , sessions : Sessions.Sessions
     }
 
 
@@ -348,18 +346,21 @@ mapSettings fn model =
 
 
 save : ( Model a, Cmd Msg ) -> ( Model a, Cmd Msg )
-save ( model, cmd ) =
+save ( { sessions } as model, cmd ) =
     let
         ( newSessions, newActive ) =
-            Session.buildSessions model.settings (Just model.active)
+            Sessions.buildSessions model.settings (Just model.sessions.active)
+
+        newSessions_ =
+            { sessions | sessions = newSessions, playing = False, active = newActive }
     in
-    { model | playing = False, sessions = newSessions, active = newActive }
+    { model | sessions = newSessions_ }
         |> Misc.withCmd
         |> Misc.addCmd cmd
         |> Misc.addCmd
             (Cmd.batch
                 [ model.settings |> encodeSettings |> Ports.localStorageHelper "settings"
-                , newActive |> Session.encodeActive |> Ports.localStorageHelper "active"
+                , newActive |> Sessions.encodeActive |> Ports.localStorageHelper "active"
                 , Spotify.pause model.settings.spotify
                 ]
             )

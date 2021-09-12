@@ -7,7 +7,7 @@ import Html.Styled as Html
 import Html.Styled.Attributes as Attributes
 import Page.MiniTimer as MiniTimer
 import Page.Settings as Settings
-import Session
+import Sessions
 import Theme.Theme as Theme
 
 
@@ -17,9 +17,8 @@ import Theme.Theme as Theme
 
 type alias Model a =
     { a
-        | sessions : List Session.SessionDef
+        | sessions : Sessions.Sessions
         , settings : Settings.Settings
-        , active : Session.Active
     }
 
 

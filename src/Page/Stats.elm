@@ -27,7 +27,7 @@ import List.Extra
 import Misc
 import Page.MiniTimer as MiniTimer
 import Ports
-import Session
+import Sessions
 import Theme.Common
 import Theme.Theme as Theme
 import Time
@@ -42,8 +42,7 @@ type alias Model a b =
     { a
         | env : Env.Env
         , settings : { b | theme : Theme.Common.Theme }
-        , active : Session.Active
-        , sessions : List Session.SessionDef
+        , sessions : Sessions.Sessions
     }
 
 
@@ -54,7 +53,7 @@ type State
 
 type alias Def =
     { date : Date.Date
-    , logs : List Session.Session
+    , logs : List Sessions.Session
     , showLogs : Bool
     }
 
@@ -104,7 +103,7 @@ viewCalendar :
     -> Time.Zone
     -> Date.Date
     -> Date.Date
-    -> List Session.Session
+    -> List Sessions.Session
     -> Html.Html Msg
 viewCalendar theme zone today date logs =
     let
@@ -253,7 +252,7 @@ viewCalendar theme zone today date logs =
         ]
 
 
-viewSummary : Theme.Common.Theme -> String -> List Session.Session -> Html.Html msg
+viewSummary : Theme.Common.Theme -> String -> List Sessions.Session -> Html.Html msg
 viewSummary theme label logs =
     if logs == [] then
         Html.text ""
@@ -261,16 +260,16 @@ viewSummary theme label logs =
     else
         let
             workLogs =
-                logs |> List.filter (.def >> Session.isWork)
+                logs |> List.filter (.def >> Sessions.isWork)
 
             breakLogs =
-                logs |> List.filter (.def >> Session.isAnyBreak)
+                logs |> List.filter (.def >> Sessions.isAnyBreak)
 
             aggFn =
                 List.foldl
                     (\{ seconds, def } ( a, b ) ->
                         ( a + (seconds |> Maybe.withDefault 0)
-                        , b + Session.sessionSeconds def
+                        , b + Sessions.sessionSeconds def
                         )
                     )
                     ( 0, 0 )
@@ -288,7 +287,7 @@ viewSummary theme label logs =
                 breakRealSecs * 100 // breakTotalSecs
 
             sentiment =
-                Session.calculateSentiment logs
+                Sessions.calculateSentiment logs
         in
         Html.div [ Attributes.css [ Css.marginBottom <| Css.rem 2 ] ]
             [ Elements.h2 theme label [ Attributes.css [ Css.marginBottom <| Css.rem 1 ] ] []
@@ -317,21 +316,21 @@ viewSummary theme label logs =
                     "Sentiment"
                     [ Attributes.css [ Css.marginBottom <| Css.rem 0.5 ] ]
                     []
-                , Html.div [ Attributes.title (Session.sentimentToDisplay sentiment) ]
+                , Html.div [ Attributes.title (Sessions.sentimentToDisplay sentiment) ]
                     [ Elements.styledIcon
                         [ Css.fontSize <| Css.rem 2 ]
-                        (Session.sentimentToIcon sentiment)
+                        (Sessions.sentimentToIcon sentiment)
                     ]
                 ]
             ]
 
 
-viewDailySummary : Theme.Common.Theme -> Time.Zone -> Date.Date -> List Session.Session -> Html.Html msg
+viewDailySummary : Theme.Common.Theme -> Time.Zone -> Date.Date -> List Sessions.Session -> Html.Html msg
 viewDailySummary theme zone date logs =
     viewSummary theme "Daily summary" (dailyLogs zone date logs)
 
 
-viewDailyLogs : Theme.Common.Theme -> Bool -> Time.Zone -> Date.Date -> List Session.Session -> Html.Html Msg
+viewDailyLogs : Theme.Common.Theme -> Bool -> Time.Zone -> Date.Date -> List Sessions.Session -> Html.Html Msg
 viewDailyLogs theme show zone selected logs =
     let
         formatToHour t =
@@ -364,9 +363,9 @@ viewDailyLogs theme show zone selected logs =
                 ]
                 [ Html.ul
                     [ Attributes.css [ Css.listStyle Css.none ] ]
-                    ([ ( "Positive", UpdateSentiment start Session.positive, "sentiment_satisfied" )
-                     , ( "Neutral", UpdateSentiment start Session.neutral, "sentiment_neutral" )
-                     , ( "Negative", UpdateSentiment start Session.negative, "sentiment_dissatisfied" )
+                    ([ ( "Positive", UpdateSentiment start Sessions.positive, "sentiment_satisfied" )
+                     , ( "Neutral", UpdateSentiment start Sessions.neutral, "sentiment_neutral" )
+                     , ( "Negative", UpdateSentiment start Sessions.negative, "sentiment_dissatisfied" )
                      ]
                         |> List.map
                             (\( label, msg, icon ) ->
@@ -396,12 +395,12 @@ viewDailyLogs theme show zone selected logs =
             let
                 innerPct =
                     session
-                        |> Session.sessionSeconds
+                        |> Sessions.sessionSeconds
                         |> (\t -> 100 * seconds // t)
                         |> String.fromInt
 
                 sessionColor =
-                    session |> Session.toColor theme
+                    session |> Sessions.toColor theme
 
                 dimmed =
                     sessionColor |> Color.setAlpha 0.5 |> Color.toRgbaString
@@ -436,7 +435,7 @@ viewDailyLogs theme show zone selected logs =
                 [ Html.div
                     []
                     [ Html.text (formatToHour start ++ " ➞ " ++ formatToHour end)
-                    , if Session.isWork session then
+                    , if Sessions.isWork session then
                         renderSentiment sentiment start
 
                       else
@@ -506,12 +505,12 @@ viewDailyLogs theme show zone selected logs =
         Html.text ""
 
 
-viewMonthlySummary : Theme.Common.Theme -> List Session.Session -> Html.Html msg
+viewMonthlySummary : Theme.Common.Theme -> List Sessions.Session -> Html.Html msg
 viewMonthlySummary theme logs =
     viewSummary theme "Monthly summary" logs
 
 
-viewHourlyAverages : Theme.Common.Theme -> Time.Zone -> List Session.Session -> Html.Html msg
+viewHourlyAverages : Theme.Common.Theme -> Time.Zone -> List Sessions.Session -> Html.Html msg
 viewHourlyAverages theme zone log =
     if log == [] then
         Html.text ""
@@ -612,7 +611,7 @@ type Msg
     | GotLogs Decode.Value
     | GoToDate Date.Date
     | GoToMonth Date.Date
-    | UpdateSentiment Time.Posix Session.Sentiment
+    | UpdateSentiment Time.Posix Sessions.Sentiment
     | ToggleDailyLogs
 
 
@@ -682,7 +681,7 @@ update zone msg state =
 -- HELPERS
 
 
-hourlyAverages : Time.Zone -> List Session.Session -> List ( Int, Int, Float )
+hourlyAverages : Time.Zone -> List Sessions.Session -> List ( Int, Int, Float )
 hourlyAverages zone log =
     let
         aggregate agg { start, seconds } =
@@ -699,11 +698,11 @@ hourlyAverages zone log =
 
         firstPass =
             log
-                |> List.filter (.def >> Session.isWork)
+                |> List.filter (.def >> Sessions.isWork)
                 |> List.foldl
                     (\session agg ->
                         session
-                            |> Session.sessionMaterialized
+                            |> Sessions.sessionMaterialized
                             |> Maybe.map (aggregate agg)
                             |> Maybe.withDefault agg
                     )
@@ -716,7 +715,7 @@ hourlyAverages zone log =
     firstPass |> List.map (\( h, secs ) -> ( h, secs, toFloat secs * 100 / toFloat max ))
 
 
-dailyLogs : Time.Zone -> Date.Date -> List Session.Session -> List Session.Session
+dailyLogs : Time.Zone -> Date.Date -> List Sessions.Session -> List Sessions.Session
 dailyLogs zone day logs =
     logs
         |> List.filter
@@ -731,7 +730,7 @@ inMinutes secs =
     secs // 60
 
 
-monthlyAverages : Time.Zone -> List Session.Session -> List ( Date.Date, Float )
+monthlyAverages : Time.Zone -> List Sessions.Session -> List ( Date.Date, Float )
 monthlyAverages zone log =
     let
         aggregate agg { start, seconds } =
@@ -748,11 +747,11 @@ monthlyAverages zone log =
 
         firstPass =
             log
-                |> List.filter (.def >> Session.isWork)
+                |> List.filter (.def >> Sessions.isWork)
                 |> List.foldl
                     (\session agg ->
                         session
-                            |> Session.sessionMaterialized
+                            |> Sessions.sessionMaterialized
                             |> Maybe.map (aggregate agg)
                             |> Maybe.withDefault agg
                     )
@@ -784,7 +783,7 @@ initialState =
 
 
 type PortAction
-    = SetSentiment Time.Posix Session.Sentiment
+    = SetSentiment Time.Posix Sessions.Sentiment
     | Fetch Time.Posix
 
 
@@ -795,7 +794,7 @@ encodePortAction action =
             Encode.object
                 [ ( "type", Encode.string "sentiment" )
                 , ( "time", Misc.encodePosix time )
-                , ( "sentiment", Session.encodeSentiment sentiment )
+                , ( "sentiment", Sessions.encodeSentiment sentiment )
                 ]
 
         Fetch time ->
@@ -810,7 +809,7 @@ toPort =
     encodePortAction >> Ports.toLog
 
 
-setSentimentCmd : Time.Posix -> Session.Sentiment -> Cmd msg
+setSentimentCmd : Time.Posix -> Sessions.Sentiment -> Cmd msg
 setSentimentCmd start sentiment =
     SetSentiment start sentiment |> toPort
 
@@ -833,8 +832,8 @@ subscriptions =
 -- CODECS
 
 
-decodeLogs : Decode.Decoder { ts : Int, logs : List Session.Session }
+decodeLogs : Decode.Decoder { ts : Int, logs : List Sessions.Session }
 decodeLogs =
     Decode.succeed (\ts l -> { ts = ts, logs = l })
         |> Pipeline.required "ts" Decode.int
-        |> Pipeline.required "logs" (Decode.list Session.decodeSession)
+        |> Pipeline.required "logs" (Decode.list Sessions.decodeSession)

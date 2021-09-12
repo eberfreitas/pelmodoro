@@ -16,7 +16,7 @@ import Page.Settings as Settings
 import Page.Stats as Stats
 import Page.Timer as Timer
 import Platform.Sub as Sub
-import Session
+import Sessions
 import Task
 import Theme.Common
 import Theme.Theme as Theme
@@ -31,13 +31,10 @@ import VirtualDom
 
 type alias Model =
     { env : Env.Env
-    , page : Page
-    , uptime : Int
-    , playing : Bool
     , settings : Settings.Settings
-    , sessions : List Session.SessionDef
-    , active : Session.Active
-    , sentimentSession : Maybe Session.Session
+    , sessions : Sessions.Sessions
+    , page : Page
+    , sentimentSession : Maybe Sessions.Session
     , flash : Maybe (Flash.FlashMsg Flash.Msg)
     }
 
@@ -69,13 +66,16 @@ init { active, settings, now } url key =
         env =
             model.env
 
+        sessions =
+            model.sessions
+
         newActive =
-            case Decode.decodeValue Session.decodeActive active of
+            case Decode.decodeValue Sessions.decodeActive active of
                 Ok active_ ->
                     active_
 
                 Err _ ->
-                    model.active
+                    sessions.active
 
         newSettings =
             case Decode.decodeValue Settings.decodeSettings settings of
@@ -89,16 +89,18 @@ init { active, settings, now } url key =
             Time.millisToPosix now
 
         ( newSessions, newActive_ ) =
-            Session.buildSessions newSettings (Just newActive)
+            Sessions.buildSessions newSettings (Just newActive)
+
+        newSessions_ =
+            { sessions | active = newActive_, sessions = newSessions }
 
         ( page, pageCmd ) =
             urlToPage time url
     in
     ( { model
-        | active = newActive_
-        , env = { env | time = Time.millisToPosix now }
+        | env = { env | time = Time.millisToPosix now }
         , settings = newSettings
-        , sessions = newSessions
+        , sessions = newSessions_
         , page = page
       }
     , Cmd.batch
@@ -113,21 +115,21 @@ init { active, settings, now } url key =
 
 
 view : Model -> Browser.Document Msg
-view model =
+view ({ sessions } as model) =
     let
         title =
             case model.page of
                 TimerPage ->
-                    if model.playing then
-                        [ model.active |> Session.secondsLeft |> truncate |> Timer.secondsToDisplay
-                        , Session.sessionDefToString model.active.session.def
+                    if sessions.playing then
+                        [ sessions.active |> Sessions.secondsLeft |> truncate |> Timer.secondsToDisplay
+                        , Sessions.sessionDefToString sessions.active.session.def
                         ]
 
                     else
                         []
 
                 SettingsPage ->
-                    [ "Settings" ]
+                    [ "Preferences" ]
 
                 StatsPage _ ->
                     [ "Stats" ]
@@ -327,18 +329,18 @@ default : Navigation.Key -> Model
 default key =
     let
         ( sessions, active ) =
-            Session.buildSessions Settings.default Nothing
+            Sessions.buildSessions Settings.default Nothing
+
+        sessions_ =
+            Sessions.Sessions active False 0 sessions
 
         env =
             Env.Env Time.utc (Time.millisToPosix 0) key
     in
     { env = env
     , page = TimerPage
-    , uptime = 0
-    , playing = False
     , settings = Settings.default
-    , sessions = sessions
-    , active = active
+    , sessions = sessions_
     , sentimentSession = Nothing
     , flash = Nothing
     }

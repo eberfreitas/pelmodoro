@@ -17,7 +17,7 @@ import Page.Spotify as Spotify
 import Page.Stats as Stats
 import Ports
 import Quotes
-import Session
+import Sessions
 import Svg.Styled as Svg
 import Svg.Styled.Attributes as SvgAttributes
 import Theme.Common
@@ -33,22 +33,19 @@ import Tuple.Trio as Trio
 type alias Model a =
     { a
         | env : Env.Env
-        , playing : Bool
-        , active : Session.Active
         , settings : Settings.Settings
-        , sessions : List Session.SessionDef
-        , uptime : Int
+        , sessions : Sessions.Sessions
         , flash : Maybe (Flash.FlashMsg Flash.Msg)
-        , sentimentSession : Maybe Session.Session
+        , sentimentSession : Maybe Sessions.Session
     }
 
 
 type alias EvalResult msg =
-    { active : Session.Active
+    { active : Sessions.Active
     , playing : Bool
     , flash : Maybe (Flash.FlashMsg msg)
     , cmd : Cmd msg
-    , sentimentSession : Maybe Session.Session
+    , sentimentSession : Maybe Sessions.Session
     }
 
 
@@ -81,20 +78,20 @@ view model =
                 , SvgAttributes.height <| String.fromInt svgBaseSize
                 , SvgAttributes.viewBox <| toViewBox svgBaseSize
                 ]
-                (viewSessionsArcs svgBaseSize model.settings.theme model.active model.sessions
-                    ++ [ viewTimer model.playing model.uptime model.settings.theme model.active ]
+                (viewSessionsArcs svgBaseSize model.settings.theme model.sessions.active model.sessions.sessions
+                    ++ [ viewTimer model.sessions.playing model.sessions.uptime model.settings.theme model.sessions.active ]
                 )
-            , viewControls model.settings.theme model.playing
+            , viewControls model.settings.theme model.sessions.playing
             ]
         , viewSentimentQuery model.settings.theme model.sentimentSession
         ]
 
 
-viewSessionsArcs : Int -> Theme.Common.Theme -> Session.Active -> List Session.SessionDef -> List (Svg.Svg msg)
+viewSessionsArcs : Int -> Theme.Common.Theme -> Sessions.Active -> List Sessions.SessionDef -> List (Svg.Svg msg)
 viewSessionsArcs size theme active sessions =
     let
         totalRun =
-            sessions |> Session.sessionsTotalRun |> toFloat
+            sessions |> Sessions.sessionsTotalRun |> toFloat
 
         strokeWidth =
             8
@@ -113,7 +110,7 @@ viewSessionsArcs size theme active sessions =
             (\session ( paths, idx, startAngle ) ->
                 let
                     sessionSecs =
-                        session |> Session.sessionSeconds |> toFloat
+                        session |> Sessions.sessionSeconds |> toFloat
 
                     sessionAngle =
                         360.0 * sessionSecs / totalRun
@@ -126,7 +123,7 @@ viewSessionsArcs size theme active sessions =
                             [ SvgAttributes.strokeWidth <| String.fromInt strokeWidth
                             , SvgAttributes.strokeLinecap "round"
                             , SvgAttributes.fill "none"
-                            , SvgAttributes.stroke (session_ |> Session.toColor theme |> Color.toRgbaString)
+                            , SvgAttributes.stroke (session_ |> Sessions.toColor theme |> Color.toRgbaString)
                             , SvgAttributes.d (describeArc centerPoint centerPoint radius start_ end_)
                             , SvgAttributes.opacity opacity_
                             ]
@@ -136,7 +133,7 @@ viewSessionsArcs size theme active sessions =
                         if idx == active.index then
                             let
                                 elapsedPct =
-                                    Session.elapsedPct active
+                                    Sessions.elapsedPct active
 
                                 elapsedIntervalAngle =
                                     (sessionAngle - arcsOffset * 2) * elapsedPct / 100.0
@@ -168,7 +165,7 @@ viewSessionsArcs size theme active sessions =
         |> Trio.first
 
 
-viewTimer : Bool -> Int -> Theme.Common.Theme -> Session.Active -> Svg.Svg Msg
+viewTimer : Bool -> Int -> Theme.Common.Theme -> Sessions.Active -> Svg.Svg Msg
 viewTimer playing uptime theme active =
     let
         timerOpacity =
@@ -185,12 +182,12 @@ viewTimer playing uptime theme active =
         [ SvgAttributes.x "50%"
         , SvgAttributes.y "55%"
         , SvgAttributes.textAnchor "middle"
-        , SvgAttributes.fill (active.session.def |> Session.toColor theme |> Color.toRgbaString)
+        , SvgAttributes.fill (active.session.def |> Sessions.toColor theme |> Color.toRgbaString)
         , SvgAttributes.fontFamily "Montserrat"
         , SvgAttributes.fontSize "36px"
         , SvgAttributes.opacity timerOpacity
         ]
-        [ Svg.text <| secondsToDisplay (Session.secondsLeft active |> truncate) ]
+        [ Svg.text <| secondsToDisplay (Sessions.secondsLeft active |> truncate) ]
 
 
 viewControls : Theme.Common.Theme -> Bool -> Html.Html Msg
@@ -226,7 +223,7 @@ viewControls theme playing =
         ]
 
 
-viewSentimentQuery : Theme.Common.Theme -> Maybe Session.Session -> Html.Html Msg
+viewSentimentQuery : Theme.Common.Theme -> Maybe Sessions.Session -> Html.Html Msg
 viewSentimentQuery theme session =
     session
         |> Maybe.andThen .start
@@ -269,9 +266,9 @@ viewSentimentQuery theme session =
                                 , Css.listStyle Css.none
                                 ]
                             ]
-                            ([ ( "Positive", SetSentiment start Session.positive, "sentiment_satisfied" )
-                             , ( "Neutral", SetSentiment start Session.neutral, "sentiment_neutral" )
-                             , ( "Negative", SetSentiment start Session.negative, "sentiment_dissatisfied" )
+                            ([ ( "Positive", SetSentiment start Sessions.positive, "sentiment_satisfied" )
+                             , ( "Neutral", SetSentiment start Sessions.neutral, "sentiment_neutral" )
+                             , ( "Negative", SetSentiment start Sessions.negative, "sentiment_dissatisfied" )
                              ]
                                 |> List.map
                                     (\( label, msg, icon ) ->
@@ -312,11 +309,11 @@ type Msg
     | Pause
     | Skip
     | Reset
-    | SetSentiment Time.Posix Session.Sentiment
+    | SetSentiment Time.Posix Sessions.Sentiment
 
 
 update : Msg -> Model a -> ( Model a, Cmd msg )
-update msg ({ settings, active, env, sessions } as model) =
+update msg ({ settings, env, sessions } as model) =
     case msg of
         Tick raw ->
             case Decode.decodeValue Decode.int raw of
@@ -329,66 +326,75 @@ update msg ({ settings, active, env, sessions } as model) =
         Play ->
             let
                 newActive =
-                    if active.elapsed == 0 then
-                        Session.Active active.index (Session.sessionStart env.time active.session) 0
+                    if sessions.active.elapsed == 0 then
+                        Sessions.Active sessions.active.index (Sessions.sessionStart env.time sessions.active.session) 0
 
                     else
-                        active
+                        sessions.active
+
+                newSessions =
+                    { sessions | active = newActive, playing = True }
 
                 cmds =
                     Cmd.batch
-                        [ Session.saveActive newActive
-                        , if Session.isWork newActive.session.def then
+                        [ Sessions.saveActive newActive
+                        , if Sessions.isWork newActive.session.def then
                             Spotify.play settings.spotify
 
                           else
                             Cmd.none
                         ]
             in
-            { model | playing = True, active = newActive }
+            { model | sessions = newSessions }
                 |> Misc.withCmd
                 |> Misc.addCmd cmds
 
         Pause ->
-            { model | playing = False }
+            { model | sessions = { sessions | playing = False } }
                 |> Misc.withCmd
                 |> Misc.addCmd (Spotify.pause settings.spotify)
 
         Skip ->
             let
                 ( nextIndex, nextSessionDef ) =
-                    case List.Extra.getAt (active.index + 1) model.sessions of
+                    case List.Extra.getAt (sessions.active.index + 1) sessions.sessions of
                         Just next ->
-                            ( active.index + 1, next )
+                            ( sessions.active.index + 1, next )
 
                         Nothing ->
-                            ( 0, model.sessions |> Session.firstSession )
+                            ( 0, sessions.sessions |> Sessions.firstSession )
 
                 newActive =
-                    Session.Active nextIndex (Session.newSession nextSessionDef) 0
+                    Sessions.Active nextIndex (Sessions.newSession nextSessionDef) 0
+
+                newSessions =
+                    { sessions | active = newActive, playing = False }
 
                 cmds =
                     Cmd.batch
-                        [ Session.logSession env.time active
-                        , Session.saveActive newActive
+                        [ Sessions.logSession env.time sessions.active
+                        , Sessions.saveActive newActive
                         , Spotify.pause settings.spotify
                         ]
             in
-            { model | active = newActive, playing = False }
+            { model | sessions = newSessions }
                 |> Misc.withCmd
                 |> Misc.addCmd cmds
 
         Reset ->
             let
                 newActive =
-                    Session.newActiveSession sessions
+                    Sessions.newActiveSession sessions.sessions
+
+                newSessions =
+                    { sessions | active = newActive, playing = False }
             in
-            { model | active = newActive, playing = False }
+            { model | sessions = newSessions }
                 |> Misc.withCmd
                 |> Misc.addCmd
                     (Cmd.batch
-                        [ Session.logSession env.time active
-                        , Session.saveActive newActive
+                        [ Sessions.logSession env.time sessions.active
+                        , Sessions.saveActive newActive
                         , Spotify.pause settings.spotify
                         ]
                     )
@@ -420,22 +426,22 @@ secondsToDisplay secs =
         String.fromInt min ++ ":" ++ pad (secs - (min * 60))
 
 
-rollActiveSession : Time.Posix -> Int -> Settings.Flow -> List Session.SessionDef -> ( Session.Active, Bool )
+rollActiveSession : Time.Posix -> Int -> Settings.Flow -> List Sessions.SessionDef -> ( Sessions.Active, Bool )
 rollActiveSession now nextIndex flow sessions =
     let
         firstSession_ =
-            sessions |> Session.firstSession
+            sessions |> Sessions.firstSession
 
         nextActive =
             case sessions |> List.Extra.getAt nextIndex of
                 Nothing ->
-                    Session.Active 0 (Session.newSession firstSession_) 0
+                    Sessions.Active 0 (Sessions.newSession firstSession_) 0
 
                 Just nextSession ->
-                    Session.Active nextIndex (Session.newSession nextSession) 0
+                    Sessions.Active nextIndex (Sessions.newSession nextSession) 0
     in
     if Settings.shouldKeepPlaying nextActive.index flow then
-        ( { nextActive | session = Session.setSessionStart now nextActive.session }
+        ( { nextActive | session = Sessions.setSessionStart now nextActive.session }
         , True
         )
 
@@ -443,9 +449,9 @@ rollActiveSession now nextIndex flow sessions =
         ( nextActive, False )
 
 
-sessionChangeToFlash : Time.Posix -> Session.SessionDef -> Session.SessionDef -> ( Flash.FlashMsg msg, String )
+sessionChangeToFlash : Time.Posix -> Sessions.SessionDef -> Sessions.SessionDef -> ( Flash.FlashMsg msg, String )
 sessionChangeToFlash now from to =
-    case Session.sessionChangeToLabel from to of
+    case Sessions.sessionChangeToLabel from to of
         "" ->
             ( Flash.empty, "" )
 
@@ -454,21 +460,21 @@ sessionChangeToFlash now from to =
 
 
 evalElapsedTime : Model a -> EvalResult msg
-evalElapsedTime { active, sessions, settings, env } =
-    if Session.secondsLeft active == 0 then
+evalElapsedTime { sessions, settings, env } =
+    if Sessions.secondsLeft sessions.active == 0 then
         let
             nextIndex =
-                active.index + 1
+                sessions.active.index + 1
 
             ( newActive, playing ) =
-                rollActiveSession env.time nextIndex settings.flow sessions
+                rollActiveSession env.time nextIndex settings.flow sessions.sessions
 
             ( flashMsg, notificationMsg ) =
-                sessionChangeToFlash env.time active.session.def newActive.session.def
+                sessionChangeToFlash env.time sessions.active.session.def newActive.session.def
 
             sentimentSession =
-                if active.session.def |> Session.isWork then
-                    Just active.session
+                if sessions.active.session.def |> Sessions.isWork then
+                    Just sessions.active.session
 
                 else
                     Nothing
@@ -482,14 +488,14 @@ evalElapsedTime { active, sessions, settings, env } =
                     |> Ports.notify
 
             spotifyCmd =
-                if Session.isWork newActive.session.def then
+                if Sessions.isWork newActive.session.def then
                     Spotify.play settings.spotify
 
                 else
                     Spotify.pause settings.spotify
 
             logCmd =
-                Session.logSession env.time active
+                Sessions.logSession env.time sessions.active
         in
         EvalResult
             newActive
@@ -499,23 +505,26 @@ evalElapsedTime { active, sessions, settings, env } =
             sentimentSession
 
     else
-        EvalResult (Session.addElapsed 1 active) True Nothing Cmd.none Nothing
+        EvalResult (Sessions.addElapsed 1 sessions.active) True Nothing Cmd.none Nothing
 
 
 updateTime : Time.Posix -> Model a -> Model a
-updateTime now ({ env } as model) =
-    { model | env = { env | time = now }, uptime = model.uptime + 1 }
+updateTime now ({ env, sessions } as model) =
+    { model
+        | env = { env | time = now }
+        , sessions = { sessions | uptime = sessions.uptime + 1 }
+    }
 
 
 setupSentimentSession :
-    Maybe Session.Session
-    -> Session.SessionDef
+    Maybe Sessions.Session
+    -> Sessions.SessionDef
     -> Model a
     -> Model a
 setupSentimentSession session sessionDef model =
     let
         newSession =
-            case ( model.sentimentSession, session, Session.isWork sessionDef ) of
+            case ( model.sentimentSession, session, Sessions.isWork sessionDef ) of
                 ( _, _, True ) ->
                     Nothing
 
@@ -532,8 +541,8 @@ setupSentimentSession session sessionDef model =
 
 
 tick : Time.Posix -> Model a -> ( Model a, Cmd msg )
-tick posix ({ playing, flash, active, settings } as model) =
-    if playing then
+tick posix ({ flash, settings, sessions } as model) =
+    if sessions.playing then
         let
             newState =
                 evalElapsedTime model
@@ -544,10 +553,12 @@ tick posix ({ playing, flash, active, settings } as model) =
 
                 else
                     identity
+
+            newSessions =
+                { sessions | active = newState.active, playing = newState.playing }
         in
         { model
-            | active = newState.active
-            , playing = newState.playing
+            | sessions = newSessions
             , flash = flash |> Maybe.andThen Flash.updateFlashTime
         }
             |> setupSentimentSession newState.sentimentSession newState.active.session.def
@@ -555,7 +566,7 @@ tick posix ({ playing, flash, active, settings } as model) =
             |> setFlashFn
             |> Misc.withCmd
             |> Misc.addCmd newState.cmd
-            |> Misc.addCmd (Session.saveActive active)
+            |> Misc.addCmd (Sessions.saveActive sessions.active)
 
     else
         { model | flash = flash |> Maybe.andThen Flash.updateFlashTime }

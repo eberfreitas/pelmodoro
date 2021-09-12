@@ -1,8 +1,9 @@
-module Session exposing
+module Sessions exposing
     ( Active
     , Sentiment
     , Session
     , SessionDef
+    , Sessions
     , addElapsed
     , buildSessions
     , calculateSentiment
@@ -72,6 +73,14 @@ type alias Active =
     { index : Int
     , session : Session
     , elapsed : Int
+    }
+
+
+type alias Sessions =
+    { active : Active
+    , playing : Bool
+    , uptime : Int
+    , sessions : List SessionDef
     }
 
 

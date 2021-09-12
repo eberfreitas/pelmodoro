@@ -4,7 +4,7 @@ import Color
 import Css
 import Html.Styled as Html
 import Html.Styled.Attributes as Attributes
-import Session
+import Sessions
 import Theme.Common
 
 
@@ -14,8 +14,7 @@ import Theme.Common
 
 type alias Model a b =
     { a
-        | sessions : List Session.SessionDef
-        , active : Session.Active
+        | sessions : Sessions.Sessions
         , settings : { b | theme : Theme.Common.Theme }
     }
 
@@ -25,10 +24,10 @@ type alias Model a b =
 
 
 view : Model a b -> Html.Html msg
-view { sessions, active, settings } =
+view { sessions, settings } =
     let
         totalRun =
-            sessions |> Session.sessionsTotalRun |> toFloat
+            sessions.sessions |> Sessions.sessionsTotalRun |> toFloat
     in
     Html.ul
         [ Attributes.css
@@ -38,18 +37,18 @@ view { sessions, active, settings } =
             , Css.listStyle Css.none
             ]
         ]
-        (sessions
+        (sessions.sessions
             |> List.indexedMap
                 (\index session ->
                     let
                         sizeInPct =
-                            toFloat (Session.sessionSeconds session) * 100 / totalRun
+                            toFloat (Sessions.sessionSeconds session) * 100 / totalRun
 
                         backgroundColor =
-                            session |> Session.toColor settings.theme
+                            session |> Sessions.toColor settings.theme
 
                         backgroundColor_ =
-                            if index >= active.index then
+                            if index >= sessions.active.index then
                                 backgroundColor |> Color.setAlpha 0.25
 
                             else
@@ -65,10 +64,10 @@ view { sessions, active, settings } =
                             , Css.overflow Css.hidden
                             ]
                         ]
-                        [ if index == active.index then
+                        [ if index == sessions.active.index then
                             let
                                 elapsedPct =
-                                    Session.elapsedPct active
+                                    Sessions.elapsedPct sessions.active
                             in
                             Html.div
                                 [ Attributes.css
