@@ -5,6 +5,7 @@ import Browser.Navigation as Navigation
 import Color
 import Css
 import Elements
+import Env
 import Html.Styled as Html
 import Html.Styled.Attributes as Attributes
 import Json.Decode as Decode
@@ -29,9 +30,7 @@ import VirtualDom
 
 
 type alias Model =
-    { zone : Time.Zone
-    , time : Time.Posix
-    , key : Navigation.Key
+    { env : Env.Env
     , page : Page
     , uptime : Int
     , playing : Bool
@@ -64,8 +63,11 @@ type alias Flags =
 init : Flags -> Url.Url -> Navigation.Key -> ( Model, Cmd Msg )
 init { active, settings, now } url key =
     let
-        baseModel =
+        model =
             default key
+
+        env =
+            model.env
 
         newActive =
             case Decode.decodeValue Session.decodeActive active of
@@ -73,7 +75,7 @@ init { active, settings, now } url key =
                     active_
 
                 Err _ ->
-                    baseModel.active
+                    model.active
 
         newSettings =
             case Decode.decodeValue Settings.decodeSettings settings of
@@ -81,7 +83,7 @@ init { active, settings, now } url key =
                     settings_
 
                 Err _ ->
-                    baseModel.settings
+                    model.settings
 
         time =
             Time.millisToPosix now
@@ -92,9 +94,9 @@ init { active, settings, now } url key =
         ( page, pageCmd ) =
             urlToPage time url
     in
-    ( { baseModel
+    ( { model
         | active = newActive_
-        , time = Time.millisToPosix now
+        , env = { env | time = Time.millisToPosix now }
         , settings = newSettings
         , sessions = newSessions
         , page = page
@@ -281,20 +283,20 @@ type Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
+update msg ({ env } as model) =
     case ( msg, model.page ) of
         ( AdjustTimeZone newZone, _ ) ->
-            Misc.withCmd { model | zone = newZone }
+            Misc.withCmd { model | env = { env | zone = newZone } }
 
         ( UrlChanged url, _ ) ->
             url
-                |> urlToPage model.time
+                |> urlToPage env.time
                 |> Tuple.mapFirst (\p -> { model | page = p })
 
         ( LinkCliked urlRequest, _ ) ->
             case urlRequest of
                 Browser.Internal url ->
-                    ( model, Navigation.pushUrl model.key (Url.toString url) )
+                    ( model, Navigation.pushUrl env.key (Url.toString url) )
 
                 Browser.External href ->
                     ( model, Navigation.load href )
@@ -306,7 +308,7 @@ update msg model =
             Timer.update subMsg model
 
         ( Stats subMsg, StatsPage state ) ->
-            Stats.update model.zone subMsg state
+            Stats.update env.zone subMsg state
                 |> Tuple.mapFirst (\s -> { model | page = StatsPage s })
                 |> Misc.updateWith Stats
 
@@ -326,10 +328,11 @@ default key =
     let
         ( sessions, active ) =
             Session.buildSessions Settings.default Nothing
+
+        env =
+            Env.Env Time.utc (Time.millisToPosix 0) key
     in
-    { zone = Time.utc
-    , time = Time.millisToPosix 0
-    , key = key
+    { env = env
     , page = TimerPage
     , uptime = 0
     , playing = False

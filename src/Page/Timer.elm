@@ -3,6 +3,7 @@ module Page.Timer exposing (Msg, secondsToDisplay, subscriptions, update, view)
 import Color
 import Css
 import Elements
+import Env
 import Html.Styled as Html
 import Html.Styled.Attributes as Attributes
 import Html.Styled.Events as Events
@@ -31,7 +32,7 @@ import Tuple.Trio as Trio
 
 type alias Model a =
     { a
-        | time : Time.Posix
+        | env : Env.Env
         , playing : Bool
         , active : Session.Active
         , settings : Settings.Settings
@@ -315,7 +316,7 @@ type Msg
 
 
 update : Msg -> Model a -> ( Model a, Cmd msg )
-update msg ({ settings, active, time, sessions } as model) =
+update msg ({ settings, active, env, sessions } as model) =
     case msg of
         Tick raw ->
             case Decode.decodeValue Decode.int raw of
@@ -329,7 +330,7 @@ update msg ({ settings, active, time, sessions } as model) =
             let
                 newActive =
                     if active.elapsed == 0 then
-                        Session.Active active.index (Session.sessionStart time active.session) 0
+                        Session.Active active.index (Session.sessionStart env.time active.session) 0
 
                     else
                         active
@@ -368,7 +369,7 @@ update msg ({ settings, active, time, sessions } as model) =
 
                 cmds =
                     Cmd.batch
-                        [ Session.logSession time active
+                        [ Session.logSession env.time active
                         , Session.saveActive newActive
                         , Spotify.pause settings.spotify
                         ]
@@ -386,7 +387,7 @@ update msg ({ settings, active, time, sessions } as model) =
                 |> Misc.withCmd
                 |> Misc.addCmd
                     (Cmd.batch
-                        [ Session.logSession time active
+                        [ Session.logSession env.time active
                         , Session.saveActive newActive
                         , Spotify.pause settings.spotify
                         ]
@@ -453,17 +454,17 @@ sessionChangeToFlash now from to =
 
 
 evalElapsedTime : Model a -> EvalResult msg
-evalElapsedTime { active, sessions, settings, time } =
+evalElapsedTime { active, sessions, settings, env } =
     if Session.secondsLeft active == 0 then
         let
             nextIndex =
                 active.index + 1
 
             ( newActive, playing ) =
-                rollActiveSession time nextIndex settings.flow sessions
+                rollActiveSession env.time nextIndex settings.flow sessions
 
             ( flashMsg, notificationMsg ) =
-                sessionChangeToFlash time active.session.def newActive.session.def
+                sessionChangeToFlash env.time active.session.def newActive.session.def
 
             sentimentSession =
                 if active.session.def |> Session.isWork then
@@ -488,7 +489,7 @@ evalElapsedTime { active, sessions, settings, time } =
                     Spotify.pause settings.spotify
 
             logCmd =
-                Session.logSession time active
+                Session.logSession env.time active
         in
         EvalResult
             newActive
@@ -502,8 +503,8 @@ evalElapsedTime { active, sessions, settings, time } =
 
 
 updateTime : Time.Posix -> Model a -> Model a
-updateTime now model =
-    { model | time = now, uptime = model.uptime + 1 }
+updateTime now ({ env } as model) =
+    { model | env = { env | time = now }, uptime = model.uptime + 1 }
 
 
 setupSentimentSession :

@@ -14,6 +14,7 @@ import Color
 import Css
 import Date
 import Elements
+import Env
 import Html.Styled as Html
 import Html.Styled.Attributes as Attributes
 import Html.Styled.Events as Events
@@ -39,8 +40,7 @@ import Tuple.Trio as Trio
 
 type alias Model a b =
     { a
-        | time : Time.Posix
-        , zone : Time.Zone
+        | env : Env.Env
         , settings : { b | theme : Theme.Common.Theme }
         , active : Session.Active
         , sessions : List Session.SessionDef
@@ -64,10 +64,10 @@ type alias Def =
 
 
 view : Model a b -> State -> Html.Html Msg
-view ({ time, zone, settings } as model) state =
+view ({ env, settings } as model) state =
     let
         today =
-            Date.fromPosix zone time
+            Date.fromPosix env.zone env.time
     in
     Html.div []
         [ MiniTimer.view model
@@ -80,7 +80,7 @@ view ({ time, zone, settings } as model) state =
             [ Elements.h1 settings.theme "Statistics"
             , case state of
                 Loaded def ->
-                    viewLoaded settings.theme zone today def
+                    viewLoaded settings.theme env.zone today def
 
                 _ ->
                     Html.text ""
