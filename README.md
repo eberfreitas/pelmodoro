@@ -63,3 +63,15 @@ $ npm run build
 ```
 
 Built artifacts will be available in the `/dist` folder.
+
+## Running in Docker Container
+
+Build the Image for the Pelmdoro with give your name you prefer for the <image-name> you want for this app.
+```
+docker build -t <image-name> .
+```
+
+Running the docker image in container with give your same image built above in <image-name> given above and give the port to run in <local-port> place. 
+```
+docker run -dit -p <local-port>:80 --rm <image-name> 
+```
