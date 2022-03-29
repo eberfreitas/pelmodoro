@@ -86,6 +86,10 @@ maybeTrio ( a, b, c ) =
             Nothing
 
 
+
+-- CODECS
+
+
 encodeMaybe : (a -> Encode.Value) -> Maybe a -> Encode.Value
 encodeMaybe fn value =
     case value of

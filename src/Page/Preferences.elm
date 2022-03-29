@@ -1,13 +1,7 @@
-module Page.Settings exposing
-    ( Flow
+module Page.Preferences exposing
+    ( Model
     , Msg
-    , Notifications
-    , Settings
-    , alarmSoundToEncodable
-    , decodeSettings
-    , default
-    , encodeNotifications
-    , shouldKeepPlaying
+    , new
     , subscriptions
     , update
     , view
@@ -15,12 +9,12 @@ module Page.Settings exposing
 
 import Css
 import Elements
+import Env
 import File
 import File.Select as Select
 import Html.Styled as Html
 import Html.Styled.Attributes as Attributes
 import Json.Decode as Decode
-import Json.Decode.Pipeline as Pipeline
 import Json.Encode as Encode
 import Misc
 import Page.Flash as Flash
@@ -28,8 +22,8 @@ import Page.MiniTimer as MiniTimer
 import Page.Spotify as Spotify
 import Ports
 import Sessions
+import Settings
 import Task
-import Theme.Common
 import Theme.Theme as Theme
 import Tuple.Trio as Trio
 
@@ -38,60 +32,24 @@ import Tuple.Trio as Trio
 -- MODEL
 
 
-type alias Model a =
-    { a
-        | settings : Settings
-        , flash : Maybe (Flash.FlashMsg Flash.Msg)
-        , sessions : Sessions.Sessions
+type alias Model =
+    { env : Env.Env
+    , settings : Settings.Settings
+    , sessions : Sessions.Sessions
+    , flash : Flash.Flash
     }
 
 
-type alias Settings =
-    { rounds : Int
-    , workDuration : Int
-    , breakDuration : Int
-    , longBreakDuration : Int
-    , theme : Theme.Common.Theme
-    , flow : Flow
-    , spotify : Spotify.State
-    , notifications : Notifications
-    , alarmSound : AlarmSound
-    }
-
-
-type Flow
-    = None
-    | Simple
-    | Loop
-
-
-type alias Notifications =
-    { inApp : Bool
-    , alarmSound : Bool
-    , browser : Bool
-    }
-
-
-type NotificationType
-    = InApp
-    | AlarmSound
-    | Browser
-
-
-type AlarmSound
-    = WindChimes
-    | Bell
-    | AlarmClock
-    | Bong
-    | RelaxingPercussion
-    | BirdSong
+new : Env.Env -> Settings.Settings -> Sessions.Sessions -> Flash.Flash -> Model
+new =
+    Model
 
 
 
 -- VIEW
 
 
-view : Model a -> Html.Html Msg
+view : Model -> Html.Html Msg
 view ({ settings } as model) =
     let
         inMinutes seconds =
@@ -121,11 +79,11 @@ view ({ settings } as model) =
                 Elements.selectInput settings.theme
                     (Trio.first >> (==) settings.flow)
                     UpdateFlow
-                    flowTypeAndStrings
+                    Settings.flowTypeAndStrings
             , Elements.inputContainer "Notifications"
-                ([ ( settings.notifications.inApp, InApp, "In app messages" )
-                 , ( settings.notifications.alarmSound, AlarmSound, "Play sounds" )
-                 , ( settings.notifications.browser, Browser, "Browser notification" )
+                ([ ( settings.notifications.inApp, Settings.InApp, "In app messages" )
+                 , ( settings.notifications.alarmSound, Settings.AlarmSound, "Play sounds" )
+                 , ( settings.notifications.browser, Settings.Browser, "Browser notification" )
                  ]
                     |> List.map (\( v, t, l ) -> Elements.checkbox settings.theme v (ToggleNotification t) l)
                     |> Html.div []
@@ -136,7 +94,7 @@ view ({ settings } as model) =
                         [ Elements.selectInput settings.theme
                             (Trio.first >> (==) settings.alarmSound)
                             UpdateAlarmSound
-                            alarmSoundTypeAndStrings
+                            Settings.alarmSoundTypeAndStrings
                             |> Elements.simpleSeparator
                         , Elements.largeButton settings.theme
                             (TestAlarmSound settings.alarmSound)
@@ -175,18 +133,18 @@ type Msg
     | UpdateFlow String
     | UpdateTheme String
     | UpdateAlarmSound String
-    | ToggleNotification NotificationType
+    | ToggleNotification Settings.NotificationType
     | GotBrowserNotificationPermission Decode.Value
     | ExportRequest
     | ImportRequest
     | ImportSelect File.File
     | ClearLogs
     | ImportData String
-    | TestAlarmSound AlarmSound
+    | TestAlarmSound Settings.AlarmSound
     | Spotify Spotify.Msg
 
 
-update : Msg -> Model a -> ( Model a, Cmd Msg )
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg ({ settings } as model) =
     case msg of
         UpdateRounds rounds ->
@@ -218,7 +176,7 @@ update msg ({ settings } as model) =
                 |> mapSettings
                     (\s ->
                         flow
-                            |> Misc.encodableToType flowTypeAndStrings
+                            |> Misc.encodableToType Settings.flowTypeAndStrings
                             |> Maybe.map (\f -> { s | flow = f })
                             |> Maybe.withDefault s
                     )
@@ -242,7 +200,7 @@ update msg ({ settings } as model) =
                 |> mapSettings
                     (\s ->
                         alarm
-                            |> Misc.encodableToType alarmSoundTypeAndStrings
+                            |> Misc.encodableToType Settings.alarmSoundTypeAndStrings
                             |> Maybe.map (\a -> { s | alarmSound = a })
                             |> Maybe.withDefault s
                     )
@@ -251,7 +209,7 @@ update msg ({ settings } as model) =
 
         ToggleNotification type_ ->
             case type_ of
-                Browser ->
+                Settings.Browser ->
                     model
                         |> Misc.withCmd
                         |> Misc.addCmd
@@ -263,7 +221,7 @@ update msg ({ settings } as model) =
 
                 _ ->
                     model
-                        |> mapSettings (\s -> { s | notifications = toggleNotification type_ s.notifications })
+                        |> mapSettings (\s -> { s | notifications = Settings.toggleNotification type_ s.notifications })
                         |> Misc.withCmd
                         |> save
 
@@ -323,7 +281,7 @@ update msg ({ settings } as model) =
                 |> Misc.withCmd
                 |> Misc.addCmd
                     (alarmSound
-                        |> Misc.typeToEncodable alarmSoundTypeAndStrings
+                        |> Misc.typeToEncodable Settings.alarmSoundTypeAndStrings
                         |> Maybe.withDefault ""
                         |> TestAlarm
                         |> toPort
@@ -340,12 +298,12 @@ update msg ({ settings } as model) =
 -- HELPERS
 
 
-mapSettings : (Settings -> Settings) -> Model a -> Model a
+mapSettings : (Settings.Settings -> Settings.Settings) -> Model -> Model
 mapSettings fn model =
     { model | settings = fn model.settings }
 
 
-save : ( Model a, Cmd Msg ) -> ( Model a, Cmd Msg )
+save : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
 save ( { sessions } as model, cmd ) =
     let
         ( newSessions, newActive ) =
@@ -359,83 +317,11 @@ save ( { sessions } as model, cmd ) =
         |> Misc.addCmd cmd
         |> Misc.addCmd
             (Cmd.batch
-                [ model.settings |> encodeSettings |> Ports.localStorageHelper "settings"
+                [ model.settings |> Settings.encodeSettings |> Ports.localStorageHelper "settings"
                 , newActive |> Sessions.encodeActive |> Ports.localStorageHelper "active"
-                , Spotify.pause model.settings.spotify
+                , Spotify.pauseCmd model.settings.spotify
                 ]
             )
-
-
-toggleNotification : NotificationType -> Notifications -> Notifications
-toggleNotification type_ notification =
-    case type_ of
-        InApp ->
-            { notification | inApp = not notification.inApp }
-
-        AlarmSound ->
-            { notification | alarmSound = not notification.alarmSound }
-
-        Browser ->
-            { notification | browser = not notification.browser }
-
-
-default : Settings
-default =
-    Settings
-        4
-        (25 * 60)
-        (5 * 60)
-        (15 * 60)
-        Theme.Common.Tomato
-        None
-        Spotify.default
-        notificationsDefault
-        WindChimes
-
-
-shouldKeepPlaying : Int -> Flow -> Bool
-shouldKeepPlaying index flow =
-    case ( index, flow ) of
-        ( _, None ) ->
-            False
-
-        ( 0, Simple ) ->
-            False
-
-        ( 0, Loop ) ->
-            True
-
-        _ ->
-            True
-
-
-flowTypeAndStrings : Misc.TypeAndStrings Flow
-flowTypeAndStrings =
-    [ ( None, "nocont", "No automatic flow" )
-    , ( Simple, "simplecont", "Simple flow" )
-    , ( Loop, "fullcont", "Non-stop flow" )
-    ]
-
-
-notificationsDefault : Notifications
-notificationsDefault =
-    Notifications True True False
-
-
-alarmSoundTypeAndStrings : Misc.TypeAndStrings AlarmSound
-alarmSoundTypeAndStrings =
-    [ ( WindChimes, "wind-chimes", "Wind Chimes" )
-    , ( Bell, "bell", "Bell" )
-    , ( AlarmClock, "alarm-clock", "Alarm Clock" )
-    , ( Bong, "bong", "Bong" )
-    , ( RelaxingPercussion, "relaxing-percussion", "Relaxing Percussion" )
-    , ( BirdSong, "bird-song", "Bird Song" )
-    ]
-
-
-alarmSoundToEncodable : AlarmSound -> String
-alarmSoundToEncodable =
-    Misc.typeToEncodable alarmSoundTypeAndStrings >> Maybe.withDefault ""
 
 
 
@@ -497,82 +383,6 @@ subscriptions =
 
 
 -- CODECS
-
-
-encodeFlow : Flow -> Encode.Value
-encodeFlow =
-    Misc.typeToEncodable flowTypeAndStrings >> Maybe.withDefault "" >> Encode.string
-
-
-decodeFlow : Decode.Decoder Flow
-decodeFlow =
-    Decode.string
-        |> Decode.andThen
-            (Misc.encodableToType flowTypeAndStrings
-                >> Maybe.map Decode.succeed
-                >> Maybe.withDefault (Decode.fail "Invalid flow")
-            )
-
-
-encodeNotifications : Notifications -> Encode.Value
-encodeNotifications { inApp, alarmSound, browser } =
-    Encode.object
-        [ ( "inapp", Encode.bool inApp )
-        , ( "sound", Encode.bool alarmSound )
-        , ( "browser", Encode.bool browser )
-        ]
-
-
-decodeNotifications : Decode.Decoder Notifications
-decodeNotifications =
-    Decode.succeed Notifications
-        |> Pipeline.required "inapp" Decode.bool
-        |> Pipeline.required "sound" Decode.bool
-        |> Pipeline.required "browser" Decode.bool
-
-
-encodeAlarmSound : AlarmSound -> Encode.Value
-encodeAlarmSound =
-    Misc.typeToEncodable alarmSoundTypeAndStrings >> Maybe.withDefault "" >> Encode.string
-
-
-decodeAlarmSound : Decode.Decoder AlarmSound
-decodeAlarmSound =
-    Decode.string
-        |> Decode.andThen
-            (Misc.encodableToType alarmSoundTypeAndStrings
-                >> Maybe.map Decode.succeed
-                >> Maybe.withDefault (Decode.fail "Invalid alarm sound")
-            )
-
-
-encodeSettings : Settings -> Encode.Value
-encodeSettings settings =
-    Encode.object
-        [ ( "rounds", Encode.int settings.rounds )
-        , ( "activity", Encode.int settings.workDuration )
-        , ( "break", Encode.int settings.breakDuration )
-        , ( "longBreak", Encode.int settings.longBreakDuration )
-        , ( "theme", Theme.encodeTheme settings.theme )
-        , ( "continuity", encodeFlow settings.flow )
-        , ( "spotify", Spotify.encodeState settings.spotify )
-        , ( "notifications", encodeNotifications settings.notifications )
-        , ( "sound", encodeAlarmSound settings.alarmSound )
-        ]
-
-
-decodeSettings : Decode.Decoder Settings
-decodeSettings =
-    Decode.succeed Settings
-        |> Pipeline.required "rounds" Decode.int
-        |> Pipeline.required "activity" Decode.int
-        |> Pipeline.required "break" Decode.int
-        |> Pipeline.required "longBreak" Decode.int
-        |> Pipeline.required "theme" Theme.decodeTheme
-        |> Pipeline.required "continuity" decodeFlow
-        |> Pipeline.required "spotify" Spotify.decodeState
-        |> Pipeline.optional "notifications" decodeNotifications notificationsDefault
-        |> Pipeline.optional "sound" decodeAlarmSound WindChimes
 
 
 decodeBrowserNotificationPermission : Decode.Decoder { val : Bool, msg : String }

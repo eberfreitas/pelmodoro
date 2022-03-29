@@ -12,11 +12,13 @@ import Json.Decode as Decode
 import Misc
 import Page.Credits as Credits
 import Page.Flash as Flash
-import Page.Settings as Settings
+import Page.Global as Global
+import Page.Preferences as Preferences
 import Page.Stats as Stats
 import Page.Timer as Timer
 import Platform.Sub as Sub
 import Sessions
+import Settings
 import Task
 import Theme.Common
 import Theme.Theme as Theme
@@ -29,21 +31,11 @@ import VirtualDom
 -- MODEL
 
 
-type alias Model =
-    { env : Env.Env
-    , settings : Settings.Settings
-    , sessions : Sessions.Sessions
-    , page : Page
-    , sentimentSession : Maybe Sessions.Session
-    , flash : Maybe (Flash.FlashMsg Flash.Msg)
-    }
-
-
-type Page
-    = TimerPage
-    | StatsPage Stats.State
-    | SettingsPage
-    | CreditsPage
+type Model
+    = Timer Timer.Model
+    | Stats Stats.Model
+    | Preferences Preferences.Model
+    | Credits Credits.Model
 
 
 type alias Flags =
@@ -60,14 +52,11 @@ type alias Flags =
 init : Flags -> Url.Url -> Navigation.Key -> ( Model, Cmd Msg )
 init { active, settings, now } url key =
     let
-        model =
-            default key
-
-        env =
-            model.env
+        baseModel =
+            default key |> mapEnv (\e -> { e | time = Time.millisToPosix now })
 
         sessions =
-            model.sessions
+            getSessions baseModel
 
         newActive =
             case Decode.decodeValue Sessions.decodeActive active of
@@ -83,10 +72,7 @@ init { active, settings, now } url key =
                     settings_
 
                 Err _ ->
-                    model.settings
-
-        time =
-            Time.millisToPosix now
+                    getSettings baseModel
 
         ( newSessions, newActive_ ) =
             Sessions.buildSessions newSettings (Just newActive)
@@ -94,15 +80,13 @@ init { active, settings, now } url key =
         newSessions_ =
             { sessions | active = newActive_, sessions = newSessions }
 
-        ( page, pageCmd ) =
-            urlToPage time url
+        ( model, pageCmd ) =
+            urlToPage url baseModel
     in
-    ( { model
-        | env = { env | time = Time.millisToPosix now }
-        , settings = newSettings
-        , sessions = newSessions_
-        , page = page
-      }
+    ( model
+        |> mapEnv (\e -> { e | time = Time.millisToPosix now })
+        |> mapSettings (always newSettings)
+        |> mapSessions (always newSessions_)
     , Cmd.batch
         [ Task.perform AdjustTimeZone Time.here
         , pageCmd
@@ -115,26 +99,29 @@ init { active, settings, now } url key =
 
 
 view : Model -> Browser.Document Msg
-view ({ sessions } as model) =
+view model =
     let
+        sessions =
+            getSessions model
+
         title =
-            case model.page of
-                TimerPage ->
+            case model of
+                Timer _ ->
                     if sessions.playing then
-                        [ sessions.active |> Sessions.secondsLeft |> truncate |> Timer.secondsToDisplay
+                        [ sessions.active |> Sessions.secondsLeft |> truncate |> Sessions.secondsToDisplay
                         , Sessions.sessionDefToString sessions.active.session.def
                         ]
 
                     else
                         []
 
-                SettingsPage ->
+                Preferences _ ->
                     [ "Preferences" ]
 
-                StatsPage _ ->
+                Stats _ ->
                     [ "Stats" ]
 
-                CreditsPage ->
+                Credits _ ->
                     [ "Credits" ]
     in
     { title = title ++ [ "Pelmodoro" ] |> String.join " - "
@@ -144,19 +131,23 @@ view ({ sessions } as model) =
 
 viewBody : Model -> VirtualDom.Node Msg
 viewBody model =
+    let
+        settings =
+            getSettings model
+    in
     Html.div
         [ Attributes.class "container"
         , Attributes.css
             [ Css.width <| Css.vw 100.0
             , Css.position Css.relative
-            , Css.backgroundColor <| (model.settings.theme |> Theme.backgroundColor |> Color.toCssColor)
+            , Css.backgroundColor <| (settings.theme |> Theme.backgroundColor |> Color.toCssColor)
             , Css.fontFamilies [ "Montserrat" ]
-            , Css.color (model.settings.theme |> Theme.textColor |> Color.toCssColor)
+            , Css.color (settings.theme |> Theme.textColor |> Color.toCssColor)
             ]
         ]
         [ viewPage model
-        , viewFlash model.settings.theme model.flash
-        , viewNav model.settings.theme model.page
+        , viewFlash settings.theme <| getFlash model
+        , viewNav model
         ]
         |> Html.toUnstyled
 
@@ -164,19 +155,25 @@ viewBody model =
 viewFlash : Theme.Common.Theme -> Maybe (Flash.FlashMsg Flash.Msg) -> Html.Html Msg
 viewFlash theme flash =
     flash
-        |> Maybe.map (\f -> Flash.view theme f |> Html.map Flash)
+        |> Maybe.map (\f -> Flash.view theme f |> Html.map FlashMsg)
         |> Maybe.withDefault (Html.text "")
 
 
-viewNav : Theme.Common.Theme -> Page -> Html.Html Msg
-viewNav theme page =
+viewNav : Model -> Html.Html Msg
+viewNav model =
     let
         pages =
             [ ( "/", "timer" )
             , ( "/stats", "leaderboard" )
-            , ( "/settings", "settings" )
+            , ( "/preferences", "settings" )
             , ( "/credits", "info" )
             ]
+
+        settings =
+            getSettings model
+
+        theme =
+            settings.theme
 
         buttonStyle =
             Css.batch
@@ -192,18 +189,21 @@ viewNav theme page =
                 , Css.textDecoration Css.none
                 ]
 
-        isSelected path current =
-            case ( path, current ) of
-                ( "/", TimerPage ) ->
+        isSelected path =
+            case ( path, model ) of
+                ( "/", Timer _ ) ->
                     Css.opacity <| Css.num 1
 
-                ( "/settings", SettingsPage ) ->
+                ( "/settings", Preferences _ ) ->
                     Css.opacity <| Css.num 1
 
-                ( "/stats", StatsPage _ ) ->
+                ( "/preferences", Preferences _ ) ->
                     Css.opacity <| Css.num 1
 
-                ( "/credits", CreditsPage ) ->
+                ( "/stats", Stats _ ) ->
+                    Css.opacity <| Css.num 1
+
+                ( "/credits", Credits _ ) ->
                     Css.opacity <| Css.num 1
 
                 _ ->
@@ -237,7 +237,7 @@ viewNav theme page =
                                 [ Attributes.href path
                                 , Attributes.css
                                     [ buttonStyle
-                                    , isSelected path page
+                                    , isSelected path
                                     ]
                                 ]
                                 [ Elements.icon icon ]
@@ -255,18 +255,18 @@ viewPage model =
             , Css.overflow Css.auto
             ]
         ]
-        [ case model.page of
-            TimerPage ->
-                Timer.view model |> Html.map Timer
+        [ case model of
+            Timer m ->
+                Timer.view m |> Html.map TimerMsg
 
-            SettingsPage ->
-                Settings.view model |> Html.map Settings
+            Preferences m ->
+                Preferences.view m |> Html.map PreferencesMsg
 
-            StatsPage state ->
-                Stats.view model state |> Html.map Stats
+            Stats m ->
+                Stats.view m |> Html.map StatsMsg
 
-            CreditsPage ->
-                Credits.view model
+            Credits m ->
+                Credits.view m
         ]
 
 
@@ -278,44 +278,47 @@ type Msg
     = AdjustTimeZone Time.Zone
     | UrlChanged Url.Url
     | LinkCliked Browser.UrlRequest
-    | Timer Timer.Msg
-    | Stats Stats.Msg
-    | Settings Settings.Msg
-    | Flash Flash.Msg
+    | GlobalMsg Global.Msg
+    | TimerMsg Timer.Msg
+    | StatsMsg Stats.Msg
+    | PreferencesMsg Preferences.Msg
+    | FlashMsg Flash.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
-update msg ({ env } as model) =
-    case ( msg, model.page ) of
+update msg model =
+    case ( msg, model ) of
         ( AdjustTimeZone newZone, _ ) ->
-            Misc.withCmd { model | env = { env | zone = newZone } }
+            model
+                |> mapEnv (\e -> { e | zone = newZone })
+                |> Misc.withCmd
 
         ( UrlChanged url, _ ) ->
-            url
-                |> urlToPage env.time
-                |> Tuple.mapFirst (\p -> { model | page = p })
+            model |> urlToPage url
 
         ( LinkCliked urlRequest, _ ) ->
             case urlRequest of
                 Browser.Internal url ->
+                    let
+                        env =
+                            getEnv model
+                    in
                     ( model, Navigation.pushUrl env.key (Url.toString url) )
 
                 Browser.External href ->
                     ( model, Navigation.load href )
 
-        ( Flash subMsg, _ ) ->
-            Flash.update subMsg model |> Misc.updateWith Flash
+        ( GlobalMsg _, _ ) ->
+            Misc.withCmd model
 
-        ( Timer subMsg, _ ) ->
-            Timer.update subMsg model
+        ( TimerMsg subMsg, Timer m ) ->
+            Timer.update subMsg m |> Misc.updateWith TimerMsg |> Tuple.mapFirst Timer
 
-        ( Stats subMsg, StatsPage state ) ->
-            Stats.update env.zone subMsg state
-                |> Tuple.mapFirst (\s -> { model | page = StatsPage s })
-                |> Misc.updateWith Stats
+        ( StatsMsg subMsg, Stats m ) ->
+            Stats.update subMsg m |> Misc.updateWith StatsMsg |> Tuple.mapFirst Stats
 
-        ( Settings subMsg, _ ) ->
-            Settings.update subMsg model |> Misc.updateWith Settings
+        ( PreferencesMsg subMsg, Preferences m ) ->
+            Preferences.update subMsg m |> Misc.updateWith PreferencesMsg |> Tuple.mapFirst Preferences
 
         _ ->
             Misc.withCmd model
@@ -337,29 +340,151 @@ default key =
         env =
             Env.Env Time.utc (Time.millisToPosix 0) key
     in
-    { env = env
-    , page = TimerPage
-    , settings = Settings.default
-    , sessions = sessions_
-    , sentimentSession = Nothing
-    , flash = Nothing
-    }
+    Timer <| Timer.new env Settings.default sessions_ Nothing
 
 
-urlToPage : Time.Posix -> Url.Url -> ( Page, Cmd Msg )
-urlToPage time { path } =
+urlToPage : Url.Url -> Model -> ( Model, Cmd Msg )
+urlToPage { path } model =
+    let
+        env =
+            getEnv model
+
+        settings =
+            getSettings model
+
+        sessions =
+            getSessions model
+
+        flash =
+            getFlash model
+    in
     case path of
         "/settings" ->
-            ( SettingsPage, Cmd.none )
+            ( Preferences <| Preferences.new env settings sessions flash, Cmd.none )
+
+        "/preferences" ->
+            ( Preferences <| Preferences.new env settings sessions flash, Cmd.none )
 
         "/stats" ->
-            ( StatsPage Stats.initialState, time |> Stats.logsFetchCmd )
+            ( Stats <| Stats.new env settings sessions flash, Stats.logsFetchCmd env.time )
 
         "/credits" ->
-            ( CreditsPage, Cmd.none )
+            ( Credits <| Credits.new env settings sessions flash, Cmd.none )
 
         _ ->
-            ( TimerPage, Cmd.none )
+            ( Timer <| Timer.new env settings sessions flash, Cmd.none )
+
+
+getFlash : Model -> Flash.Flash
+getFlash model =
+    case model of
+        Timer { flash } ->
+            flash
+
+        Preferences { flash } ->
+            flash
+
+        Stats { flash } ->
+            flash
+
+        Credits { flash } ->
+            flash
+
+
+getSessions : Model -> Sessions.Sessions
+getSessions model =
+    case model of
+        Timer { sessions } ->
+            sessions
+
+        Preferences { sessions } ->
+            sessions
+
+        Stats { sessions } ->
+            sessions
+
+        Credits { sessions } ->
+            sessions
+
+
+getSettings : Model -> Settings.Settings
+getSettings model =
+    case model of
+        Timer { settings } ->
+            settings
+
+        Preferences { settings } ->
+            settings
+
+        Stats { settings } ->
+            settings
+
+        Credits { settings } ->
+            settings
+
+
+getEnv : Model -> Env.Env
+getEnv model =
+    case model of
+        Timer { env } ->
+            env
+
+        Preferences { env } ->
+            env
+
+        Stats { env } ->
+            env
+
+        Credits { env } ->
+            env
+
+
+mapSettings : (Settings.Settings -> Settings.Settings) -> Model -> Model
+mapSettings fn model =
+    case model of
+        Timer m ->
+            Timer { m | settings = fn m.settings }
+
+        Preferences m ->
+            Preferences { m | settings = fn m.settings }
+
+        Stats m ->
+            Stats { m | settings = fn m.settings }
+
+        Credits m ->
+            Credits { m | settings = fn m.settings }
+
+
+mapSessions : (Sessions.Sessions -> Sessions.Sessions) -> Model -> Model
+mapSessions fn model =
+    case model of
+        Timer m ->
+            Timer { m | sessions = fn m.sessions }
+
+        Preferences m ->
+            Preferences { m | sessions = fn m.sessions }
+
+        Stats m ->
+            Stats { m | sessions = fn m.sessions }
+
+        Credits m ->
+            Credits { m | sessions = fn m.sessions }
+
+
+mapEnv : (Env.Env -> Env.Env) -> Model -> Model
+mapEnv fn model =
+    case model of
+        Timer m ->
+            Timer { m | env = fn m.env }
+
+        Preferences m ->
+            Preferences { m | env = fn m.env }
+
+        Stats m ->
+            Stats { m | env = fn m.env }
+
+        Credits m ->
+            Credits { m | env = fn m.env }
 
 
 
@@ -369,10 +494,10 @@ urlToPage time { path } =
 subscriptions : Model -> Sub Msg
 subscriptions _ =
     Sub.batch
-        [ Timer.subscriptions |> Sub.map Timer
-        , Settings.subscriptions |> Sub.map Settings
-        , Stats.subscriptions |> Sub.map Stats
-        , Flash.subscriptions |> Sub.map Flash
+        [ Timer.subscriptions |> Sub.map TimerMsg
+        , Preferences.subscriptions |> Sub.map PreferencesMsg
+        , Stats.subscriptions |> Sub.map StatsMsg
+        , Flash.subscriptions |> Sub.map FlashMsg
         ]
 
 

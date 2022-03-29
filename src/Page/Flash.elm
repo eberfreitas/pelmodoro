@@ -1,5 +1,6 @@
 module Page.Flash exposing
-    ( FlashMsg
+    ( Flash
+    , FlashMsg
     , Msg
     , empty
     , new
@@ -36,6 +37,10 @@ type alias FlashMsg msg =
     , title : String
     , msg : Html.Html msg
     }
+
+
+type alias Flash =
+    Maybe (FlashMsg Msg)
 
 
 

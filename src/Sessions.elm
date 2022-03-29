@@ -23,6 +23,7 @@ module Sessions exposing
     , positive
     , saveActive
     , secondsLeft
+    , secondsToDisplay
     , sentimentToDisplay
     , sentimentToIcon
     , sessionChangeToLabel
@@ -182,6 +183,23 @@ sentimentToDisplay =
     sentimentToString >> String.Extra.toSentenceCase
 
 
+secondsToDisplay : Int -> String
+secondsToDisplay secs =
+    let
+        pad num =
+            num |> String.fromInt |> String.padLeft 2 '0'
+    in
+    if secs < 60 then
+        "0:" ++ pad secs
+
+    else
+        let
+            min =
+                (toFloat secs / 60) |> floor
+        in
+        String.fromInt min ++ ":" ++ pad (secs - (min * 60))
+
+
 endSession : Time.Posix -> Active -> Maybe Session
 endSession now { session, elapsed } =
     if elapsed /= 0 then
@@ -292,6 +310,95 @@ elapsedPct { session, elapsed } =
     toFloat elapsed * 100 / (toFloat <| sessionSeconds session.def)
 
 
+toColor : Theme.Common.Theme -> SessionDef -> Color.Color
+toColor theme def =
+    case def of
+        Work _ ->
+            Theme.workColor theme
+
+        Break _ ->
+            Theme.breakColor theme
+
+        LongBreak _ ->
+            Theme.longBreakColor theme
+
+
+positive : Sentiment
+positive =
+    Positive
+
+
+neutral : Sentiment
+neutral =
+    Neutral
+
+
+negative : Sentiment
+negative =
+    Negative
+
+
+sessionChangeToLabel : SessionDef -> SessionDef -> String
+sessionChangeToLabel from to =
+    case ( from, to ) of
+        ( Work _, Break _ ) ->
+            "Time to take a break"
+
+        ( Break _, Work _ ) ->
+            "Back to work"
+
+        ( Work _, LongBreak _ ) ->
+            "Time to relax"
+
+        ( LongBreak _, Work _ ) ->
+            "What is next?"
+
+        _ ->
+            ""
+
+
+calculateSentiment : List Session -> Sentiment
+calculateSentiment =
+    List.filter (.def >> isWork)
+        >> List.map (.sentiment >> Maybe.withDefault Neutral)
+        >> List.foldl
+            (\sentiment ( pos, neu, neg ) ->
+                case sentiment of
+                    Positive ->
+                        ( pos + 1, neu, neg )
+
+                    Neutral ->
+                        ( pos, neu + 1, neg )
+
+                    Negative ->
+                        ( pos, neu, neg + 1 )
+            )
+            ( 0, 0, 0 )
+        >> (\( pos, neu, neg ) ->
+                if neg >= neu && neg >= pos then
+                    Negative
+
+                else if neu >= pos && neu >= neg then
+                    Neutral
+
+                else
+                    Positive
+           )
+
+
+sentimentToIcon : Sentiment -> String
+sentimentToIcon sentiment =
+    case sentiment of
+        Positive ->
+            "sentiment_satisfied"
+
+        Neutral ->
+            "sentiment_neutral"
+
+        Negative ->
+            "sentiment_dissatisfied"
+
+
 
 -- CODECS
 
@@ -389,92 +496,3 @@ decodeActive =
         |> Pipeline.required "index" Decode.int
         |> Pipeline.required "cycle" decodeSession
         |> Pipeline.required "elapsed" Decode.int
-
-
-toColor : Theme.Common.Theme -> SessionDef -> Color.Color
-toColor theme def =
-    case def of
-        Work _ ->
-            Theme.workColor theme
-
-        Break _ ->
-            Theme.breakColor theme
-
-        LongBreak _ ->
-            Theme.longBreakColor theme
-
-
-positive : Sentiment
-positive =
-    Positive
-
-
-neutral : Sentiment
-neutral =
-    Neutral
-
-
-negative : Sentiment
-negative =
-    Negative
-
-
-sessionChangeToLabel : SessionDef -> SessionDef -> String
-sessionChangeToLabel from to =
-    case ( from, to ) of
-        ( Work _, Break _ ) ->
-            "Time to take a break"
-
-        ( Break _, Work _ ) ->
-            "Back to work"
-
-        ( Work _, LongBreak _ ) ->
-            "Time to relax"
-
-        ( LongBreak _, Work _ ) ->
-            "What is next?"
-
-        _ ->
-            ""
-
-
-calculateSentiment : List Session -> Sentiment
-calculateSentiment =
-    List.filter (.def >> isWork)
-        >> List.map (.sentiment >> Maybe.withDefault Neutral)
-        >> List.foldl
-            (\sentiment ( pos, neu, neg ) ->
-                case sentiment of
-                    Positive ->
-                        ( pos + 1, neu, neg )
-
-                    Neutral ->
-                        ( pos, neu + 1, neg )
-
-                    Negative ->
-                        ( pos, neu, neg + 1 )
-            )
-            ( 0, 0, 0 )
-        >> (\( pos, neu, neg ) ->
-                if neg >= neu && neg >= pos then
-                    Negative
-
-                else if neu >= pos && neu >= neg then
-                    Neutral
-
-                else
-                    Positive
-           )
-
-
-sentimentToIcon : Sentiment -> String
-sentimentToIcon sentiment =
-    case sentiment of
-        Positive ->
-            "sentiment_satisfied"
-
-        Neutral ->
-            "sentiment_neutral"
-
-        Negative ->
-            "sentiment_dissatisfied"
