@@ -6,13 +6,13 @@ import Color
 import Css
 import Elements
 import Env
+import Flash
+import Global
 import Html.Styled as Html
 import Html.Styled.Attributes as Attributes
 import Json.Decode as Decode
 import Misc
 import Page.Credits as Credits
-import Page.Flash as Flash
-import Page.Global as Global
 import Page.Preferences as Preferences
 import Page.Stats as Stats
 import Page.Timer as Timer
@@ -278,11 +278,13 @@ type Msg
     = AdjustTimeZone Time.Zone
     | UrlChanged Url.Url
     | LinkCliked Browser.UrlRequest
-    | GlobalMsg Global.Msg
     | TimerMsg Timer.Msg
     | StatsMsg Stats.Msg
     | PreferencesMsg Preferences.Msg
-    | FlashMsg Flash.Msg
+
+
+
+-- | FlashMsg Flash.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -375,20 +377,25 @@ urlToPage { path } model =
             ( Timer <| Timer.new env settings sessions flash, Cmd.none )
 
 
+getGlobal : Model -> Global.Global
+getGlobal model =
+    case model of
+        Timer { global } ->
+            global
+
+        Preferences { global } ->
+            global
+
+        Stats { global } ->
+            global
+
+        Credits { global } ->
+            global
+
+
 getFlash : Model -> Flash.Flash
 getFlash model =
-    case model of
-        Timer { flash } ->
-            flash
-
-        Preferences { flash } ->
-            flash
-
-        Stats { flash } ->
-            flash
-
-        Credits { flash } ->
-            flash
+    model |> getGlobal |> .flash
 
 
 getSessions : Model -> Sessions.Sessions

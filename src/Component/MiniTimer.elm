@@ -1,29 +1,18 @@
-module Page.MiniTimer exposing (view)
+module Component.MiniTimer exposing (view)
 
 import Color
 import Css
+import Global
 import Html.Styled as Html
 import Html.Styled.Attributes as Attributes
 import Sessions
-import Theme.Common
-
-
-
--- MODEL
-
-
-type alias Model a b =
-    { a
-        | sessions : Sessions.Sessions
-        , settings : { b | theme : Theme.Common.Theme }
-    }
 
 
 
 -- VIEW
 
 
-view : Model a b -> Html.Html msg
+view : Global.Global -> Html.Html msg
 view { sessions, settings } =
     let
         totalRun =

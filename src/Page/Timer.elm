@@ -2,7 +2,6 @@ module Page.Timer exposing
     ( Model
     , Msg
     , new
-    , subscriptions
     , update
     , view
     )
@@ -10,20 +9,15 @@ module Page.Timer exposing
 import Color
 import Css
 import Elements
-import Env
+import Global
 import Html.Styled as Html
 import Html.Styled.Attributes as Attributes
 import Html.Styled.Events as Events
-import Json.Decode as Decode
-import Json.Encode as Encode
 import List.Extra
 import Misc
-import Page.Flash as Flash
 import Page.Spotify as Spotify
 import Page.Stats as Stats
-import Ports
 import Sessions
-import Settings
 import Svg.Styled as Svg
 import Svg.Styled.Attributes as SvgAttributes
 import Theme.Common
@@ -37,26 +31,12 @@ import Tuple.Trio as Trio
 
 
 type alias Model =
-    { env : Env.Env
-    , settings : Settings.Settings
-    , sessions : Sessions.Sessions
-    , flash : Flash.Flash
-    , previousRound : Maybe Sessions.Session
-    }
+    { global : Global.Global }
 
 
-type alias EvalResult msg =
-    { active : Sessions.Active
-    , playing : Bool
-    , flash : Maybe (Flash.FlashMsg msg)
-    , cmd : Cmd msg
-    , previousRound : Maybe Sessions.Session
-    }
-
-
-new : Env.Env -> Settings.Settings -> Sessions.Sessions -> Flash.Flash -> Model
-new env settings sessions flash =
-    Model env settings sessions flash Nothing
+new : Global.Global -> Model
+new =
+    Model
 
 
 
@@ -64,7 +44,7 @@ new env settings sessions flash =
 
 
 view : Model -> Html.Html Msg
-view model =
+view { global } =
     let
         svgBaseSize =
             280
@@ -88,12 +68,12 @@ view model =
                 , SvgAttributes.height <| String.fromInt svgBaseSize
                 , SvgAttributes.viewBox <| toViewBox svgBaseSize
                 ]
-                (viewSessionsArcs svgBaseSize model.settings.theme model.sessions.active model.sessions.sessions
-                    ++ [ viewTimer model.sessions.playing model.sessions.uptime model.settings.theme model.sessions.active ]
+                (viewSessionsArcs svgBaseSize global.settings.theme global.sessions.active global.sessions.sessions
+                    ++ [ viewTimer global.sessions.playing global.sessions.uptime global.settings.theme global.sessions.active ]
                 )
-            , viewControls model.settings.theme model.sessions.playing
+            , viewControls global.settings.theme global.sessions.playing
             ]
-        , viewSentimentQuery model.settings.theme model.previousRound
+        , viewSentimentQuery global.settings.theme global.previousRound
         ]
 
 
@@ -322,7 +302,11 @@ type Msg
 
 
 update : Msg -> Model -> ( Model, Cmd msg )
-update msg ({ settings, env, sessions } as model) =
+update msg { global } =
+    let
+        { sessions, env, settings } =
+            global
+    in
     case msg of
         Play ->
             let
@@ -346,12 +330,14 @@ update msg ({ settings, env, sessions } as model) =
                             Cmd.none
                         ]
             in
-            { model | sessions = newSessions }
+            { global | sessions = newSessions }
+                |> Model
                 |> Misc.withCmd
                 |> Misc.addCmd cmds
 
         Pause ->
-            { model | sessions = { sessions | playing = False } }
+            { global | sessions = { sessions | playing = False } }
+                |> Model
                 |> Misc.withCmd
                 |> Misc.addCmd (Spotify.pauseCmd settings.spotify)
 
@@ -378,7 +364,8 @@ update msg ({ settings, env, sessions } as model) =
                         , Spotify.pauseCmd settings.spotify
                         ]
             in
-            { model | sessions = newSessions }
+            { global | sessions = newSessions }
+                |> Model
                 |> Misc.withCmd
                 |> Misc.addCmd cmds
 
@@ -390,7 +377,8 @@ update msg ({ settings, env, sessions } as model) =
                 newSessions =
                     { sessions | active = newActive, playing = False }
             in
-            { model | sessions = newSessions }
+            { global | sessions = newSessions }
+                |> Model
                 |> Misc.withCmd
                 |> Misc.addCmd
                     (Cmd.batch
@@ -401,7 +389,8 @@ update msg ({ settings, env, sessions } as model) =
                     )
 
         SetSentiment start sentiment ->
-            { model | previousRound = Nothing }
+            { global | previousRound = Nothing }
+                |> Model
                 |> Misc.withCmd
                 |> Misc.addCmd (Stats.setSentimentCmd start sentiment)
 

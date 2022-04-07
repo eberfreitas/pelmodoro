@@ -12,10 +12,11 @@ module Page.Stats exposing
 
 import Calendar
 import Color
+import Component.MiniTimer as MiniTimer
 import Css
 import Date
 import Elements
-import Env
+import Global
 import Html.Styled as Html
 import Html.Styled.Attributes as Attributes
 import Html.Styled.Events as Events
@@ -26,11 +27,8 @@ import Json.Decode.Pipeline as Pipeline
 import Json.Encode as Encode
 import List.Extra
 import Misc
-import Page.Flash as Flash
-import Page.MiniTimer as MiniTimer
 import Ports
 import Sessions
-import Settings
 import Theme.Common
 import Theme.Theme as Theme
 import Time
@@ -42,10 +40,7 @@ import Tuple.Trio as Trio
 
 
 type alias Model =
-    { env : Env.Env
-    , settings : Settings.Settings
-    , sessions : Sessions.Sessions
-    , flash : Flash.Flash
+    { global : Global.Global
     , state : State
     }
 
@@ -62,9 +57,9 @@ type alias Def =
     }
 
 
-new : Env.Env -> Settings.Settings -> Sessions.Sessions -> Flash.Flash -> Model
-new env settings sessions flash =
-    Model env settings sessions flash Loading
+new : Global.Global -> Model
+new global =
+    Model global Loading
 
 
 
@@ -72,13 +67,16 @@ new env settings sessions flash =
 
 
 view : Model -> Html.Html Msg
-view ({ env, settings, state } as model) =
+view { global, state } =
     let
+        { env, settings } =
+            global
+
         today =
             Date.fromPosix env.zone env.time
     in
     Html.div []
-        [ MiniTimer.view model
+        [ MiniTimer.view global
         , Html.div
             [ Attributes.css
                 [ Css.margin2 (Css.rem 2) Css.auto
@@ -625,7 +623,7 @@ type Msg
 
 
 update : Msg -> Model -> ( Model, Cmd msg )
-update msg ({ env, state } as model) =
+update msg ({ global, state } as model) =
     case msg of
         NoOp ->
             Misc.withCmd model
@@ -634,7 +632,7 @@ update msg ({ env, state } as model) =
             let
                 toDate : Int -> Date.Date
                 toDate =
-                    Time.millisToPosix >> Date.fromPosix env.zone
+                    Time.millisToPosix >> Date.fromPosix global.env.zone
             in
             case ( Decode.decodeValue decodeLogs raw, state ) of
                 ( Ok { ts, logs }, Loading ) ->

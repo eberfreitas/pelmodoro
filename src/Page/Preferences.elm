@@ -7,18 +7,18 @@ module Page.Preferences exposing
     , view
     )
 
+import Component.MiniTimer as MiniTimer
 import Css
 import Elements
-import Env
 import File
 import File.Select as Select
+import Flash
+import Global
 import Html.Styled as Html
 import Html.Styled.Attributes as Attributes
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Misc
-import Page.Flash as Flash
-import Page.MiniTimer as MiniTimer
 import Page.Spotify as Spotify
 import Ports
 import Sessions
@@ -33,14 +33,10 @@ import Tuple.Trio as Trio
 
 
 type alias Model =
-    { env : Env.Env
-    , settings : Settings.Settings
-    , sessions : Sessions.Sessions
-    , flash : Flash.Flash
-    }
+    { global : Global.Global }
 
 
-new : Env.Env -> Settings.Settings -> Sessions.Sessions -> Flash.Flash -> Model
+new : Global.Global -> Model
 new =
     Model
 
@@ -50,13 +46,16 @@ new =
 
 
 view : Model -> Html.Html Msg
-view ({ settings } as model) =
+view { global } =
     let
+        { settings } =
+            global
+
         inMinutes seconds =
             seconds // 60
     in
     Html.div []
-        [ MiniTimer.view model
+        [ MiniTimer.view global
         , Html.div
             [ Attributes.css
                 [ Css.margin2 (Css.rem 2) Css.auto
@@ -145,35 +144,39 @@ type Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
-update msg ({ settings } as model) =
+update msg ({ global } as model) =
+    let
+        { settings } =
+            global
+    in
     case msg of
         UpdateRounds rounds ->
             model
-                |> mapSettings (\s -> { s | rounds = rounds })
+                |> Global.mapSettings (\s -> { s | rounds = rounds })
                 |> Misc.withCmd
                 |> save
 
         UpdateWorkDuration secs ->
             model
-                |> mapSettings (\s -> { s | workDuration = secs * 60 })
+                |> Global.mapSettings (\s -> { s | workDuration = secs * 60 })
                 |> Misc.withCmd
                 |> save
 
         UpdateBreakDuration secs ->
             model
-                |> mapSettings (\s -> { s | breakDuration = secs * 60 })
+                |> Global.mapSettings (\s -> { s | breakDuration = secs * 60 })
                 |> Misc.withCmd
                 |> save
 
         UpdateLongBreakDuration secs ->
             model
-                |> mapSettings (\s -> { s | longBreakDuration = secs * 60 })
+                |> Global.mapSettings (\s -> { s | longBreakDuration = secs * 60 })
                 |> Misc.withCmd
                 |> save
 
         UpdateFlow flow ->
             model
-                |> mapSettings
+                |> Global.mapSettings
                     (\s ->
                         flow
                             |> Misc.encodableToType Settings.flowTypeAndStrings
@@ -185,7 +188,7 @@ update msg ({ settings } as model) =
 
         UpdateTheme theme ->
             model
-                |> mapSettings
+                |> Global.mapSettings
                     (\s ->
                         theme
                             |> Misc.encodableToType Theme.themeTypeAndStrings
@@ -197,7 +200,7 @@ update msg ({ settings } as model) =
 
         UpdateAlarmSound alarm ->
             model
-                |> mapSettings
+                |> Global.mapSettings
                     (\s ->
                         alarm
                             |> Misc.encodableToType Settings.alarmSoundTypeAndStrings
@@ -213,7 +216,7 @@ update msg ({ settings } as model) =
                     model
                         |> Misc.withCmd
                         |> Misc.addCmd
-                            (settings.notifications.browser
+                            (model.global.settings.notifications.browser
                                 |> not
                                 |> RequestBrowserPermission
                                 |> toPort
@@ -221,7 +224,7 @@ update msg ({ settings } as model) =
 
                 _ ->
                     model
-                        |> mapSettings (\s -> { s | notifications = Settings.toggleNotification type_ s.notifications })
+                        |> Global.mapSettings (\s -> { s | notifications = Settings.toggleNotification type_ s.notifications })
                         |> Misc.withCmd
                         |> save
 
@@ -230,21 +233,21 @@ update msg ({ settings } as model) =
                 Ok res ->
                     let
                         notifications =
-                            settings.notifications
+                            model.global.settings.notifications
 
                         newNotifications =
                             { notifications | browser = res.val }
 
                         flashMsg =
                             if res.msg /= "" then
-                                Flash.new "Attention" (Html.div [] [ Html.text res.msg ]) |> Just
+                                Just <| Flash.new "Attention" res.msg
 
                             else
                                 Nothing
                     in
                     model
-                        |> mapSettings (\s -> { s | notifications = newNotifications })
-                        |> Flash.setFlash flashMsg
+                        |> Global.mapSettings (\s -> { s | notifications = newNotifications })
+                        |> Global.setFlash flashMsg
                         |> Misc.withCmd
                         |> save
 
@@ -289,7 +292,7 @@ update msg ({ settings } as model) =
 
         Spotify subMsg ->
             Spotify.update subMsg settings.spotify
-                |> Tuple.mapFirst (\state -> model |> mapSettings (\s -> { s | spotify = state }))
+                |> Tuple.mapFirst (\state -> model |> Global.mapSettings (\s -> { s | spotify = state }))
                 |> Misc.updateWith Spotify
                 |> save
 
@@ -298,28 +301,27 @@ update msg ({ settings } as model) =
 -- HELPERS
 
 
-mapSettings : (Settings.Settings -> Settings.Settings) -> Model -> Model
-mapSettings fn model =
-    { model | settings = fn model.settings }
-
-
 save : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
-save ( { sessions } as model, cmd ) =
+save ( { global }, cmd ) =
     let
+        { sessions, settings } =
+            global
+
         ( newSessions, newActive ) =
-            Sessions.buildSessions model.settings (Just model.sessions.active)
+            Sessions.buildSessions settings (Just sessions.active)
 
         newSessions_ =
             { sessions | sessions = newSessions, playing = False, active = newActive }
     in
-    { model | sessions = newSessions_ }
+    { global | sessions = newSessions_ }
+        |> Model
         |> Misc.withCmd
         |> Misc.addCmd cmd
         |> Misc.addCmd
             (Cmd.batch
-                [ model.settings |> Settings.encodeSettings |> Ports.localStorageHelper "settings"
+                [ settings |> Settings.encodeSettings |> Ports.localStorageHelper "settings"
                 , newActive |> Sessions.encodeActive |> Ports.localStorageHelper "active"
-                , Spotify.pauseCmd model.settings.spotify
+                , Spotify.pauseCmd settings.spotify
                 ]
             )
 

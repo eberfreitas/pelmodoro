@@ -1,15 +1,12 @@
 module Page.Credits exposing (Model, new, view)
 
 import Color
+import Component.MiniTimer as MiniTimer
 import Css
 import Elements
-import Env
+import Global
 import Html.Styled as Html
 import Html.Styled.Attributes as Attributes
-import Page.Flash as Flash
-import Page.MiniTimer as MiniTimer
-import Sessions
-import Settings
 import Theme.Theme as Theme
 
 
@@ -18,14 +15,10 @@ import Theme.Theme as Theme
 
 
 type alias Model =
-    { env : Env.Env
-    , settings : Settings.Settings
-    , sessions : Sessions.Sessions
-    , flash : Flash.Flash
-    }
+    { global : Global.Global }
 
 
-new : Env.Env -> Settings.Settings -> Sessions.Sessions -> Flash.Flash -> Model
+new : Global.Global -> Model
 new =
     Model
 
@@ -35,8 +28,11 @@ new =
 
 
 view : Model -> Html.Html msg
-view ({ settings } as model) =
+view { global } =
     let
+        settings =
+            global.settings
+
         anchorStyle =
             Css.batch
                 [ Css.color (settings.theme |> Theme.textColor |> Color.toCssColor)
@@ -65,7 +61,7 @@ view ({ settings } as model) =
             Elements.h2 settings.theme text [ Attributes.css [ Css.marginBottom <| Css.rem 1 ] ] []
     in
     Html.div []
-        [ MiniTimer.view model
+        [ MiniTimer.view global
         , Html.div
             [ Attributes.css
                 [ Css.margin2 (Css.rem 2) Css.auto
