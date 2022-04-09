@@ -111,7 +111,7 @@ update msg ({ global } as model) =
         GotMsg raw ->
             raw
                 |> Decode.decodeValue decodeFlashMsg
-                |> Result.map (\f -> Global.setFlash f model)
+                |> Result.map (\f -> Global.modelSetFlash f model)
                 |> Result.withDefault model
                 |> Misc.withCmd
 
@@ -132,6 +132,6 @@ subscriptions =
 decodeFlashMsg : Decode.Decoder Flash.Flash
 decodeFlashMsg =
     Decode.map2
-        (\title msg -> Just <| Flash.new title msg)
+        (\title msg -> Flash.new title msg)
         (Decode.field "title" Decode.string)
         (Decode.field "msg" Decode.string)

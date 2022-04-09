@@ -1,75 +1,40 @@
-module Page.Global exposing (Msg, subscriptions, update)
+module Component.Tick exposing (tick)
 
-import Env
-import Json.Decode as Decode
+import Flash
+import Global
 import Json.Encode as Encode
 import List.Extra
 import Misc
-import Page.Flash as Flash
 import Page.Spotify as Spotify
 import Ports
-import Quotes
 import Sessions
 import Settings
 import Time
 
 
-
--- MODEL
-
-
-type alias Model a =
-    { a
-        | env : Env.Env
-        , settings : Settings.Settings
-        , sessions : Sessions.Sessions
-        , flash : Flash.Flash
-    }
-
-
 type alias EvalResult msg =
     { active : Sessions.Active
     , playing : Bool
-    , flash : Maybe (Flash.FlashMsg msg)
+    , flash : Flash.Flash
     , cmd : Cmd msg
     , previousRound : Maybe Sessions.Session
     }
 
 
 
--- UPDATE
-
-
-type Msg
-    = Tick Decode.Value
-
-
-update : Msg -> Model a -> ( Model a, Cmd msg )
-update msg model =
-    case msg of
-        Tick raw ->
-            case Decode.decodeValue Decode.int raw of
-                Ok millis ->
-                    model |> tick (Time.millisToPosix millis)
-
-                Err _ ->
-                    Misc.withCmd model
-
-
-
 -- HELPERS
 
 
-tick : Time.Posix -> Model a -> ( Model a, Cmd msg )
-tick posix ({ flash, settings, sessions } as model) =
+tick : Time.Posix -> Global.Global -> ( Global.Global, Cmd msg )
+tick posix ({ flash, settings, sessions } as global) =
     if sessions.playing then
         let
             newState =
-                evalElapsedTime model
+                evalElapsedTime global
 
             setFlashFn =
                 if settings.notifications.inApp then
-                    Flash.setFlash newState.flash
+                    Global.setFlash newState.flash
 
                 else
                     identity
@@ -77,7 +42,7 @@ tick posix ({ flash, settings, sessions } as model) =
             newSessions =
                 { sessions | active = newState.active, playing = newState.playing }
         in
-        { model
+        { global
             | sessions = newSessions
             , flash = flash |> Maybe.andThen Flash.updateFlashTime
         }
@@ -89,12 +54,12 @@ tick posix ({ flash, settings, sessions } as model) =
             |> Misc.addCmd (Sessions.saveActive sessions.active)
 
     else
-        { model | flash = flash |> Maybe.andThen Flash.updateFlashTime }
+        { global | flash = flash |> Maybe.andThen Flash.updateFlashTime }
             |> updateTime posix
             |> Misc.withCmd
 
 
-evalElapsedTime : Model a -> EvalResult msg
+evalElapsedTime : Global.Global -> EvalResult msg
 evalElapsedTime { sessions, settings, env } =
     if Sessions.secondsLeft sessions.active == 0 then
         let
@@ -135,7 +100,7 @@ evalElapsedTime { sessions, settings, env } =
         EvalResult
             newActive
             playing
-            (Just flashMsg)
+            flashMsg
             (Cmd.batch [ notificationCmd, spotifyCmd, logCmd ])
             previousRound
 
@@ -143,9 +108,9 @@ evalElapsedTime { sessions, settings, env } =
         EvalResult (Sessions.addElapsed 1 sessions.active) True Nothing Cmd.none Nothing
 
 
-updateTime : Time.Posix -> Model a -> Model a
-updateTime now ({ env, sessions } as model) =
-    { model
+updateTime : Time.Posix -> Global.Global -> Global.Global
+updateTime now ({ env, sessions } as global) =
+    { global
         | env = { env | time = now }
         , sessions = { sessions | uptime = sessions.uptime + 1 }
     }
@@ -154,12 +119,12 @@ updateTime now ({ env, sessions } as model) =
 setupSentimentSession :
     Maybe Sessions.Session
     -> Sessions.SessionDef
-    -> Model a
-    -> Model a
-setupSentimentSession session sessionDef model =
+    -> Global.Global
+    -> Global.Global
+setupSentimentSession session sessionDef global =
     let
         newSession =
-            case ( model.previousRound, session, Sessions.isWork sessionDef ) of
+            case ( global.previousRound, session, Sessions.isWork sessionDef ) of
                 ( _, _, True ) ->
                     Nothing
 
@@ -172,7 +137,7 @@ setupSentimentSession session sessionDef model =
                 _ ->
                     Nothing
     in
-    { model | previousRound = newSession }
+    { global | previousRound = newSession }
 
 
 rollActiveSession :
@@ -203,23 +168,14 @@ rollActiveSession now nextIndex flow sessions =
         ( nextActive, False )
 
 
-sessionChangeToFlash : Time.Posix -> Sessions.SessionDef -> Sessions.SessionDef -> ( Flash.FlashMsg msg, String )
-sessionChangeToFlash now from to =
+sessionChangeToFlash : Time.Posix -> Sessions.SessionDef -> Sessions.SessionDef -> ( Flash.Flash, String )
+sessionChangeToFlash _ from to =
     case Sessions.sessionChangeToLabel from to of
         "" ->
             ( Flash.empty, "" )
 
         label ->
-            ( Flash.new label (Quotes.randomHtmlQuote now), label )
-
-
-
--- SUBSCRIPTIONS
-
-
-subscriptions : Sub Msg
-subscriptions =
-    Ports.tick Tick
+            ( Flash.new label "", label )
 
 
 

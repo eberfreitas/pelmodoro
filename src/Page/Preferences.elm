@@ -240,14 +240,14 @@ update msg ({ global } as model) =
 
                         flashMsg =
                             if res.msg /= "" then
-                                Just <| Flash.new "Attention" res.msg
+                                Flash.new "Attention" res.msg
 
                             else
                                 Nothing
                     in
                     model
                         |> Global.mapSettings (\s -> { s | notifications = newNotifications })
-                        |> Global.setFlash flashMsg
+                        |> Global.modelSetFlash flashMsg
                         |> Misc.withCmd
                         |> save
 

@@ -1,4 +1,4 @@
-module Global exposing (Global, mapSettings, setFlash)
+module Global exposing (Global, mapEnv, mapSessions, mapSettings, modelSetFlash, setFlash)
 
 import Env
 import Flash as Flash
@@ -24,15 +24,37 @@ mapSettings mapFn ({ global } as model) =
     let
         newSettings =
             mapFn global.settings
-
-        newGlobal =
-            { global | settings = newSettings }
     in
-    setGlobal newGlobal model
+    setGlobal { global | settings = newSettings } model
 
 
-setFlash : Flash.Flash -> Model a -> Model a
-setFlash flash ({ global } as model) =
+mapSessions : (Sessions.Sessions -> Sessions.Sessions) -> Model a -> Model a
+mapSessions mapFn ({ global } as model) =
+    let
+        newSessions =
+            mapFn global.sessions
+    in
+    setGlobal { global | sessions = newSessions } model
+
+
+mapEnv : (Env.Env -> Env.Env) -> Model a -> Model a
+mapEnv mapFn ({ global } as model) =
+    let
+        newEnv =
+            mapFn global.env
+    in
+    setGlobal { global | env = newEnv } model
+
+
+setFlash : Flash.Flash -> Global -> Global
+setFlash flash global =
+    flash
+        |> Maybe.map (\f -> { global | flash = Just f })
+        |> Maybe.withDefault global
+
+
+modelSetFlash : Flash.Flash -> Model a -> Model a
+modelSetFlash flash ({ global } as model) =
     let
         newGlobal =
             flash

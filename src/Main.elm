@@ -3,6 +3,8 @@ module Main exposing (main)
 import Browser
 import Browser.Navigation as Navigation
 import Color
+import Component.Flash
+import Component.Tick
 import Css
 import Elements
 import Env
@@ -17,6 +19,7 @@ import Page.Preferences as Preferences
 import Page.Stats as Stats
 import Page.Timer as Timer
 import Platform.Sub as Sub
+import Ports
 import Sessions
 import Settings
 import Task
@@ -152,11 +155,9 @@ viewBody model =
         |> Html.toUnstyled
 
 
-viewFlash : Theme.Common.Theme -> Maybe (Flash.FlashMsg Flash.Msg) -> Html.Html Msg
+viewFlash : Theme.Common.Theme -> Flash.Flash -> Html.Html Msg
 viewFlash theme flash =
-    flash
-        |> Maybe.map (\f -> Flash.view theme f |> Html.map FlashMsg)
-        |> Maybe.withDefault (Html.text "")
+    Component.Flash.view theme flash |> Html.map FlashMsg
 
 
 viewNav : Model -> Html.Html Msg
@@ -278,9 +279,11 @@ type Msg
     = AdjustTimeZone Time.Zone
     | UrlChanged Url.Url
     | LinkCliked Browser.UrlRequest
+    | Tick Decode.Value
     | TimerMsg Timer.Msg
     | StatsMsg Stats.Msg
     | PreferencesMsg Preferences.Msg
+    | FlashMsg Component.Flash.Msg
 
 
 
@@ -310,8 +313,17 @@ update msg model =
                 Browser.External href ->
                     ( model, Navigation.load href )
 
-        ( GlobalMsg _, _ ) ->
-            Misc.withCmd model
+        ( Tick raw, _ ) ->
+            case Decode.decodeValue Decode.int raw of
+                Ok millis ->
+                    let
+                        ( newGlobal, cmd ) =
+                            model |> getGlobal |> Component.Tick.tick (Time.millisToPosix millis)
+                    in
+                    ( model |> mapGlobal (always newGlobal), cmd )
+
+                Err _ ->
+                    Misc.withCmd model
 
         ( TimerMsg subMsg, Timer m ) ->
             Timer.update subMsg m |> Misc.updateWith TimerMsg |> Tuple.mapFirst Timer
@@ -341,40 +353,34 @@ default key =
 
         env =
             Env.Env Time.utc (Time.millisToPosix 0) key
+
+        global =
+            Global.Global env Settings.default sessions_ Nothing Nothing
     in
-    Timer <| Timer.new env Settings.default sessions_ Nothing
+    Timer <| Timer.new global
 
 
 urlToPage : Url.Url -> Model -> ( Model, Cmd Msg )
 urlToPage { path } model =
     let
-        env =
-            getEnv model
-
-        settings =
-            getSettings model
-
-        sessions =
-            getSessions model
-
-        flash =
-            getFlash model
+        global =
+            getGlobal model
     in
     case path of
         "/settings" ->
-            ( Preferences <| Preferences.new env settings sessions flash, Cmd.none )
+            ( Preferences <| Preferences.new global, Cmd.none )
 
         "/preferences" ->
-            ( Preferences <| Preferences.new env settings sessions flash, Cmd.none )
+            ( Preferences <| Preferences.new global, Cmd.none )
 
         "/stats" ->
-            ( Stats <| Stats.new env settings sessions flash, Stats.logsFetchCmd env.time )
+            ( Stats <| Stats.new global, Stats.logsFetchCmd global.env.time )
 
         "/credits" ->
-            ( Credits <| Credits.new env settings sessions flash, Cmd.none )
+            ( Credits <| Credits.new global, Cmd.none )
 
         _ ->
-            ( Timer <| Timer.new env settings sessions flash, Cmd.none )
+            ( Timer <| Timer.new global, Cmd.none )
 
 
 getGlobal : Model -> Global.Global
@@ -393,6 +399,22 @@ getGlobal model =
             global
 
 
+mapGlobal : (Global.Global -> Global.Global) -> Model -> Model
+mapGlobal mapFn model =
+    case model of
+        Timer m ->
+            Timer { m | global = mapFn m.global }
+
+        Preferences m ->
+            Preferences { m | global = mapFn m.global }
+
+        Stats m ->
+            Stats { m | global = mapFn m.global }
+
+        Credits m ->
+            Credits { m | global = mapFn m.global }
+
+
 getFlash : Model -> Flash.Flash
 getFlash model =
     model |> getGlobal |> .flash
@@ -400,98 +422,32 @@ getFlash model =
 
 getSessions : Model -> Sessions.Sessions
 getSessions model =
-    case model of
-        Timer { sessions } ->
-            sessions
+    model |> getGlobal |> .sessions
 
-        Preferences { sessions } ->
-            sessions
 
-        Stats { sessions } ->
-            sessions
-
-        Credits { sessions } ->
-            sessions
+mapSessions : (Sessions.Sessions -> Sessions.Sessions) -> Model -> Model
+mapSessions mapFn =
+    mapGlobal (\s -> { s | sessions = mapFn s.sessions })
 
 
 getSettings : Model -> Settings.Settings
 getSettings model =
-    case model of
-        Timer { settings } ->
-            settings
+    model |> getGlobal |> .settings
 
-        Preferences { settings } ->
-            settings
 
-        Stats { settings } ->
-            settings
-
-        Credits { settings } ->
-            settings
+mapSettings : (Settings.Settings -> Settings.Settings) -> Model -> Model
+mapSettings mapFn =
+    mapGlobal (\s -> { s | settings = mapFn s.settings })
 
 
 getEnv : Model -> Env.Env
 getEnv model =
-    case model of
-        Timer { env } ->
-            env
-
-        Preferences { env } ->
-            env
-
-        Stats { env } ->
-            env
-
-        Credits { env } ->
-            env
-
-
-mapSettings : (Settings.Settings -> Settings.Settings) -> Model -> Model
-mapSettings fn model =
-    case model of
-        Timer m ->
-            Timer { m | settings = fn m.settings }
-
-        Preferences m ->
-            Preferences { m | settings = fn m.settings }
-
-        Stats m ->
-            Stats { m | settings = fn m.settings }
-
-        Credits m ->
-            Credits { m | settings = fn m.settings }
-
-
-mapSessions : (Sessions.Sessions -> Sessions.Sessions) -> Model -> Model
-mapSessions fn model =
-    case model of
-        Timer m ->
-            Timer { m | sessions = fn m.sessions }
-
-        Preferences m ->
-            Preferences { m | sessions = fn m.sessions }
-
-        Stats m ->
-            Stats { m | sessions = fn m.sessions }
-
-        Credits m ->
-            Credits { m | sessions = fn m.sessions }
+    model |> getGlobal |> .env
 
 
 mapEnv : (Env.Env -> Env.Env) -> Model -> Model
-mapEnv fn model =
-    case model of
-        Timer m ->
-            Timer { m | env = fn m.env }
-
-        Preferences m ->
-            Preferences { m | env = fn m.env }
-
-        Stats m ->
-            Stats { m | env = fn m.env }
-
-        Credits m ->
-            Credits { m | env = fn m.env }
+mapEnv mapFn =
+    mapGlobal (\g -> { g | env = mapFn g.env })
 
 
 
@@ -501,10 +457,10 @@ mapEnv fn model =
 subscriptions : Model -> Sub Msg
 subscriptions _ =
     Sub.batch
-        [ Timer.subscriptions |> Sub.map TimerMsg
-        , Preferences.subscriptions |> Sub.map PreferencesMsg
+        [ Preferences.subscriptions |> Sub.map PreferencesMsg
         , Stats.subscriptions |> Sub.map StatsMsg
-        , Flash.subscriptions |> Sub.map FlashMsg
+        , Component.Flash.subscriptions |> Sub.map FlashMsg
+        , Ports.tick Tick
         ]
 
 

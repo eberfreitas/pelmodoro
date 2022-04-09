@@ -12,14 +12,14 @@ type alias Flash =
     Maybe FlashMsg
 
 
-new : String -> String -> FlashMsg
+new : String -> String -> Flash
 new title content =
-    FlashMsg 15 title content
+    Just <| FlashMsg 15 title content
 
 
-empty : FlashMsg
+empty : Flash
 empty =
-    FlashMsg 0 "" ""
+    Just <| FlashMsg 0 "" ""
 
 
 updateFlashTime : FlashMsg -> Maybe FlashMsg
