@@ -1,3 +1,3 @@
-export default function (app, title, msg) {
-  app.ports.gotFlashMsg.send({ title: title, msg: msg })
+export default function (app, msg) {
+  app.ports.gotFlashMsg.send({ msg: msg })
 }
