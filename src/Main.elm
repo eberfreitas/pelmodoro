@@ -337,7 +337,7 @@ default key =
     , sessions = sessions
     , active = active
     , sentimentSession = Nothing
-    , flash = Just <| Flash.new "Testing"
+    , flash = Nothing
     }
 
 
