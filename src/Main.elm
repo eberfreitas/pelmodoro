@@ -5,11 +5,11 @@ import Browser.Navigation as Navigation
 import Color
 import Component.Flash
 import Component.Tick
+import Context
 import Css
 import Elements
 import Env
 import Flash
-import Global
 import Html.Styled as Html
 import Html.Styled.Attributes as Attributes
 import Json.Decode as Decode
@@ -28,13 +28,20 @@ import Theme.Theme as Theme
 import Time
 import Url
 import VirtualDom
+import Context
 
 
 
 -- MODEL
 
 
-type Model
+type alias Model =
+    { context : Context.Context
+    , page : Page
+    }
+
+
+type Page
     = Timer Timer.Model
     | Stats Stats.Model
     | Preferences Preferences.Model
@@ -286,10 +293,6 @@ type Msg
     | FlashMsg Component.Flash.Msg
 
 
-
--- | FlashMsg Flash.Msg
-
-
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case ( msg, model ) of
@@ -337,6 +340,8 @@ update msg model =
         _ ->
             Misc.withCmd model
 
+
+updateWithContext :
 
 
 -- HELPERS

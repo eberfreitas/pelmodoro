@@ -21,10 +21,6 @@ type alias EvalResult msg =
     }
 
 
-
--- HELPERS
-
-
 tick : Time.Posix -> Global.Global -> ( Global.Global, Cmd msg )
 tick posix ({ flash, settings, sessions } as global) =
     if sessions.playing then
