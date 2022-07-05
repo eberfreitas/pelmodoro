@@ -28,13 +28,12 @@ import Theme.Theme as Theme
 
 
 type alias Model a =
-    { a | flash : Maybe (FlashMsg Msg) }
+    { a | flash : Maybe FlashMsg }
 
 
-type alias FlashMsg msg =
+type alias FlashMsg =
     { time : Int
-    , title : String
-    , msg : Html.Html msg
+    , msg : String
     }
 
 
@@ -42,8 +41,8 @@ type alias FlashMsg msg =
 -- VIEW
 
 
-view : Theme.Common.Theme -> FlashMsg Msg -> Html.Html Msg
-view theme { title, msg, time } =
+view : Theme.Common.Theme -> FlashMsg -> Html.Html Msg
+view theme { msg, time } =
     let
         containerStyles =
             Css.batch
@@ -52,7 +51,7 @@ view theme { title, msg, time } =
                 , Css.color (theme |> Theme.contrastColor |> Color.toCssColor)
                 , Css.margin2 Css.zero Css.auto
                 , Css.width <| Css.pct 100
-                , Css.maxWidth <| Css.rem 30
+                , Css.maxWidth <| Css.rem 40
                 , Css.position Css.relative
                 ]
     in
@@ -64,8 +63,8 @@ view theme { title, msg, time } =
             ]
         ]
         [ Html.div
-            [ Attributes.css [ containerStyles, Css.marginBottom <| Css.px 1 ] ]
-            [ Html.div [ Attributes.css [ Css.fontWeight Css.bold ] ] [ Html.text title ]
+            [ Attributes.css [ containerStyles ] ]
+            [ Html.span [] [ Html.text msg ]
             , Html.div
                 [ Attributes.css
                     [ Css.position Css.absolute
@@ -90,7 +89,6 @@ view theme { title, msg, time } =
                     [ Elements.icon "highlight_off" ]
                 ]
             ]
-        , Html.div [ Attributes.css [ containerStyles, Css.fontSize <| Css.rem 1.25 ] ] [ msg ]
         ]
 
 
@@ -121,24 +119,24 @@ update msg model =
 -- HELPERS
 
 
-new : String -> Html.Html msg -> FlashMsg msg
-new title content =
-    FlashMsg 15 title content
+new : String -> FlashMsg
+new content =
+    FlashMsg 15 content
 
 
-empty : FlashMsg msg
+empty : FlashMsg
 empty =
-    FlashMsg 0 "" (Html.text "")
+    FlashMsg 0 ""
 
 
-setFlash : Maybe (FlashMsg Msg) -> Model a -> Model a
+setFlash : Maybe FlashMsg -> Model a -> Model a
 setFlash flashMsg model =
     flashMsg
         |> Maybe.map (\f -> { model | flash = Just f })
         |> Maybe.withDefault model
 
 
-updateFlashTime : FlashMsg msg -> Maybe (FlashMsg msg)
+updateFlashTime : FlashMsg -> Maybe FlashMsg
 updateFlashTime ({ time } as msg) =
     if (time - 1) < 1 then
         Nothing
@@ -160,9 +158,6 @@ subscriptions =
 -- CODECS
 
 
-decodeFlashMsg : Decode.Decoder (FlashMsg msg)
+decodeFlashMsg : Decode.Decoder FlashMsg
 decodeFlashMsg =
-    Decode.map2
-        (\title msg -> new title (Html.div [] [ Html.text msg ]))
-        (Decode.field "title" Decode.string)
-        (Decode.field "msg" Decode.string)
+    Decode.field "msg" Decode.string |> Decode.map new

@@ -39,7 +39,7 @@ type alias Model =
     , sessions : List Session.SessionDef
     , active : Session.Active
     , sentimentSession : Maybe Session.Session
-    , flash : Maybe (Flash.FlashMsg Flash.Msg)
+    , flash : Maybe Flash.FlashMsg
     }
 
 
@@ -157,7 +157,7 @@ viewBody model =
         |> Html.toUnstyled
 
 
-viewFlash : Theme.Common.Theme -> Maybe (Flash.FlashMsg Flash.Msg) -> Html.Html Msg
+viewFlash : Theme.Common.Theme -> Maybe Flash.FlashMsg -> Html.Html Msg
 viewFlash theme flash =
     flash
         |> Maybe.map (\f -> Flash.view theme f |> Html.map Flash)
@@ -337,7 +337,7 @@ default key =
     , sessions = sessions
     , active = active
     , sentimentSession = Nothing
-    , flash = Nothing
+    , flash = Just <| Flash.new "Testing"
     }
 
 

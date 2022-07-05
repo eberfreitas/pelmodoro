@@ -15,7 +15,6 @@ import Page.Settings as Settings
 import Page.Spotify as Spotify
 import Page.Stats as Stats
 import Ports
-import Quotes
 import Session
 import Svg.Styled as Svg
 import Svg.Styled.Attributes as SvgAttributes
@@ -37,7 +36,7 @@ type alias Model a =
         , settings : Settings.Settings
         , sessions : List Session.SessionDef
         , uptime : Int
-        , flash : Maybe (Flash.FlashMsg Flash.Msg)
+        , flash : Maybe Flash.FlashMsg
         , sentimentSession : Maybe Session.Session
     }
 
@@ -45,7 +44,7 @@ type alias Model a =
 type alias EvalResult msg =
     { active : Session.Active
     , playing : Bool
-    , flash : Maybe (Flash.FlashMsg msg)
+    , flash : Maybe Flash.FlashMsg
     , cmd : Cmd msg
     , sentimentSession : Maybe Session.Session
     }
@@ -442,14 +441,14 @@ rollActiveSession now nextIndex flow sessions =
         ( nextActive, False )
 
 
-sessionChangeToFlash : Time.Posix -> Session.SessionDef -> Session.SessionDef -> ( Flash.FlashMsg msg, String )
-sessionChangeToFlash now from to =
+sessionChangeToFlash : Session.SessionDef -> Session.SessionDef -> ( Flash.FlashMsg, String )
+sessionChangeToFlash from to =
     case Session.sessionChangeToLabel from to of
         "" ->
             ( Flash.empty, "" )
 
         label ->
-            ( Flash.new label (Quotes.randomHtmlQuote now), label )
+            ( Flash.new label, label )
 
 
 evalElapsedTime : Model a -> EvalResult msg
@@ -463,7 +462,7 @@ evalElapsedTime { active, sessions, settings, time } =
                 rollActiveSession time nextIndex settings.flow sessions
 
             ( flashMsg, notificationMsg ) =
-                sessionChangeToFlash time active.session.def newActive.session.def
+                sessionChangeToFlash active.session.def newActive.session.def
 
             sentimentSession =
                 if active.session.def |> Session.isWork then
