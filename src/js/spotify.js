@@ -132,20 +132,20 @@ const notConnected = (app, flash = true) => {
   app.ports.gotFromSpotify.send({ type: "notconnected", url: connectData().url });
 
   if (flash) {
-    setFlash(app, "Spotify disconnected", "Your Spotify account is disconnected.")
+    setFlash(app, "Your Spotify account is disconnected.")
   }
 };
 
 const connectionError = app => {
   app.ports.gotFromSpotify.send({ type: "connectionerror", url: connectData().url });
-  setFlash(app, "Connection error", "There was an error trying to connect to your Spotify account. Note: you need a Premium account to connect.");
+  setFlash(app, "There was an error trying to connect to your Spotify account. Note: you need a Premium account to connect.");
 };
 
 const connected = (app, playlists, flash = true) => {
   app.ports.gotFromSpotify.send({ type: "connected", playlists: playlists, playlist: null });
 
   if (flash) {
-    setFlash(app, "Spotify connected", "Your Spotify account is connected.");
+    setFlash(app, "Your Spotify account is connected.");
   }
 };
 

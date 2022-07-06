@@ -41,7 +41,7 @@ import Tuple.Trio as Trio
 type alias Model a =
     { a
         | settings : Settings
-        , flash : Maybe (Flash.FlashMsg Flash.Msg)
+        , flash : Maybe Flash.FlashMsg
         , active : Session.Active
         , sessions : List Session.SessionDef
         , playing : Bool
@@ -281,7 +281,7 @@ update msg ({ settings } as model) =
 
                         flashMsg =
                             if res.msg /= "" then
-                                Flash.new "Attention" (Html.div [] [ Html.text res.msg ]) |> Just
+                                Flash.new res.msg |> Just
 
                             else
                                 Nothing

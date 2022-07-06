@@ -43,9 +43,9 @@ const importData = async (app, str) => {
     await db.cycles.clear();
     await db.import(blob);
 
-    setFlash(app, "Success", "Data has been successfully imported.")
+    setFlash(app, "Data has been successfully imported.")
   } catch (e) {
-    setFlash(app, "Error", "There was an error trying to import the data.")
+    setFlash(app, "There was an error trying to import the data.")
   }
 }
 
