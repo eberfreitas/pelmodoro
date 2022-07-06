@@ -553,7 +553,7 @@ tick posix ({ playing, flash, active, settings } as model) =
             |> setFlashFn
             |> Misc.withCmd
             |> Misc.addCmd newState.cmd
-            |> Misc.addCmd (Session.saveActive active)
+            |> Misc.addCmd (Session.saveActive newState.active)
 
     else
         { model | flash = flash |> Maybe.andThen Flash.updateFlashTime }
