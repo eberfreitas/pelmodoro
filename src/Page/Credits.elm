@@ -1,4 +1,4 @@
-module Page.Credits exposing (view)
+module Page.Credits exposing (Model, view)
 
 import Color
 import Css
@@ -30,12 +30,14 @@ type alias Model a =
 view : Model a -> Html.Html msg
 view ({ settings } as model) =
     let
+        anchorStyle : Css.Style
         anchorStyle =
             Css.batch
                 [ Css.color (settings.theme |> Theme.textColor |> Color.toCssColor)
                 , Css.fontWeight Css.bold
                 ]
 
+        sectionStyle : Css.Style
         sectionStyle =
             Css.batch
                 [ Css.lineHeight <| Css.num 1.5
@@ -43,6 +45,7 @@ view ({ settings } as model) =
                 , Css.textAlign Css.center
                 ]
 
+        anchor : String -> String -> Html.Html msg
         anchor url text =
             Html.a
                 [ Attributes.href url
@@ -51,9 +54,11 @@ view ({ settings } as model) =
                 ]
                 [ Html.text text ]
 
+        strong : String -> Html.Html msg
         strong text =
             Html.strong [] [ Html.text text ]
 
+        h2 : String -> Html.Html msg
         h2 text =
             Elements.h2 settings.theme text [ Attributes.css [ Css.marginBottom <| Css.rem 1 ] ] []
     in

@@ -120,6 +120,7 @@ buildRounds :
     -> ( List RoundType, ActiveRound )
 buildRounds settings active =
     let
+        rounds : List RoundType
         rounds =
             settings.workDuration
                 |> Work
@@ -127,9 +128,11 @@ buildRounds settings active =
                 |> List.intersperse (Break settings.breakDuration)
                 |> Misc.flip (++) [ LongBreak settings.longBreakDuration ]
 
+        baseActive : ActiveRound
         baseActive =
             newActiveRound rounds
 
+        newActive : ActiveRound
         newActive =
             active
                 |> Maybe.map

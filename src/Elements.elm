@@ -175,6 +175,7 @@ labelStyle =
 checkbox : Theme.Common.Theme -> Bool -> msg -> String -> Html.Html msg
 checkbox theme val msg label =
     let
+        icon_ : String
         icon_ =
             if val then
                 "check_box"

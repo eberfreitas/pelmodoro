@@ -1,5 +1,6 @@
 module Page.Settings exposing
-    ( Msg
+    ( Model
+    , Msg
     , subscriptions
     , update
     , view
@@ -46,6 +47,7 @@ type alias Model a =
 view : Model a -> Html.Html Msg
 view ({ settings } as model) =
     let
+        inMinutes : Int -> Int
         inMinutes seconds =
             seconds // 60
     in
@@ -223,12 +225,15 @@ update msg ({ settings } as model) =
             case Decode.decodeValue Settings.decodeBrowserNotificationPermission raw of
                 Ok res ->
                     let
+                        notifications : Settings.Notifications
                         notifications =
                             settings.notifications
 
+                        newNotifications : Settings.Notifications
                         newNotifications =
                             { notifications | browser = res.val }
 
+                        flashMsg : Maybe Flash.FlashMsg
                         flashMsg =
                             if res.msg /= "" then
                                 Flash.new res.msg |> Just

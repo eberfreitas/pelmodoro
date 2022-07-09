@@ -1,5 +1,6 @@
 module Page.Stats exposing
-    ( Msg
+    ( Model
+    , Msg
     , State
     , initialState
     , logsFetchCmd
@@ -65,10 +66,6 @@ type alias Def =
 
 view : Model a b -> State -> Html.Html Msg
 view ({ time, zone, settings } as model) state =
-    let
-        today =
-            Date.fromPosix zone time
-    in
     Html.div []
         [ MiniTimer.view model
         , Html.div
@@ -80,6 +77,11 @@ view ({ time, zone, settings } as model) state =
             [ Elements.h1 settings.theme "Statistics"
             , case state of
                 Loaded def ->
+                    let
+                        today : Date.Date
+                        today =
+                            Date.fromPosix zone time
+                    in
                     viewLoaded settings.theme zone today def
 
                 _ ->
@@ -108,9 +110,11 @@ viewCalendar :
     -> Html.Html Msg
 viewCalendar theme zone today date logs =
     let
+        averages : List ( Date.Date, Float )
         averages =
             monthlyAverages zone logs
 
+        cellStyle : Css.Style
         cellStyle =
             Css.batch
                 [ Css.displayFlex
@@ -119,6 +123,7 @@ viewCalendar theme zone today date logs =
                 , Css.height <| Css.rem 2.3
                 ]
 
+        averageForTheDay : Date.Date -> Float
         averageForTheDay day =
             averages
                 |> List.Extra.find (Tuple.first >> (==) day)
@@ -126,11 +131,13 @@ viewCalendar theme zone today date logs =
                 |> Maybe.withDefault 0
                 |> Misc.flip (/) 100
 
+        cellBgColor : Float -> Css.Color
         cellBgColor average =
             average
                 |> Misc.flip Color.setAlpha (theme |> Theme.foregroundColor)
                 |> Color.toCssColor
 
+        cellTextColor : Float -> Css.Color
         cellTextColor average =
             if average < 0.5 then
                 theme |> Theme.textColor |> Color.toCssColor
@@ -138,6 +145,7 @@ viewCalendar theme zone today date logs =
             else
                 theme |> Theme.contrastColor |> Color.toCssColor
 
+        cellBorder : Date.Date -> Css.Style
         cellBorder day =
             if day == date then
                 Css.border3 (Css.rem 0.15) Css.solid (theme |> Theme.longBreakColor |> Color.toCssColor)
@@ -145,11 +153,14 @@ viewCalendar theme zone today date logs =
             else
                 Css.borderStyle Css.none
 
+        buildDay : Calendar.CalendarDate -> Html.Html Msg
         buildDay day =
             let
+                average : Float
                 average =
                     averageForTheDay day.date
 
+                style : Css.Style
                 style =
                     Css.batch
                         [ Css.display Css.block
@@ -161,6 +172,7 @@ viewCalendar theme zone today date logs =
                         , Css.color (cellTextColor average)
                         ]
 
+                renderFn : List (Html.Html Msg) -> Html.Html Msg
                 renderFn =
                     if day.dayDisplay == "  " then
                         Html.div [ Attributes.css [ style ] ]
@@ -179,12 +191,14 @@ viewCalendar theme zone today date logs =
                 [ Attributes.css [ cellStyle ] ]
                 [ renderFn [ Html.text day.dayDisplay ] ]
 
+        calendar : List (Html.Html Msg)
         calendar =
             date
                 |> Calendar.fromDate Nothing
                 |> List.concat
                 |> List.map buildDay
 
+        arrowStyle : Css.Style
         arrowStyle =
             Css.batch
                 [ Css.width <| Css.rem 1.5
@@ -195,6 +209,11 @@ viewCalendar theme zone today date logs =
                 , Css.color (theme |> Theme.textColor |> Color.toCssColor)
                 ]
 
+        arrow :
+            Date.Date
+            -> (Css.ExplicitLength Css.IncompatibleUnits -> Css.Style)
+            -> String
+            -> Html.Html Msg
         arrow date_ float icon =
             Html.button
                 [ Attributes.css [ arrowStyle, Css.float float ]
@@ -206,15 +225,18 @@ viewCalendar theme zone today date logs =
                 ]
                 [ Elements.icon icon ]
 
+        asFirstDay : Date.Date -> Date.Date
         asFirstDay date_ =
             Date.fromCalendarDate
                 (Date.year date_)
                 (Date.month date_)
                 1
 
+        prevMonth : Date.Date
         prevMonth =
             date |> Date.add Date.Months -1 |> asFirstDay
 
+        nextMonth : Date.Date
         nextMonth =
             date |> Date.add Date.Months 1 |> asFirstDay
     in
@@ -260,12 +282,15 @@ viewSummary theme label logs =
 
     else
         let
+            workLogs : List Session.Round
             workLogs =
                 logs |> List.filter (.type_ >> Session.isWork)
 
+            breakLogs : List Session.Round
             breakLogs =
                 logs |> List.filter (.type_ >> Session.isAnyBreak)
 
+            aggFn : List Session.Round -> ( Int, Int )
             aggFn =
                 List.foldl
                     (\{ seconds, type_ } ( a, b ) ->
@@ -281,12 +306,15 @@ viewSummary theme label logs =
             ( breakRealSecs, breakTotalSecs ) =
                 aggFn breakLogs
 
+            workPct : Int
             workPct =
                 workRealSecs * 100 // workTotalSecs
 
+            breakPct : Int
             breakPct =
                 breakRealSecs * 100 // breakTotalSecs
 
+            sentiment : Session.Sentiment
             sentiment =
                 Session.calculateSentiment logs
         in
@@ -334,6 +362,7 @@ viewDailySummary theme zone date logs =
 viewDailyLogs : Theme.Common.Theme -> Bool -> Time.Zone -> Date.Date -> List Session.Round -> Html.Html Msg
 viewDailyLogs theme show zone selected logs =
     let
+        formatToHour : Time.Posix -> String
         formatToHour t =
             ( t, t )
                 |> Tuple.mapBoth
@@ -341,8 +370,10 @@ viewDailyLogs theme show zone selected logs =
                     (Time.toMinute zone >> String.fromInt >> String.padLeft 2 'o')
                 |> (\( h, m ) -> h ++ ":" ++ m)
 
+        renderSentiment : Maybe Session.Sentiment -> Time.Posix -> Html.Html Msg
         renderSentiment sentiment start =
             let
+                opacity : Msg -> Css.Style
                 opacity msg =
                     sentiment
                         |> Maybe.map
@@ -392,20 +423,31 @@ viewDailyLogs theme show zone selected logs =
                     )
                 ]
 
+        renderRound :
+            Maybe Session.Sentiment
+            -> Session.RoundType
+            -> Time.Posix
+            -> Time.Posix
+            -> Int
+            -> Html.Html Msg
         renderRound sentiment round start end seconds =
             let
+                innerPct : String
                 innerPct =
                     round
                         |> Session.roundSeconds
                         |> (\t -> 100 * seconds // t)
                         |> String.fromInt
 
+                roundColor : Color.Color
                 roundColor =
                     round |> Session.roundToColor theme
 
+                dimmed : String
                 dimmed =
                     roundColor |> Color.setAlpha 0.5 |> Color.toRgbaString
 
+                full : String
                 full =
                     roundColor |> Color.toRgbaString
             in
@@ -444,6 +486,7 @@ viewDailyLogs theme show zone selected logs =
                     ]
                 ]
 
+        dailyLogs_ : List Session.Round
         dailyLogs_ =
             dailyLogs zone selected logs
     in
@@ -518,12 +561,15 @@ viewHourlyAverages theme zone log =
 
     else
         let
+            averages : List ( Int, Int, Float )
             averages =
                 hourlyAverages zone log
 
+            loggedHours : List Int
             loggedHours =
                 averages |> List.map Trio.first
 
+            hours : List Int
             hours =
                 List.range
                     (loggedHours |> List.minimum |> Maybe.withDefault 0)
@@ -656,6 +702,7 @@ update zone msg state =
                 |> mapDef
                     (\def ->
                         let
+                            newLogs : List Session.Round
                             newLogs =
                                 def.logs
                                     |> List.Extra.findIndex (.start >> (==) (Just start))
@@ -685,8 +732,13 @@ update zone msg state =
 hourlyAverages : Time.Zone -> List Session.Round -> List ( Int, Int, Float )
 hourlyAverages zone log =
     let
+        aggregate :
+            List ( Int, Int, Int )
+            -> { a | start : Time.Posix, seconds : Int }
+            -> List ( Int, Int, Int )
         aggregate agg { start, seconds } =
             let
+                hour : Int
                 hour =
                     start |> Time.toHour zone
             in
@@ -697,6 +749,7 @@ hourlyAverages zone log =
                 Nothing ->
                     ( hour, 1, seconds ) :: agg
 
+        firstPass : List ( Int, Int )
         firstPass =
             log
                 |> List.filter (.type_ >> Session.isWork)
@@ -710,6 +763,7 @@ hourlyAverages zone log =
                     []
                 |> List.map (\( h, count, secs ) -> ( h, secs // count ))
 
+        max : Int
         max =
             firstPass |> List.Extra.maximumBy Tuple.second |> Maybe.map Tuple.second |> Maybe.withDefault 0
     in
@@ -734,8 +788,13 @@ inMinutes secs =
 monthlyAverages : Time.Zone -> List Session.Round -> List ( Date.Date, Float )
 monthlyAverages zone log =
     let
+        aggregate :
+            List ( Date.Date, Int )
+            -> { a | start : Time.Posix, seconds : Int }
+            -> List ( Date.Date, Int )
         aggregate agg { start, seconds } =
             let
+                date : Date.Date
                 date =
                     start |> Date.fromPosix zone
             in
@@ -746,6 +805,7 @@ monthlyAverages zone log =
                 Nothing ->
                     ( date, seconds ) :: agg
 
+        firstPass : List ( Date.Date, Int )
         firstPass =
             log
                 |> List.filter (.type_ >> Session.isWork)
@@ -758,6 +818,7 @@ monthlyAverages zone log =
                     )
                     []
 
+        max : Int
         max =
             firstPass |> List.Extra.maximumBy Tuple.second |> Maybe.map Tuple.second |> Maybe.withDefault 0
     in

@@ -85,6 +85,7 @@ update msg state =
                     case ( state, protoState ) of
                         ( Spotify.Connected _ (Just playlist), Spotify.Connected playlists _ ) ->
                             let
+                                newPlaylist : Maybe String
                                 newPlaylist =
                                     playlists
                                         |> List.Extra.find (Tuple.first >> (==) playlist)

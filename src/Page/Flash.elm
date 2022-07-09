@@ -1,5 +1,6 @@
 module Page.Flash exposing
     ( FlashMsg
+    , Model
     , Msg
     , empty
     , new
@@ -44,6 +45,7 @@ type alias FlashMsg =
 view : Theme.Common.Theme -> FlashMsg -> Html.Html Msg
 view theme { msg, time } =
     let
+        containerStyles : Css.Style
         containerStyles =
             Css.batch
                 [ Css.padding <| Css.rem 1

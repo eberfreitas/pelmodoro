@@ -1,4 +1,4 @@
-module Main exposing (main)
+module Main exposing (Flags, Model, Msg, Page, main)
 
 import Browser
 import Browser.Navigation as Navigation
@@ -65,9 +65,11 @@ type alias Flags =
 init : Flags -> Url.Url -> Navigation.Key -> ( Model, Cmd Msg )
 init { active, settings, now } url key =
     let
+        baseModel : Model
         baseModel =
             default key
 
+        newActive : Session.ActiveRound
         newActive =
             case Decode.decodeValue Session.decodeActiveRound active of
                 Ok active_ ->
@@ -76,6 +78,7 @@ init { active, settings, now } url key =
                 Err _ ->
                     baseModel.active
 
+        newSettings : Settings.Settings
         newSettings =
             case Decode.decodeValue Settings.decodeSettings settings of
                 Ok settings_ ->
@@ -84,6 +87,7 @@ init { active, settings, now } url key =
                 Err _ ->
                     baseModel.settings
 
+        time : Time.Posix
         time =
             Time.millisToPosix now
 
@@ -114,6 +118,7 @@ init { active, settings, now } url key =
 view : Model -> Browser.Document Msg
 view model =
     let
+        title : List String
         title =
             case model.page of
                 TimerPage ->
@@ -168,6 +173,7 @@ viewFlash theme flash =
 viewNav : Theme.Common.Theme -> Page -> Html.Html Msg
 viewNav theme page =
     let
+        pages : List ( String, String )
         pages =
             [ ( "/", "timer" )
             , ( "/stats", "leaderboard" )
@@ -175,6 +181,7 @@ viewNav theme page =
             , ( "/credits", "info" )
             ]
 
+        buttonStyle : Css.Style
         buttonStyle =
             Css.batch
                 [ Css.borderStyle Css.none
@@ -189,6 +196,7 @@ viewNav theme page =
                 , Css.textDecoration Css.none
                 ]
 
+        isSelected : String -> Page -> Css.Style
         isSelected path current =
             case ( path, current ) of
                 ( "/", TimerPage ) ->

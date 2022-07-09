@@ -1,4 +1,4 @@
-module Page.MiniTimer exposing (view)
+module Page.MiniTimer exposing (Model, view)
 
 import Color
 import Css
@@ -27,6 +27,7 @@ type alias Model a b =
 view : Model a b -> Html.Html msg
 view { sessions, active, settings } =
     let
+        totalRun : Float
         totalRun =
             sessions |> Session.roundsTotalRun |> toFloat
     in
@@ -42,12 +43,15 @@ view { sessions, active, settings } =
             |> List.indexedMap
                 (\index session ->
                     let
+                        sizeInPct : Float
                         sizeInPct =
                             toFloat (Session.roundSeconds session) * 100 / totalRun
 
+                        backgroundColor : Color.Color
                         backgroundColor =
                             session |> Session.roundToColor settings.theme
 
+                        backgroundColor_ : Color.Color
                         backgroundColor_ =
                             if index >= active.index then
                                 backgroundColor |> Color.setAlpha 0.25
@@ -67,6 +71,7 @@ view { sessions, active, settings } =
                         ]
                         [ if index == active.index then
                             let
+                                elapsedPct : Float
                                 elapsedPct =
                                     Session.elapsedPct active
                             in

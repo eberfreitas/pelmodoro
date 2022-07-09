@@ -1,4 +1,4 @@
-module Page.Timer exposing (Msg, secondsToDisplay, subscriptions, update, view)
+module Page.Timer exposing (Model, Msg, secondsToDisplay, subscriptions, update, view)
 
 import Color
 import Css
@@ -57,9 +57,11 @@ type alias EvalResult msg =
 view : Model a -> Html.Html Msg
 view model =
     let
+        svgBaseSize : Int
         svgBaseSize =
             280
 
+        toViewBox : Int -> String
         toViewBox =
             List.repeat 2 >> List.map String.fromInt >> String.join " " >> (++) "0 0 "
     in
@@ -91,18 +93,23 @@ view model =
 viewSessionsArcs : Int -> Theme.Common.Theme -> Session.ActiveRound -> List Session.RoundType -> List (Svg.Svg msg)
 viewSessionsArcs size theme active rounds =
     let
+        totalRun : Float
         totalRun =
             rounds |> Session.roundsTotalRun |> toFloat
 
+        strokeWidth : Int
         strokeWidth =
             8
 
+        centerPoint : Float
         centerPoint =
             toFloat size / 2
 
+        radius : Float
         radius =
-            centerPoint - (strokeWidth / 2)
+            centerPoint - (toFloat strokeWidth / 2)
 
+        arcsOffset : Float
         arcsOffset =
             3.0
     in
@@ -110,15 +117,19 @@ viewSessionsArcs size theme active rounds =
         |> List.foldl
             (\round ( paths, idx, startAngle ) ->
                 let
+                    roundSecs : Float
                     roundSecs =
                         round |> Session.roundSeconds |> toFloat
 
+                    roundAngle : Float
                     roundAngle =
                         360.0 * roundSecs / totalRun
 
+                    endAngle : Float
                     endAngle =
                         startAngle + roundAngle
 
+                    buildArc : Session.RoundType -> String -> Float -> Float -> Svg.Svg msg
                     buildArc round_ opacity_ start_ end_ =
                         Svg.path
                             [ SvgAttributes.strokeWidth <| String.fromInt strokeWidth
@@ -130,18 +141,23 @@ viewSessionsArcs size theme active rounds =
                             ]
                             []
 
+                    activeArc : Svg.Svg msg
                     activeArc =
                         if idx == active.index then
                             let
+                                elapsedPct : Float
                                 elapsedPct =
                                     Session.elapsedPct active
 
+                                elapsedIntervalAngle : Float
                                 elapsedIntervalAngle =
                                     (roundAngle - arcsOffset * 2) * elapsedPct / 100.0
 
+                                startAngle_ : Float
                                 startAngle_ =
                                     startAngle + arcsOffset
 
+                                endAngle_ : Float
                                 endAngle_ =
                                     startAngle_ + elapsedIntervalAngle
                             in
@@ -150,6 +166,7 @@ viewSessionsArcs size theme active rounds =
                         else
                             Svg.path [] []
 
+                    opacity : String
                     opacity =
                         if idx >= active.index then
                             ".35"
@@ -169,6 +186,7 @@ viewSessionsArcs size theme active rounds =
 viewTimer : Bool -> Int -> Theme.Common.Theme -> Session.ActiveRound -> Svg.Svg Msg
 viewTimer playing uptime theme active =
     let
+        timerOpacity : String
         timerOpacity =
             if playing then
                 "100"
@@ -194,6 +212,7 @@ viewTimer playing uptime theme active =
 viewControls : Theme.Common.Theme -> Bool -> Html.Html Msg
 viewControls theme playing =
     let
+        buttonStyle : Css.Style
         buttonStyle =
             Css.batch
                 [ Css.borderStyle Css.none
@@ -205,6 +224,7 @@ viewControls theme playing =
                 , Css.cursor Css.pointer
                 ]
 
+        button : String -> msg -> Html.Html msg
         button icon msg =
             Html.button
                 [ Events.onClick msg, Attributes.css [ buttonStyle ] ]
@@ -326,6 +346,7 @@ update msg ({ settings, active, time, sessions } as model) =
 
         Play ->
             let
+                newActive : Session.ActiveRound
                 newActive =
                     if active.elapsed == 0 then
                         Session.ActiveRound active.index (Session.roundStart time active.round) 0
@@ -333,6 +354,7 @@ update msg ({ settings, active, time, sessions } as model) =
                     else
                         active
 
+                cmds : Cmd msg
                 cmds =
                     Cmd.batch
                         [ Session.saveActive newActive
@@ -362,9 +384,11 @@ update msg ({ settings, active, time, sessions } as model) =
                         Nothing ->
                             ( 0, model.sessions |> Session.firstRound )
 
+                newActive : Session.ActiveRound
                 newActive =
                     Session.ActiveRound nextIndex (Session.newRound nextRoundType) 0
 
+                cmds : Cmd msg
                 cmds =
                     Cmd.batch
                         [ Session.logRound time active
@@ -378,6 +402,7 @@ update msg ({ settings, active, time, sessions } as model) =
 
         Reset ->
             let
+                newActive : Session.ActiveRound
                 newActive =
                     Session.newActiveRound sessions
             in
@@ -404,6 +429,7 @@ update msg ({ settings, active, time, sessions } as model) =
 secondsToDisplay : Int -> String
 secondsToDisplay secs =
     let
+        pad : Int -> String
         pad num =
             num |> String.fromInt |> String.padLeft 2 '0'
     in
@@ -412,6 +438,7 @@ secondsToDisplay secs =
 
     else
         let
+            min : Int
             min =
                 (toFloat secs / 60) |> floor
         in
@@ -421,12 +448,15 @@ secondsToDisplay secs =
 rollActiveRound : Time.Posix -> Int -> Settings.Flow -> List Session.RoundType -> ( Session.ActiveRound, Bool )
 rollActiveRound now nextIndex flow rounds =
     let
-        firstRound =
-            rounds |> Session.firstRound
-
+        nextActive : Session.ActiveRound
         nextActive =
             case rounds |> List.Extra.getAt nextIndex of
                 Nothing ->
+                    let
+                        firstRound : Session.RoundType
+                        firstRound =
+                            rounds |> Session.firstRound
+                    in
                     Session.ActiveRound 0 (Session.newRound firstRound) 0
 
                 Just nextRound ->
@@ -455,6 +485,7 @@ evalElapsedTime : Model a -> EvalResult msg
 evalElapsedTime { active, sessions, settings, time } =
     if Session.secondsLeft active == 0 then
         let
+            nextIndex : Int
             nextIndex =
                 active.index + 1
 
@@ -464,6 +495,7 @@ evalElapsedTime { active, sessions, settings, time } =
             ( flashMsg, notificationMsg ) =
                 sessionChangeToFlash active.round.type_ newActive.round.type_
 
+            sentimentRound : Maybe Session.Round
             sentimentRound =
                 if active.round.type_ |> Session.isWork then
                     Just active.round
@@ -471,6 +503,7 @@ evalElapsedTime { active, sessions, settings, time } =
                 else
                     Nothing
 
+            notificationCmd : Cmd msg
             notificationCmd =
                 { sound = Settings.alarmSoundToEncodable settings.alarmSound
                 , msg = notificationMsg
@@ -479,6 +512,7 @@ evalElapsedTime { active, sessions, settings, time } =
                     |> encodeNotificationConfig
                     |> Ports.notify
 
+            spotifyCmd : Cmd msg
             spotifyCmd =
                 if Session.isWork newActive.round.type_ then
                     Spotify.play settings.spotify
@@ -486,6 +520,7 @@ evalElapsedTime { active, sessions, settings, time } =
                 else
                     Spotify.pause settings.spotify
 
+            logCmd : Cmd msg
             logCmd =
                 Session.logRound time active
         in
@@ -505,14 +540,15 @@ updateTime now model =
     { model | time = now, uptime = model.uptime + 1 }
 
 
-setupSentimentSession :
+setupSentimentRound :
     Maybe Session.Round
     -> Session.RoundType
     -> Model a
     -> Model a
-setupSentimentSession round roundType model =
+setupSentimentRound round roundType model =
     let
-        newSession =
+        newRound : Maybe Session.Round
+        newRound =
             case ( model.sentimentSession, round, Session.isWork roundType ) of
                 ( _, _, True ) ->
                     Nothing
@@ -526,16 +562,18 @@ setupSentimentSession round roundType model =
                 _ ->
                     Nothing
     in
-    { model | sentimentSession = newSession }
+    { model | sentimentSession = newRound }
 
 
 tick : Time.Posix -> Model a -> ( Model a, Cmd msg )
 tick posix ({ playing, flash, settings } as model) =
     if playing then
         let
+            newState : EvalResult msg
             newState =
                 evalElapsedTime model
 
+            setFlashFn : Model a -> Model a
             setFlashFn =
                 if settings.notifications.inApp then
                     Flash.setFlash newState.flash
@@ -548,7 +586,7 @@ tick posix ({ playing, flash, settings } as model) =
             , playing = newState.playing
             , flash = flash |> Maybe.andThen Flash.updateFlashTime
         }
-            |> setupSentimentSession newState.sentimentSession newState.active.round.type_
+            |> setupSentimentRound newState.sentimentSession newState.active.round.type_
             |> updateTime posix
             |> setFlashFn
             |> Misc.withCmd
@@ -568,6 +606,7 @@ tick posix ({ playing, flash, settings } as model) =
 polarToCartesian : Float -> Float -> Float -> Float -> ( Float, Float )
 polarToCartesian centerX centerY radius angleInDegrees =
     let
+        angleInRadians : Float
         angleInRadians =
             (angleInDegrees - 90) * pi / 180.0
     in
@@ -585,6 +624,7 @@ describeArc x y radius startAngle endAngle =
         ( endX, endY ) =
             polarToCartesian x y radius startAngle
 
+        largeArcFlag : String
         largeArcFlag =
             if endAngle - startAngle <= 180.0 then
                 "0"
