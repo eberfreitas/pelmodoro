@@ -42,8 +42,8 @@ type alias Model a b =
         | time : Time.Posix
         , zone : Time.Zone
         , settings : { b | theme : Theme.Common.Theme }
-        , active : Session.Active
-        , sessions : List Session.SessionDef
+        , active : Session.ActiveRound
+        , sessions : List Session.RoundType
     }
 
 
@@ -54,7 +54,7 @@ type State
 
 type alias Def =
     { date : Date.Date
-    , logs : List Session.Session
+    , logs : List Session.Round
     , showLogs : Bool
     }
 
@@ -104,7 +104,7 @@ viewCalendar :
     -> Time.Zone
     -> Date.Date
     -> Date.Date
-    -> List Session.Session
+    -> List Session.Round
     -> Html.Html Msg
 viewCalendar theme zone today date logs =
     let
@@ -253,7 +253,7 @@ viewCalendar theme zone today date logs =
         ]
 
 
-viewSummary : Theme.Common.Theme -> String -> List Session.Session -> Html.Html msg
+viewSummary : Theme.Common.Theme -> String -> List Session.Round -> Html.Html msg
 viewSummary theme label logs =
     if logs == [] then
         Html.text ""
@@ -261,16 +261,16 @@ viewSummary theme label logs =
     else
         let
             workLogs =
-                logs |> List.filter (.def >> Session.isWork)
+                logs |> List.filter (.type_ >> Session.isWork)
 
             breakLogs =
-                logs |> List.filter (.def >> Session.isAnyBreak)
+                logs |> List.filter (.type_ >> Session.isAnyBreak)
 
             aggFn =
                 List.foldl
-                    (\{ seconds, def } ( a, b ) ->
+                    (\{ seconds, type_ } ( a, b ) ->
                         ( a + (seconds |> Maybe.withDefault 0)
-                        , b + Session.sessionSeconds def
+                        , b + Session.roundSeconds type_
                         )
                     )
                     ( 0, 0 )
@@ -326,12 +326,12 @@ viewSummary theme label logs =
             ]
 
 
-viewDailySummary : Theme.Common.Theme -> Time.Zone -> Date.Date -> List Session.Session -> Html.Html msg
+viewDailySummary : Theme.Common.Theme -> Time.Zone -> Date.Date -> List Session.Round -> Html.Html msg
 viewDailySummary theme zone date logs =
     viewSummary theme "Daily summary" (dailyLogs zone date logs)
 
 
-viewDailyLogs : Theme.Common.Theme -> Bool -> Time.Zone -> Date.Date -> List Session.Session -> Html.Html Msg
+viewDailyLogs : Theme.Common.Theme -> Bool -> Time.Zone -> Date.Date -> List Session.Round -> Html.Html Msg
 viewDailyLogs theme show zone selected logs =
     let
         formatToHour t =
@@ -392,22 +392,22 @@ viewDailyLogs theme show zone selected logs =
                     )
                 ]
 
-        renderSession sentiment session start end seconds =
+        renderRound sentiment round start end seconds =
             let
                 innerPct =
-                    session
-                        |> Session.sessionSeconds
+                    round
+                        |> Session.roundSeconds
                         |> (\t -> 100 * seconds // t)
                         |> String.fromInt
 
-                sessionColor =
-                    session |> Session.toColor theme
+                roundColor =
+                    round |> Session.roundToColor theme
 
                 dimmed =
-                    sessionColor |> Color.setAlpha 0.5 |> Color.toRgbaString
+                    roundColor |> Color.setAlpha 0.5 |> Color.toRgbaString
 
                 full =
-                    sessionColor |> Color.toRgbaString
+                    roundColor |> Color.toRgbaString
             in
             Html.div
                 [ Attributes.css
@@ -436,7 +436,7 @@ viewDailyLogs theme show zone selected logs =
                 [ Html.div
                     []
                     [ Html.text (formatToHour start ++ " ➞ " ++ formatToHour end)
-                    , if Session.isWork session then
+                    , if Session.isWork round then
                         renderSentiment sentiment start
 
                       else
@@ -484,11 +484,11 @@ viewDailyLogs theme show zone selected logs =
                     dailyLogs_
                         |> List.sortBy (.start >> Maybe.map Time.posixToMillis >> Maybe.withDefault 0)
                         |> List.filterMap
-                            (\{ def, start, end, seconds, sentiment } ->
+                            (\{ type_, start, end, seconds, sentiment } ->
                                 Maybe.map3
                                     (\s e sc ->
                                         ( s |> Time.posixToMillis |> String.fromInt
-                                        , renderSession sentiment def s e sc
+                                        , renderRound sentiment type_ s e sc
                                         )
                                     )
                                     start
@@ -506,12 +506,12 @@ viewDailyLogs theme show zone selected logs =
         Html.text ""
 
 
-viewMonthlySummary : Theme.Common.Theme -> List Session.Session -> Html.Html msg
+viewMonthlySummary : Theme.Common.Theme -> List Session.Round -> Html.Html msg
 viewMonthlySummary theme logs =
     viewSummary theme "Monthly summary" logs
 
 
-viewHourlyAverages : Theme.Common.Theme -> Time.Zone -> List Session.Session -> Html.Html msg
+viewHourlyAverages : Theme.Common.Theme -> Time.Zone -> List Session.Round -> Html.Html msg
 viewHourlyAverages theme zone log =
     if log == [] then
         Html.text ""
@@ -682,7 +682,7 @@ update zone msg state =
 -- HELPERS
 
 
-hourlyAverages : Time.Zone -> List Session.Session -> List ( Int, Int, Float )
+hourlyAverages : Time.Zone -> List Session.Round -> List ( Int, Int, Float )
 hourlyAverages zone log =
     let
         aggregate agg { start, seconds } =
@@ -699,11 +699,11 @@ hourlyAverages zone log =
 
         firstPass =
             log
-                |> List.filter (.def >> Session.isWork)
+                |> List.filter (.type_ >> Session.isWork)
                 |> List.foldl
-                    (\session agg ->
-                        session
-                            |> Session.sessionMaterialized
+                    (\round agg ->
+                        round
+                            |> Session.materializedRound
                             |> Maybe.map (aggregate agg)
                             |> Maybe.withDefault agg
                     )
@@ -716,7 +716,7 @@ hourlyAverages zone log =
     firstPass |> List.map (\( h, secs ) -> ( h, secs, toFloat secs * 100 / toFloat max ))
 
 
-dailyLogs : Time.Zone -> Date.Date -> List Session.Session -> List Session.Session
+dailyLogs : Time.Zone -> Date.Date -> List Session.Round -> List Session.Round
 dailyLogs zone day logs =
     logs
         |> List.filter
@@ -731,7 +731,7 @@ inMinutes secs =
     secs // 60
 
 
-monthlyAverages : Time.Zone -> List Session.Session -> List ( Date.Date, Float )
+monthlyAverages : Time.Zone -> List Session.Round -> List ( Date.Date, Float )
 monthlyAverages zone log =
     let
         aggregate agg { start, seconds } =
@@ -748,11 +748,11 @@ monthlyAverages zone log =
 
         firstPass =
             log
-                |> List.filter (.def >> Session.isWork)
+                |> List.filter (.type_ >> Session.isWork)
                 |> List.foldl
-                    (\session agg ->
-                        session
-                            |> Session.sessionMaterialized
+                    (\round agg ->
+                        round
+                            |> Session.materializedRound
                             |> Maybe.map (aggregate agg)
                             |> Maybe.withDefault agg
                     )
@@ -833,8 +833,8 @@ subscriptions =
 -- CODECS
 
 
-decodeLogs : Decode.Decoder { ts : Int, logs : List Session.Session }
+decodeLogs : Decode.Decoder { ts : Int, logs : List Session.Round }
 decodeLogs =
     Decode.succeed (\ts l -> { ts = ts, logs = l })
         |> Pipeline.required "ts" Decode.int
-        |> Pipeline.required "logs" (Decode.list Session.decodeSession)
+        |> Pipeline.required "logs" (Decode.list Session.decodeRound)

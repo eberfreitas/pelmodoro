@@ -80,7 +80,7 @@ default =
         (15 * 60)
         Theme.Common.Tomato
         None
-        Spotify.Uninitialized
+        Spotify.default
         notificationsDefault
         WindChimes
 

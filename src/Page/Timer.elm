@@ -32,21 +32,21 @@ type alias Model a =
     { a
         | time : Time.Posix
         , playing : Bool
-        , active : Session.Active
+        , active : Session.ActiveRound
         , settings : Settings.Settings
-        , sessions : List Session.SessionDef
+        , sessions : List Session.RoundType
         , uptime : Int
         , flash : Maybe Flash.FlashMsg
-        , sentimentSession : Maybe Session.Session
+        , sentimentSession : Maybe Session.Round
     }
 
 
 type alias EvalResult msg =
-    { active : Session.Active
+    { active : Session.ActiveRound
     , playing : Bool
     , flash : Maybe Flash.FlashMsg
     , cmd : Cmd msg
-    , sentimentSession : Maybe Session.Session
+    , sentimentSession : Maybe Session.Round
     }
 
 
@@ -88,11 +88,11 @@ view model =
         ]
 
 
-viewSessionsArcs : Int -> Theme.Common.Theme -> Session.Active -> List Session.SessionDef -> List (Svg.Svg msg)
-viewSessionsArcs size theme active sessions =
+viewSessionsArcs : Int -> Theme.Common.Theme -> Session.ActiveRound -> List Session.RoundType -> List (Svg.Svg msg)
+viewSessionsArcs size theme active rounds =
     let
         totalRun =
-            sessions |> Session.sessionsTotalRun |> toFloat
+            rounds |> Session.roundsTotalRun |> toFloat
 
         strokeWidth =
             8
@@ -106,25 +106,25 @@ viewSessionsArcs size theme active sessions =
         arcsOffset =
             3.0
     in
-    sessions
+    rounds
         |> List.foldl
-            (\session ( paths, idx, startAngle ) ->
+            (\round ( paths, idx, startAngle ) ->
                 let
-                    sessionSecs =
-                        session |> Session.sessionSeconds |> toFloat
+                    roundSecs =
+                        round |> Session.roundSeconds |> toFloat
 
-                    sessionAngle =
-                        360.0 * sessionSecs / totalRun
+                    roundAngle =
+                        360.0 * roundSecs / totalRun
 
                     endAngle =
-                        startAngle + sessionAngle
+                        startAngle + roundAngle
 
-                    buildArc session_ opacity_ start_ end_ =
+                    buildArc round_ opacity_ start_ end_ =
                         Svg.path
                             [ SvgAttributes.strokeWidth <| String.fromInt strokeWidth
                             , SvgAttributes.strokeLinecap "round"
                             , SvgAttributes.fill "none"
-                            , SvgAttributes.stroke (session_ |> Session.toColor theme |> Color.toRgbaString)
+                            , SvgAttributes.stroke (round_ |> Session.roundToColor theme |> Color.toRgbaString)
                             , SvgAttributes.d (describeArc centerPoint centerPoint radius start_ end_)
                             , SvgAttributes.opacity opacity_
                             ]
@@ -137,7 +137,7 @@ viewSessionsArcs size theme active sessions =
                                     Session.elapsedPct active
 
                                 elapsedIntervalAngle =
-                                    (sessionAngle - arcsOffset * 2) * elapsedPct / 100.0
+                                    (roundAngle - arcsOffset * 2) * elapsedPct / 100.0
 
                                 startAngle_ =
                                     startAngle + arcsOffset
@@ -145,7 +145,7 @@ viewSessionsArcs size theme active sessions =
                                 endAngle_ =
                                     startAngle_ + elapsedIntervalAngle
                             in
-                            buildArc session "1" startAngle_ endAngle_
+                            buildArc round "1" startAngle_ endAngle_
 
                         else
                             Svg.path [] []
@@ -157,7 +157,7 @@ viewSessionsArcs size theme active sessions =
                         else
                             "1"
                 in
-                ( buildArc session opacity (startAngle + arcsOffset) (endAngle - arcsOffset) :: activeArc :: paths
+                ( buildArc round opacity (startAngle + arcsOffset) (endAngle - arcsOffset) :: activeArc :: paths
                 , idx + 1
                 , endAngle
                 )
@@ -166,7 +166,7 @@ viewSessionsArcs size theme active sessions =
         |> Trio.first
 
 
-viewTimer : Bool -> Int -> Theme.Common.Theme -> Session.Active -> Svg.Svg Msg
+viewTimer : Bool -> Int -> Theme.Common.Theme -> Session.ActiveRound -> Svg.Svg Msg
 viewTimer playing uptime theme active =
     let
         timerOpacity =
@@ -183,7 +183,7 @@ viewTimer playing uptime theme active =
         [ SvgAttributes.x "50%"
         , SvgAttributes.y "55%"
         , SvgAttributes.textAnchor "middle"
-        , SvgAttributes.fill (active.session.def |> Session.toColor theme |> Color.toRgbaString)
+        , SvgAttributes.fill (active.round.type_ |> Session.roundToColor theme |> Color.toRgbaString)
         , SvgAttributes.fontFamily "Montserrat"
         , SvgAttributes.fontSize "36px"
         , SvgAttributes.opacity timerOpacity
@@ -224,9 +224,9 @@ viewControls theme playing =
         ]
 
 
-viewSentimentQuery : Theme.Common.Theme -> Maybe Session.Session -> Html.Html Msg
-viewSentimentQuery theme session =
-    session
+viewSentimentQuery : Theme.Common.Theme -> Maybe Session.Round -> Html.Html Msg
+viewSentimentQuery theme round =
+    round
         |> Maybe.andThen .start
         |> Maybe.map
             (\start ->
@@ -328,7 +328,7 @@ update msg ({ settings, active, time, sessions } as model) =
             let
                 newActive =
                     if active.elapsed == 0 then
-                        Session.Active active.index (Session.sessionStart time active.session) 0
+                        Session.ActiveRound active.index (Session.roundStart time active.round) 0
 
                     else
                         active
@@ -336,7 +336,7 @@ update msg ({ settings, active, time, sessions } as model) =
                 cmds =
                     Cmd.batch
                         [ Session.saveActive newActive
-                        , if Session.isWork newActive.session.def then
+                        , if Session.isWork newActive.round.type_ then
                             Spotify.play settings.spotify
 
                           else
@@ -354,20 +354,20 @@ update msg ({ settings, active, time, sessions } as model) =
 
         Skip ->
             let
-                ( nextIndex, nextSessionDef ) =
+                ( nextIndex, nextRoundType ) =
                     case List.Extra.getAt (active.index + 1) model.sessions of
                         Just next ->
                             ( active.index + 1, next )
 
                         Nothing ->
-                            ( 0, model.sessions |> Session.firstSession )
+                            ( 0, model.sessions |> Session.firstRound )
 
                 newActive =
-                    Session.Active nextIndex (Session.newSession nextSessionDef) 0
+                    Session.ActiveRound nextIndex (Session.newRound nextRoundType) 0
 
                 cmds =
                     Cmd.batch
-                        [ Session.logSession time active
+                        [ Session.logRound time active
                         , Session.saveActive newActive
                         , Spotify.pause settings.spotify
                         ]
@@ -379,13 +379,13 @@ update msg ({ settings, active, time, sessions } as model) =
         Reset ->
             let
                 newActive =
-                    Session.newActiveSession sessions
+                    Session.newActiveRound sessions
             in
             { model | active = newActive, playing = False }
                 |> Misc.withCmd
                 |> Misc.addCmd
                     (Cmd.batch
-                        [ Session.logSession time active
+                        [ Session.logRound time active
                         , Session.saveActive newActive
                         , Spotify.pause settings.spotify
                         ]
@@ -418,22 +418,22 @@ secondsToDisplay secs =
         String.fromInt min ++ ":" ++ pad (secs - (min * 60))
 
 
-rollActiveSession : Time.Posix -> Int -> Settings.Flow -> List Session.SessionDef -> ( Session.Active, Bool )
-rollActiveSession now nextIndex flow sessions =
+rollActiveRound : Time.Posix -> Int -> Settings.Flow -> List Session.RoundType -> ( Session.ActiveRound, Bool )
+rollActiveRound now nextIndex flow rounds =
     let
-        firstSession_ =
-            sessions |> Session.firstSession
+        firstRound =
+            rounds |> Session.firstRound
 
         nextActive =
-            case sessions |> List.Extra.getAt nextIndex of
+            case rounds |> List.Extra.getAt nextIndex of
                 Nothing ->
-                    Session.Active 0 (Session.newSession firstSession_) 0
+                    Session.ActiveRound 0 (Session.newRound firstRound) 0
 
-                Just nextSession ->
-                    Session.Active nextIndex (Session.newSession nextSession) 0
+                Just nextRound ->
+                    Session.ActiveRound nextIndex (Session.newRound nextRound) 0
     in
     if Settings.shouldKeepPlaying nextActive.index flow then
-        ( { nextActive | session = Session.setSessionStart now nextActive.session }
+        ( { nextActive | round = Session.setRoundStart now nextActive.round }
         , True
         )
 
@@ -441,9 +441,9 @@ rollActiveSession now nextIndex flow sessions =
         ( nextActive, False )
 
 
-sessionChangeToFlash : Session.SessionDef -> Session.SessionDef -> ( Flash.FlashMsg, String )
+sessionChangeToFlash : Session.RoundType -> Session.RoundType -> ( Flash.FlashMsg, String )
 sessionChangeToFlash from to =
-    case Session.sessionChangeToLabel from to of
+    case Session.roundChangeToLabel from to of
         "" ->
             ( Flash.empty, "" )
 
@@ -459,14 +459,14 @@ evalElapsedTime { active, sessions, settings, time } =
                 active.index + 1
 
             ( newActive, playing ) =
-                rollActiveSession time nextIndex settings.flow sessions
+                rollActiveRound time nextIndex settings.flow sessions
 
             ( flashMsg, notificationMsg ) =
-                sessionChangeToFlash active.session.def newActive.session.def
+                sessionChangeToFlash active.round.type_ newActive.round.type_
 
-            sentimentSession =
-                if active.session.def |> Session.isWork then
-                    Just active.session
+            sentimentRound =
+                if active.round.type_ |> Session.isWork then
+                    Just active.round
 
                 else
                     Nothing
@@ -480,21 +480,21 @@ evalElapsedTime { active, sessions, settings, time } =
                     |> Ports.notify
 
             spotifyCmd =
-                if Session.isWork newActive.session.def then
+                if Session.isWork newActive.round.type_ then
                     Spotify.play settings.spotify
 
                 else
                     Spotify.pause settings.spotify
 
             logCmd =
-                Session.logSession time active
+                Session.logRound time active
         in
         EvalResult
             newActive
             playing
             (Just flashMsg)
             (Cmd.batch [ notificationCmd, spotifyCmd, logCmd ])
-            sentimentSession
+            sentimentRound
 
     else
         EvalResult (Session.addElapsed 1 active) True Nothing Cmd.none Nothing
@@ -506,14 +506,14 @@ updateTime now model =
 
 
 setupSentimentSession :
-    Maybe Session.Session
-    -> Session.SessionDef
+    Maybe Session.Round
+    -> Session.RoundType
     -> Model a
     -> Model a
-setupSentimentSession session sessionDef model =
+setupSentimentSession round roundType model =
     let
         newSession =
-            case ( model.sentimentSession, session, Session.isWork sessionDef ) of
+            case ( model.sentimentSession, round, Session.isWork roundType ) of
                 ( _, _, True ) ->
                     Nothing
 
@@ -530,7 +530,7 @@ setupSentimentSession session sessionDef model =
 
 
 tick : Time.Posix -> Model a -> ( Model a, Cmd msg )
-tick posix ({ playing, flash, active, settings } as model) =
+tick posix ({ playing, flash, settings } as model) =
     if playing then
         let
             newState =
@@ -548,7 +548,7 @@ tick posix ({ playing, flash, active, settings } as model) =
             , playing = newState.playing
             , flash = flash |> Maybe.andThen Flash.updateFlashTime
         }
-            |> setupSentimentSession newState.sentimentSession newState.active.session.def
+            |> setupSentimentSession newState.sentimentSession newState.active.round.type_
             |> updateTime posix
             |> setFlashFn
             |> Misc.withCmd

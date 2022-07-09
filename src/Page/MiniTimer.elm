@@ -14,8 +14,8 @@ import Theme.Common
 
 type alias Model a b =
     { a
-        | sessions : List Session.SessionDef
-        , active : Session.Active
+        | sessions : List Session.RoundType
+        , active : Session.ActiveRound
         , settings : { b | theme : Theme.Common.Theme }
     }
 
@@ -28,7 +28,7 @@ view : Model a b -> Html.Html msg
 view { sessions, active, settings } =
     let
         totalRun =
-            sessions |> Session.sessionsTotalRun |> toFloat
+            sessions |> Session.roundsTotalRun |> toFloat
     in
     Html.ul
         [ Attributes.css
@@ -43,10 +43,10 @@ view { sessions, active, settings } =
                 (\index session ->
                     let
                         sizeInPct =
-                            toFloat (Session.sessionSeconds session) * 100 / totalRun
+                            toFloat (Session.roundSeconds session) * 100 / totalRun
 
                         backgroundColor =
-                            session |> Session.toColor settings.theme
+                            session |> Session.roundToColor settings.theme
 
                         backgroundColor_ =
                             if index >= active.index then

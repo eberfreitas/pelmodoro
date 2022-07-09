@@ -1,4 +1,4 @@
-module Spotify exposing (State(..), decodeState, encodeState)
+module Spotify exposing (State(..), decodeState, default, encodeState)
 
 import Json.Decode as Decode
 import Json.Encode as Encode

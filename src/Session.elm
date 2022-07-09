@@ -1,37 +1,37 @@
 module Session exposing
-    ( Active
+    ( ActiveRound
+    , Round
+    , RoundType(..)
     , Sentiment
-    , Session
-    , SessionDef
     , addElapsed
-    , buildSessions
+    , buildRounds
     , calculateSentiment
-    , decodeActive
-    , decodeSession
+    , decodeActiveRound
+    , decodeRound
     , elapsedPct
-    , encodeActive
+    , encodeActiveRound
     , encodeSentiment
-    , firstSession
+    , firstRound
     , isAnyBreak
     , isWork
-    , logSession
+    , logRound
+    , materializedRound
     , negative
     , neutral
-    , newActiveSession
-    , newSession
+    , newActiveRound
+    , newRound
     , positive
+    , roundChangeToLabel
+    , roundSeconds
+    , roundStart
+    , roundToColor
+    , roundToString
+    , roundsTotalRun
     , saveActive
     , secondsLeft
     , sentimentToDisplay
     , sentimentToIcon
-    , sessionChangeToLabel
-    , sessionDefToString
-    , sessionMaterialized
-    , sessionSeconds
-    , sessionStart
-    , sessionsTotalRun
-    , setSessionStart
-    , toColor
+    , setRoundStart
     )
 
 import Color
@@ -47,7 +47,16 @@ import Theme.Common
 import Time
 
 
-type SessionDef
+
+-- type alias Session =
+--     { active : ActiveRound
+--     , playing : Bool
+--     , uptime : Int
+--     , rounds : List RoundType
+--     }
+
+
+type RoundType
     = Work Int
     | Break Int
     | LongBreak Int
@@ -59,8 +68,8 @@ type Sentiment
     | Negative
 
 
-type alias Session =
-    { def : SessionDef
+type alias Round =
+    { type_ : RoundType
     , start : Maybe Time.Posix
     , end : Maybe Time.Posix
     , seconds : Maybe Int
@@ -68,50 +77,50 @@ type alias Session =
     }
 
 
-type alias Active =
+type alias ActiveRound =
     { index : Int
-    , session : Session
+    , round : Round
     , elapsed : Int
     }
 
 
-sendToLog : Session -> Cmd msg
+sendToLog : Round -> Cmd msg
 sendToLog session =
-    session |> encodeSession |> Ports.log
+    session |> encodeRound |> Ports.log
 
 
-saveActive : Active -> Cmd msg
+saveActive : ActiveRound -> Cmd msg
 saveActive active =
-    active |> encodeActive |> Ports.localStorageHelper "active"
+    active |> encodeActiveRound |> Ports.localStorageHelper "active"
 
 
-firstSession : List SessionDef -> SessionDef
-firstSession =
+firstRound : List RoundType -> RoundType
+firstRound =
     List.head >> Maybe.withDefault (Work (25 * 60))
 
 
-newSession : SessionDef -> Session
-newSession def =
-    Session def Nothing Nothing Nothing Nothing
+newRound : RoundType -> Round
+newRound round =
+    Round round Nothing Nothing Nothing Nothing
 
 
-newActiveSession : List SessionDef -> Active
-newActiveSession sessions =
-    Active 0 (newSession (firstSession sessions)) 0
+newActiveRound : List RoundType -> ActiveRound
+newActiveRound rounds =
+    ActiveRound 0 (newRound (firstRound rounds)) 0
 
 
-setSessionStart : Time.Posix -> Session -> Session
-setSessionStart now session =
-    { session | start = Just now }
+setRoundStart : Time.Posix -> Round -> Round
+setRoundStart now round =
+    { round | start = Just now }
 
 
-buildSessions :
+buildRounds :
     { a | workDuration : Int, breakDuration : Int, longBreakDuration : Int, rounds : Int }
-    -> Maybe Active
-    -> ( List SessionDef, Active )
-buildSessions settings active =
+    -> Maybe ActiveRound
+    -> ( List RoundType, ActiveRound )
+buildRounds settings active =
     let
-        sessions =
+        rounds =
             settings.workDuration
                 |> Work
                 |> List.repeat settings.rounds
@@ -119,15 +128,15 @@ buildSessions settings active =
                 |> Misc.flip (++) [ LongBreak settings.longBreakDuration ]
 
         baseActive =
-            newActiveSession sessions
+            newActiveRound rounds
 
         newActive =
             active
                 |> Maybe.map
-                    (\({ index, session } as curr) ->
-                        case List.Extra.getAt index sessions of
+                    (\({ index, round } as curr) ->
+                        case List.Extra.getAt index rounds of
                             Just i ->
-                                if i == session.def then
+                                if i == round.type_ then
                                     curr
 
                                 else
@@ -138,7 +147,7 @@ buildSessions settings active =
                     )
                 |> Maybe.withDefault baseActive
     in
-    ( sessions, newActive )
+    ( rounds, newActive )
 
 
 sentimentToString : Sentiment -> String
@@ -173,43 +182,43 @@ sentimentToDisplay =
     sentimentToString >> String.Extra.toSentenceCase
 
 
-endSession : Time.Posix -> Active -> Maybe Session
-endSession now { session, elapsed } =
+endRound : Time.Posix -> ActiveRound -> Maybe Round
+endRound now { round, elapsed } =
     if elapsed /= 0 then
-        Just { session | end = Just now, seconds = Just elapsed }
+        Just { round | end = Just now, seconds = Just elapsed }
 
     else
         Nothing
 
 
-logSession : Time.Posix -> Active -> Cmd msg
-logSession now active =
+logRound : Time.Posix -> ActiveRound -> Cmd msg
+logRound now active =
     active
-        |> endSession now
+        |> endRound now
         |> Maybe.map sendToLog
         |> Maybe.withDefault Cmd.none
 
 
-sessionStart : Time.Posix -> Session -> Session
-sessionStart now session =
-    { session | start = Just now }
+roundStart : Time.Posix -> Round -> Round
+roundStart now round =
+    { round | start = Just now }
 
 
-sessionMaterialized :
-    Session
+materializedRound :
+    Round
     ->
         Maybe
-            { def : SessionDef
+            { type_ : RoundType
             , start : Time.Posix
             , end : Time.Posix
             , seconds : Int
             }
-sessionMaterialized { def, start, end, seconds } =
+materializedRound { type_, start, end, seconds } =
     ( start, end, seconds )
         |> Misc.maybeTrio
         |> Maybe.map
             (\( start_, end_, secs_ ) ->
-                { def = def
+                { type_ = type_
                 , start = start_
                 , end = end_
                 , seconds = secs_
@@ -217,8 +226,8 @@ sessionMaterialized { def, start, end, seconds } =
             )
 
 
-sessionSeconds : SessionDef -> Int
-sessionSeconds interval =
+roundSeconds : RoundType -> Int
+roundSeconds interval =
     case interval of
         Work s ->
             s
@@ -230,14 +239,14 @@ sessionSeconds interval =
             s
 
 
-sessionsTotalRun : List SessionDef -> Int
-sessionsTotalRun sessions =
-    sessions |> List.foldl (\i t -> i |> sessionSeconds |> (+) t) 0
+roundsTotalRun : List RoundType -> Int
+roundsTotalRun rounds =
+    rounds |> List.foldl (\i t -> i |> roundSeconds |> (+) t) 0
 
 
-isWork : SessionDef -> Bool
-isWork type_ =
-    case type_ of
+isWork : RoundType -> Bool
+isWork round =
+    case round of
         Work _ ->
             True
 
@@ -245,9 +254,9 @@ isWork type_ =
             False
 
 
-isAnyBreak : SessionDef -> Bool
-isAnyBreak type_ =
-    case type_ of
+isAnyBreak : RoundType -> Bool
+isAnyBreak round =
+    case round of
         Work _ ->
             False
 
@@ -255,9 +264,9 @@ isAnyBreak type_ =
             True
 
 
-sessionDefToString : SessionDef -> String
-sessionDefToString def =
-    case def of
+roundToString : RoundType -> String
+roundToString round =
+    case round of
         Work _ ->
             "Work"
 
@@ -268,27 +277,27 @@ sessionDefToString def =
             "Long break"
 
 
-secondsLeft : Active -> Float
-secondsLeft { session, elapsed } =
-    sessionSeconds session.def - elapsed |> toFloat
+secondsLeft : ActiveRound -> Float
+secondsLeft { round, elapsed } =
+    roundSeconds round.type_ - elapsed |> toFloat
 
 
-addElapsed : Int -> Active -> Active
+addElapsed : Int -> ActiveRound -> ActiveRound
 addElapsed i active =
     { active | elapsed = active.elapsed + i }
 
 
-elapsedPct : Active -> Float
-elapsedPct { session, elapsed } =
-    toFloat elapsed * 100 / (toFloat <| sessionSeconds session.def)
+elapsedPct : ActiveRound -> Float
+elapsedPct { round, elapsed } =
+    toFloat elapsed * 100 / (toFloat <| roundSeconds round.type_)
 
 
 
 -- CODECS
 
 
-encodeSessionDef : SessionDef -> Encode.Value
-encodeSessionDef def =
+encodeRoundType : RoundType -> Encode.Value
+encodeRoundType def =
     case def of
         Work s ->
             Encode.object
@@ -309,8 +318,8 @@ encodeSessionDef def =
                 ]
 
 
-decodeSessionDef : Decode.Decoder SessionDef
-decodeSessionDef =
+decodeRoundType : Decode.Decoder RoundType
+decodeRoundType =
     Decode.field "type" Decode.string
         |> Decode.andThen
             (\def ->
@@ -344,10 +353,10 @@ decodeSentiment =
             )
 
 
-encodeSession : Session -> Encode.Value
-encodeSession { def, start, end, seconds, sentiment } =
+encodeRound : Round -> Encode.Value
+encodeRound { type_, start, end, seconds, sentiment } =
     Encode.object
-        [ ( "interval", encodeSessionDef def )
+        [ ( "interval", encodeRoundType type_ )
         , ( "start", Misc.encodeMaybe Misc.encodePosix start )
         , ( "end", Misc.encodeMaybe Misc.encodePosix end )
         , ( "secs", Misc.encodeMaybe Encode.int seconds )
@@ -355,36 +364,36 @@ encodeSession { def, start, end, seconds, sentiment } =
         ]
 
 
-decodeSession : Decode.Decoder Session
-decodeSession =
-    Decode.succeed Session
-        |> Pipeline.required "interval" decodeSessionDef
+decodeRound : Decode.Decoder Round
+decodeRound =
+    Decode.succeed Round
+        |> Pipeline.required "interval" decodeRoundType
         |> Pipeline.required "start" (Decode.nullable Misc.decodePosix)
         |> Pipeline.required "end" (Decode.nullable Misc.decodePosix)
         |> Pipeline.required "secs" (Decode.nullable Decode.int)
         |> Pipeline.optional "sentiment" (Decode.nullable decodeSentiment) Nothing
 
 
-encodeActive : Active -> Encode.Value
-encodeActive { index, session, elapsed } =
+encodeActiveRound : ActiveRound -> Encode.Value
+encodeActiveRound { index, round, elapsed } =
     Encode.object
         [ ( "index", Encode.int index )
-        , ( "cycle", encodeSession session )
+        , ( "cycle", encodeRound round )
         , ( "elapsed", Encode.int elapsed )
         ]
 
 
-decodeActive : Decode.Decoder Active
-decodeActive =
-    Decode.succeed Active
+decodeActiveRound : Decode.Decoder ActiveRound
+decodeActiveRound =
+    Decode.succeed ActiveRound
         |> Pipeline.required "index" Decode.int
-        |> Pipeline.required "cycle" decodeSession
+        |> Pipeline.required "cycle" decodeRound
         |> Pipeline.required "elapsed" Decode.int
 
 
-toColor : Theme.Common.Theme -> SessionDef -> Color.Color
-toColor theme def =
-    case def of
+roundToColor : Theme.Common.Theme -> RoundType -> Color.Color
+roundToColor theme round =
+    case round of
         Work _ ->
             Theme.workColor theme
 
@@ -410,8 +419,8 @@ negative =
     Negative
 
 
-sessionChangeToLabel : SessionDef -> SessionDef -> String
-sessionChangeToLabel from to =
+roundChangeToLabel : RoundType -> RoundType -> String
+roundChangeToLabel from to =
     case ( from, to ) of
         ( Work _, Break _ ) ->
             "Time to take a break"
@@ -429,9 +438,9 @@ sessionChangeToLabel from to =
             ""
 
 
-calculateSentiment : List Session -> Sentiment
+calculateSentiment : List Round -> Sentiment
 calculateSentiment =
-    List.filter (.def >> isWork)
+    List.filter (.type_ >> isWork)
         >> List.map (.sentiment >> Maybe.withDefault Neutral)
         >> List.foldl
             (\sentiment ( pos, neu, neg ) ->

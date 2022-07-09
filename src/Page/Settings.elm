@@ -33,8 +33,8 @@ type alias Model a =
     { a
         | settings : Settings.Settings
         , flash : Maybe Flash.FlashMsg
-        , active : Session.Active
-        , sessions : List Session.SessionDef
+        , active : Session.ActiveRound
+        , sessions : List Session.RoundType
         , playing : Bool
     }
 
@@ -300,16 +300,16 @@ mapSettings fn model =
 save : ( Model a, Cmd Msg ) -> ( Model a, Cmd Msg )
 save ( model, cmd ) =
     let
-        ( newSessions, newActive ) =
-            Session.buildSessions model.settings (Just model.active)
+        ( newRounds, newActive ) =
+            Session.buildRounds model.settings (Just model.active)
     in
-    { model | playing = False, sessions = newSessions, active = newActive }
+    { model | playing = False, sessions = newRounds, active = newActive }
         |> Misc.withCmd
         |> Misc.addCmd cmd
         |> Misc.addCmd
             (Cmd.batch
                 [ model.settings |> Settings.encodeSettings |> Ports.localStorageHelper "settings"
-                , newActive |> Session.encodeActive |> Ports.localStorageHelper "active"
+                , newActive |> Session.encodeActiveRound |> Ports.localStorageHelper "active"
                 , Spotify.pause model.settings.spotify
                 ]
             )

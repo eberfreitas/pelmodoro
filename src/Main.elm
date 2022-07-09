@@ -37,9 +37,9 @@ type alias Model =
     , uptime : Int
     , playing : Bool
     , settings : Settings.Settings
-    , sessions : List Session.SessionDef
-    , active : Session.Active
-    , sentimentSession : Maybe Session.Session
+    , sessions : List Session.RoundType
+    , active : Session.ActiveRound
+    , sentimentSession : Maybe Session.Round
     , flash : Maybe FlashPage.FlashMsg
     }
 
@@ -69,7 +69,7 @@ init { active, settings, now } url key =
             default key
 
         newActive =
-            case Decode.decodeValue Session.decodeActive active of
+            case Decode.decodeValue Session.decodeActiveRound active of
                 Ok active_ ->
                     active_
 
@@ -87,8 +87,8 @@ init { active, settings, now } url key =
         time =
             Time.millisToPosix now
 
-        ( newSessions, newActive_ ) =
-            Session.buildSessions newSettings (Just newActive)
+        ( newRounds, newActive_ ) =
+            Session.buildRounds newSettings (Just newActive)
 
         ( page, pageCmd ) =
             urlToPage time url
@@ -97,7 +97,7 @@ init { active, settings, now } url key =
         | active = newActive_
         , time = Time.millisToPosix now
         , settings = newSettings
-        , sessions = newSessions
+        , sessions = newRounds
         , page = page
       }
     , Cmd.batch
@@ -119,7 +119,7 @@ view model =
                 TimerPage ->
                     if model.playing then
                         [ model.active |> Session.secondsLeft |> truncate |> TimerPage.secondsToDisplay
-                        , Session.sessionDefToString model.active.session.def
+                        , Session.roundToString model.active.round.type_
                         ]
 
                     else
@@ -325,8 +325,8 @@ update msg model =
 default : Navigation.Key -> Model
 default key =
     let
-        ( sessions, active ) =
-            Session.buildSessions Settings.default Nothing
+        ( rounds, active ) =
+            Session.buildRounds Settings.default Nothing
     in
     { zone = Time.utc
     , time = Time.millisToPosix 0
@@ -335,7 +335,7 @@ default key =
     , uptime = 0
     , playing = False
     , settings = Settings.default
-    , sessions = sessions
+    , sessions = rounds
     , active = active
     , sentimentSession = Nothing
     , flash = Nothing
