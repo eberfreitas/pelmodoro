@@ -11,15 +11,15 @@ import Json.Encode as Encode
 import List.Extra
 import Misc
 import Page.Flash as Flash
-import Page.Settings as Settings
 import Page.Spotify as Spotify
 import Page.Stats as Stats
 import Ports
 import Session
+import Settings
 import Svg.Styled as Svg
 import Svg.Styled.Attributes as SvgAttributes
+import Theme
 import Theme.Common
-import Theme.Theme as Theme
 import Time
 import Tuple.Trio as Trio
 

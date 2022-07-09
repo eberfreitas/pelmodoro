@@ -19,8 +19,8 @@ import Html.Styled.Events as Events
 import Json.Decode as Decode
 import Misc
 import Ports
+import Theme
 import Theme.Common
-import Theme.Theme as Theme
 
 
 

@@ -20,8 +20,8 @@ import Css
 import Html.Styled as Html
 import Html.Styled.Attributes as Attributes
 import Html.Styled.Events as Events
+import Theme
 import Theme.Common
-import Theme.Theme as Theme
 
 
 icon : String -> Html.Html msg

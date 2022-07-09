@@ -42,8 +42,8 @@ import List.Extra
 import Misc
 import Ports
 import String.Extra
+import Theme
 import Theme.Common
-import Theme.Theme as Theme
 import Time
 
 

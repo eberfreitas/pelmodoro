@@ -27,8 +27,8 @@ import Misc
 import Page.MiniTimer as MiniTimer
 import Ports
 import Session
+import Theme
 import Theme.Common
-import Theme.Theme as Theme
 import Time
 import Tuple.Trio as Trio
 

@@ -1,4 +1,4 @@
-module Theme.Theme exposing
+module Theme exposing
     ( backgroundColor
     , breakColor
     , contrastColor
@@ -17,11 +17,11 @@ import Json.Encode as Encode
 import Misc
 import Theme.Common
 import Theme.Dracula as Dracula
+import Theme.Fall as Fall
 import Theme.Gruvbox as Gruvbox
 import Theme.NightMood as NightMood
 import Theme.Nord as Nord
 import Theme.Tomato as Tomato
-import Theme.Fall as Fall
 
 
 themeColors : Theme.Common.Theme -> Theme.Common.ThemeColors

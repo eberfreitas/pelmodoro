@@ -9,16 +9,17 @@ import Html.Styled as Html
 import Html.Styled.Attributes as Attributes
 import Json.Decode as Decode
 import Misc
-import Page.Credits as Credits
-import Page.Flash as Flash
-import Page.Settings as Settings
-import Page.Stats as Stats
-import Page.Timer as Timer
+import Page.Credits as CreditsPage
+import Page.Flash as FlashPage
+import Page.Settings as SettingsPage
+import Page.Stats as StatsPage
+import Page.Timer as TimerPage
 import Platform.Sub as Sub
 import Session
+import Settings
 import Task
+import Theme
 import Theme.Common
-import Theme.Theme as Theme
 import Time
 import Url
 import VirtualDom
@@ -39,13 +40,13 @@ type alias Model =
     , sessions : List Session.SessionDef
     , active : Session.Active
     , sentimentSession : Maybe Session.Session
-    , flash : Maybe Flash.FlashMsg
+    , flash : Maybe FlashPage.FlashMsg
     }
 
 
 type Page
     = TimerPage
-    | StatsPage Stats.State
+    | StatsPage StatsPage.State
     | SettingsPage
     | CreditsPage
 
@@ -117,7 +118,7 @@ view model =
             case model.page of
                 TimerPage ->
                     if model.playing then
-                        [ model.active |> Session.secondsLeft |> truncate |> Timer.secondsToDisplay
+                        [ model.active |> Session.secondsLeft |> truncate |> TimerPage.secondsToDisplay
                         , Session.sessionDefToString model.active.session.def
                         ]
 
@@ -157,10 +158,10 @@ viewBody model =
         |> Html.toUnstyled
 
 
-viewFlash : Theme.Common.Theme -> Maybe Flash.FlashMsg -> Html.Html Msg
+viewFlash : Theme.Common.Theme -> Maybe FlashPage.FlashMsg -> Html.Html Msg
 viewFlash theme flash =
     flash
-        |> Maybe.map (\f -> Flash.view theme f |> Html.map Flash)
+        |> Maybe.map (\f -> FlashPage.view theme f |> Html.map Flash)
         |> Maybe.withDefault (Html.text "")
 
 
@@ -253,16 +254,16 @@ viewPage model =
         ]
         [ case model.page of
             TimerPage ->
-                Timer.view model |> Html.map Timer
+                TimerPage.view model |> Html.map Timer
 
             SettingsPage ->
-                Settings.view model |> Html.map Settings
+                SettingsPage.view model |> Html.map Settings
 
             StatsPage state ->
-                Stats.view model state |> Html.map Stats
+                StatsPage.view model state |> Html.map Stats
 
             CreditsPage ->
-                Credits.view model
+                CreditsPage.view model
         ]
 
 
@@ -274,10 +275,10 @@ type Msg
     = AdjustTimeZone Time.Zone
     | UrlChanged Url.Url
     | LinkCliked Browser.UrlRequest
-    | Timer Timer.Msg
-    | Stats Stats.Msg
-    | Settings Settings.Msg
-    | Flash Flash.Msg
+    | Timer TimerPage.Msg
+    | Stats StatsPage.Msg
+    | Settings SettingsPage.Msg
+    | Flash FlashPage.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -300,18 +301,18 @@ update msg model =
                     ( model, Navigation.load href )
 
         ( Flash subMsg, _ ) ->
-            Flash.update subMsg model |> Misc.updateWith Flash
+            FlashPage.update subMsg model |> Misc.updateWith Flash
 
         ( Timer subMsg, _ ) ->
-            Timer.update subMsg model
+            TimerPage.update subMsg model
 
         ( Stats subMsg, StatsPage state ) ->
-            Stats.update model.zone subMsg state
+            StatsPage.update model.zone subMsg state
                 |> Tuple.mapFirst (\s -> { model | page = StatsPage s })
                 |> Misc.updateWith Stats
 
         ( Settings subMsg, _ ) ->
-            Settings.update subMsg model |> Misc.updateWith Settings
+            SettingsPage.update subMsg model |> Misc.updateWith Settings
 
         _ ->
             Misc.withCmd model
@@ -348,7 +349,7 @@ urlToPage time { path } =
             ( SettingsPage, Cmd.none )
 
         "/stats" ->
-            ( StatsPage Stats.initialState, time |> Stats.logsFetchCmd )
+            ( StatsPage StatsPage.initialState, time |> StatsPage.logsFetchCmd )
 
         "/credits" ->
             ( CreditsPage, Cmd.none )
@@ -364,10 +365,10 @@ urlToPage time { path } =
 subscriptions : Model -> Sub Msg
 subscriptions _ =
     Sub.batch
-        [ Timer.subscriptions |> Sub.map Timer
-        , Settings.subscriptions |> Sub.map Settings
-        , Stats.subscriptions |> Sub.map Stats
-        , Flash.subscriptions |> Sub.map Flash
+        [ TimerPage.subscriptions |> Sub.map Timer
+        , SettingsPage.subscriptions |> Sub.map Settings
+        , StatsPage.subscriptions |> Sub.map Stats
+        , FlashPage.subscriptions |> Sub.map Flash
         ]
 
 

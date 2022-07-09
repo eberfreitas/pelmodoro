@@ -8,7 +8,8 @@ import Html.Styled.Attributes as Attributes
 import Page.MiniTimer as MiniTimer
 import Page.Settings as Settings
 import Session
-import Theme.Theme as Theme
+import Settings
+import Theme
 
 
 

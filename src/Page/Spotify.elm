@@ -1,9 +1,5 @@
 module Page.Spotify exposing
     ( Msg
-    , State
-    , decodeState
-    , default
-    , encodeState
     , pause
     , play
     , subscriptions
@@ -21,44 +17,26 @@ import Json.Encode as Encode
 import List.Extra
 import Misc
 import Ports
+import Spotify
 import Theme.Common
 
 
-
--- MODEL-ISH
-
-
-type State
-    = NotConnected String
-    | ConnectionError String
-    | Connected (List SpotifyPlaylist) (Maybe String)
-    | Uninitialized
-
-
-type alias SpotifyPlaylist =
-    ( String, String )
-
-
-
--- VIEW
-
-
-view : Theme.Common.Theme -> State -> Html.Html Msg
+view : Theme.Common.Theme -> Spotify.State -> Html.Html Msg
 view theme state =
     Html.div [ Attributes.css [ Css.marginBottom <| Css.rem 2 ] ]
         [ Html.div [ Attributes.css [ Elements.labelStyle ] ] [ Html.text "Spotify" ]
         , Html.div []
             (case state of
-                NotConnected url ->
+                Spotify.NotConnected url ->
                     [ Elements.largeLinkButton theme url "Connect to Spotify " ]
 
-                ConnectionError url ->
+                Spotify.ConnectionError url ->
                     [ Html.p [ Attributes.css [ Css.marginBottom <| Css.rem 1 ] ]
                         [ Html.text "There was an error trying to connect. Please, try again!" ]
                     , Elements.largeLinkButton theme url "Connect to Spotify"
                     ]
 
-                Connected playlists current ->
+                Spotify.Connected playlists current ->
                     [ Html.select [ Attributes.css [ Elements.selectStyle theme ], Events.onInput UpdatePlaylist ]
                         (playlists
                             |> List.sortBy Tuple.second
@@ -81,7 +59,7 @@ view theme state =
                     , Elements.largeButton theme Disconnect [ Html.text "Disconnect" ]
                     ]
 
-                Uninitialized ->
+                Spotify.Uninitialized ->
                     [ Html.text "Can't connect to Spotify" ]
             )
         ]
@@ -98,21 +76,21 @@ type Msg
     | UpdatePlaylist String
 
 
-update : Msg -> State -> ( State, Cmd msg )
+update : Msg -> Spotify.State -> ( Spotify.State, Cmd msg )
 update msg state =
     case msg of
         GotState raw ->
-            case Decode.decodeValue decodeState raw of
+            case Decode.decodeValue Spotify.decodeState raw of
                 Ok protoState ->
                     case ( state, protoState ) of
-                        ( Connected _ (Just playlist), Connected playlists _ ) ->
+                        ( Spotify.Connected _ (Just playlist), Spotify.Connected playlists _ ) ->
                             let
                                 newPlaylist =
                                     playlists
                                         |> List.Extra.find (Tuple.first >> (==) playlist)
                                         |> Maybe.map Tuple.first
                             in
-                            Connected playlists newPlaylist |> Misc.withCmd
+                            Spotify.Connected playlists newPlaylist |> Misc.withCmd
 
                         _ ->
                             protoState |> Misc.withCmd
@@ -132,11 +110,11 @@ update msg state =
 
         UpdatePlaylist playlist ->
             case state of
-                Connected playlists _ ->
+                Spotify.Connected playlists _ ->
                     playlists
                         |> List.Extra.find (Tuple.first >> (==) playlist)
                         |> Maybe.map Tuple.first
-                        |> Connected playlists
+                        |> Spotify.Connected playlists
                         |> Misc.withCmd
 
                 _ ->
@@ -147,15 +125,10 @@ update msg state =
 -- HELPERS
 
 
-default : State
-default =
-    Uninitialized
-
-
-play : State -> Cmd msg
+play : Spotify.State -> Cmd msg
 play state =
     case state of
-        Connected _ url ->
+        Spotify.Connected _ url ->
             url
                 |> Maybe.map (Play >> toPort)
                 |> Maybe.withDefault Cmd.none
@@ -164,10 +137,10 @@ play state =
             Cmd.none
 
 
-pause : State -> Cmd msg
+pause : Spotify.State -> Cmd msg
 pause state =
     case state of
-        Connected _ _ ->
+        Spotify.Connected _ _ ->
             Pause |> toPort
 
         _ ->
@@ -220,70 +193,3 @@ subscriptions =
 
 
 -- CODECS
-
-
-encodeSpotifyPlaylist : SpotifyPlaylist -> Encode.Value
-encodeSpotifyPlaylist ( uri, title ) =
-    Encode.object
-        [ ( "uri", Encode.string uri )
-        , ( "title", Encode.string title )
-        ]
-
-
-decodeSpotifyPlaylist : Decode.Decoder SpotifyPlaylist
-decodeSpotifyPlaylist =
-    Decode.map2 Tuple.pair
-        (Decode.field "uri" Decode.string)
-        (Decode.field "title" Decode.string)
-
-
-encodeState : State -> Encode.Value
-encodeState state =
-    case state of
-        NotConnected url ->
-            Encode.object
-                [ ( "type", Encode.string "notconnected" )
-                , ( "url", Encode.string url )
-                ]
-
-        ConnectionError url ->
-            Encode.object
-                [ ( "type", Encode.string "connectionerror" )
-                , ( "url", Encode.string url )
-                ]
-
-        Connected playlists playlist ->
-            Encode.object
-                [ ( "type", Encode.string "connected" )
-                , ( "playlists", Encode.list encodeSpotifyPlaylist playlists )
-                , ( "playlist", Misc.encodeMaybe Encode.string playlist )
-                ]
-
-        Uninitialized ->
-            Encode.object
-                [ ( "type", Encode.string "uninitialized" ) ]
-
-
-decodeState : Decode.Decoder State
-decodeState =
-    Decode.field "type" Decode.string
-        |> Decode.andThen
-            (\type_ ->
-                case type_ of
-                    "uninitialized" ->
-                        Decode.succeed Uninitialized
-
-                    "notconnected" ->
-                        Decode.map NotConnected <| Decode.field "url" Decode.string
-
-                    "connectionerror" ->
-                        Decode.map ConnectionError <| Decode.field "url" Decode.string
-
-                    "connected" ->
-                        Decode.map2 Connected
-                            (Decode.field "playlists" (Decode.list decodeSpotifyPlaylist))
-                            (Decode.field "playlist" (Decode.nullable Decode.string))
-
-                    _ ->
-                        Decode.fail <| "Invalid spotify state of: " ++ type_
-            )
