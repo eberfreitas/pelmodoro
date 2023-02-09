@@ -1,5 +1,6 @@
-.cache/
-node_modules/
-elm-stuff/
-dist/
+.cache
+node_modules
+elm-stuff
+dist
 .env
+src/js/main.js

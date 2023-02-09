@@ -1,17 +1,15 @@
-import { Elm } from "./src/Main.elm";
-
-import * as storage from "./src/js/helpers/local-storage.js";
-import viewportFix from "./src/js/viewport-fix.js";
-import notify from "./src/js/notify.js";
-import spotify from "./src/js/spotify.js";
-import logs from "./src/js/logs.js";
-import settings from "./src/js/settings.js";
-import pwa from "./src/js/pwa.js";
+import * as storage from "./helpers/local-storage.js";
+import viewportFix from "./viewport-fix.js";
+import notify from "./notify.js";
+import spotify from "./spotify.js";
+import logs from "./logs.js";
+import settings from "./settings.js";
+import pwa from "./pwa.js";
 
 const active = storage.get("active", storage.get("current", {}));
 const settings_ = storage.get("settings", {});
 
-const app = Elm.Main.init({
+const app = window.Elm.Main.init({
   flags: {
     active: active,
     settings: settings_,

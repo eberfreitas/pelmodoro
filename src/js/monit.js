@@ -2,7 +2,7 @@ import * as Sentry from "@sentry/browser";
 import { Integrations } from "@sentry/tracing";
 
 Sentry.init({
-  dsn: process.env.SENTRY_DSN,
+  dsn: import.meta.env.VITE_SENTRY_DSN,
   integrations: [new Integrations.BrowserTracing()],
-  tracesSampleRate: parseFloat(process.env.SENTRY_SAMPLE_RATE)
+  tracesSampleRate: parseFloat(import.meta.env.VITE_SENTRY_SAMPLE_RATE)
 });

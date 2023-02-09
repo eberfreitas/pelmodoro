@@ -1,59 +1,26 @@
 {
   "devDependencies": {
-    "elm": "^0.19.1-5",
-    "elm-hot": "^1.1.6",
     "elm-review": "^2.5.3",
-    "node-elm-compiler": "^5.0.5",
-    "parcel-bundler": "^1.12.3",
-    "parcel-plugin-pwa-manifest": "^3.0.10",
-    "parcel-plugin-static-files-copy": "^2.5.1",
+    "elm-tooling": "^1.12.0",
+    "elm-watch": "^1.1.2",
+    "run-pty": "^4.0.3",
+    "vite": "^4.1.1",
     "workbox-cli": "^6.1.5"
   },
   "scripts": {
-    "dev": "parcel ./index.html --https",
-    "build": "parcel build ./index.html",
+    "dev": "run-pty % elm-watch hot % vite",
+    "build": "vite build",
     "postbuild": "workbox generateSW"
   },
   "dependencies": {
     "@sentry/browser": "^6.2.5",
     "@sentry/tracing": "^6.2.5",
-    "crypto-random-string": "^3.3.1",
+    "crypto-random-string": "^5.0.0",
     "dexie": "^3.0.3",
     "dexie-export-import": "^1.0.3",
     "downloadjs": "^1.4.7",
     "howler": "^2.2.1",
     "nosleep.js": "^0.12.0",
-    "pkce-challenge": "^2.1.0"
-  },
-  "staticFiles": {
-    "staticPath": [
-      "wind-chimes.wav",
-      "bell.wav",
-      "alarm-clock.wav",
-      "bong.wav",
-      "relaxing-percussion.wav",
-      "bird-song.wav",
-      "_redirects"
-    ]
-  },
-  "browserslist": [
-    "last 1 Chrome version",
-    "last 1 Firefox version",
-    "last 1 Edge version",
-    "last 1 Safari version"
-  ],
-  "pwaManifest": {
-    "name": "Pelmodoro",
-    "shortName": "Pelmo",
-    "startURL": "./",
-    "scope": "/",
-    "theme": "transparent",
-    "backgroundColor": "tomato",
-    "display": "fullscreen",
-    "orientation": "portrait",
-    "generateIconOptions": {
-      "baseIcon": "./icon.svg",
-      "genFavicons": true
-    }
+    "pkce-challenge": "^3.0.0"
   }
 }

@@ -1,0 +1,10 @@
+{
+    "targets": {
+        "Pelmodoro": {
+            "inputs": [
+                "src/Main.elm"
+            ],
+            "output": "src/js/main.js"
+        }
+    }
+}
