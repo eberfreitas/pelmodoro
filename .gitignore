@@ -2,5 +2,6 @@
 node_modules
 elm-stuff
 dist
+dev-dist
 .env
 src/js/main.js
