@@ -1,6 +1,6 @@
 {
     "targets": {
-        "Pelmodoro": {
+        "app": {
             "inputs": [
                 "src/Main.elm"
             ],

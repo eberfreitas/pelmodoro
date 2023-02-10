@@ -10,7 +10,7 @@
   "scripts": {
     "postinstall": "elm-tooling install",
     "dev": "run-pty % elm-watch hot % vite",
-    "build": "vite build"
+    "build": "elm-watch make --optimize app && vite build"
   },
   "dependencies": {
     "@sentry/browser": "^6.2.5",
