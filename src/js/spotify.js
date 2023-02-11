@@ -41,13 +41,14 @@ const connectData = () => {
     "user-read-private",
   ];
 
-  const url = `https://accounts.spotify.com/authorize?client_id=${clientId}`
-    + `&response_type=code`
-    + `&redirect_uri=${encodeURI(redirectUri)}`
-    + `&state=${state}`
-    + `&code_challenge_method=S256`
-    + `&code_challenge=${pkce.code_challenge}`
-    + `&scope=${scopes.join(",")}`;
+  const url =
+    `https://accounts.spotify.com/authorize?client_id=${clientId}` +
+    `&response_type=code` +
+    `&redirect_uri=${encodeURI(redirectUri)}` +
+    `&state=${state}` +
+    `&code_challenge_method=S256` +
+    `&code_challenge=${pkce.code_challenge}` +
+    `&scope=${scopes.join(",")}`;
 
   const data = { ...pkce, state, url };
 
@@ -56,9 +57,9 @@ const connectData = () => {
   return data;
 };
 
-const processAuthData = authData => {
+const processAuthData = (authData) => {
   const now = Date.now();
-  const expiresAt = now + (authData.expires_in * 1000);
+  const expiresAt = now + authData.expires_in * 1000;
 
   authData = { ...authData, expires_at: expiresAt };
 
@@ -67,7 +68,7 @@ const processAuthData = authData => {
   return authData;
 };
 
-const promiseByStatus = res => {
+const promiseByStatus = (res) => {
   if (res.status != 200) {
     return Promise.reject(null);
   } else {
@@ -75,32 +76,34 @@ const promiseByStatus = res => {
   }
 };
 
-const getPlaylists = token => {
+const getPlaylists = (token) => {
   return fetch("https://api.spotify.com/v1/me/playlists?limit=50", {
-    headers: { "Authorization": `Bearer ${token}` }
+    headers: { Authorization: `Bearer ${token}` },
   })
     .then(promiseByStatus)
-    .then(data => {
-      return Promise.resolve(data.items.map(item => {
-        return { uri: item.uri, title: item.name }
-      }));
+    .then((data) => {
+      return Promise.resolve(
+        data.items.map((item) => {
+          return { uri: item.uri, title: item.name };
+        })
+      );
     });
 };
 
-const authRequest = body => {
+const authRequest = (body) => {
   return fetch("https://accounts.spotify.com/api/token", {
     method: "POST",
-    body: body
+    body: body,
   })
     .then(promiseByStatus)
-    .then(authData => {
+    .then((authData) => {
       window.spotify.connected = true;
 
       return Promise.resolve(processAuthData(authData));
     });
 };
 
-const refreshAuthToken = token => {
+const refreshAuthToken = (token) => {
   let body = new URLSearchParams();
 
   body.append("client_id", clientId);
@@ -129,20 +132,33 @@ const getAuthToken = (code, state) => {
 };
 
 const notConnected = (app, flash = true) => {
-  app.ports.gotFromSpotify.send({ type: "notconnected", url: connectData().url });
+  app.ports.gotFromSpotify.send({
+    type: "notconnected",
+    url: connectData().url,
+  });
 
   if (flash) {
-    setFlash(app, "Your Spotify account is disconnected.")
+    setFlash(app, "Your Spotify account is disconnected.");
   }
 };
 
-const connectionError = app => {
-  app.ports.gotFromSpotify.send({ type: "connectionerror", url: connectData().url });
-  setFlash(app, "There was an error trying to connect to your Spotify account. Note: you need a Premium account to connect.");
+const connectionError = (app) => {
+  app.ports.gotFromSpotify.send({
+    type: "connectionerror",
+    url: connectData().url,
+  });
+  setFlash(
+    app,
+    "There was an error trying to connect to your Spotify account. Note: you need a Premium account to connect."
+  );
 };
 
 const connected = (app, playlists, flash = true) => {
-  app.ports.gotFromSpotify.send({ type: "connected", playlists: playlists, playlist: null });
+  app.ports.gotFromSpotify.send({
+    type: "connected",
+    playlists: playlists,
+    playlist: null,
+  });
 
   if (flash) {
     setFlash(app, "Your Spotify account is connected.");
@@ -151,13 +167,13 @@ const connected = (app, playlists, flash = true) => {
 
 const setupPlaylists = (app, token, flash) => {
   getPlaylists(token)
-    .then(playlists => connected(app, playlists, flash))
+    .then((playlists) => connected(app, playlists, flash))
     .catch(() => notConnected(app, flash));
 };
 
 const connectionCallback = (app, code, state) => {
   getAuthToken(code, state)
-    .then(data => init(app, data.access_token))
+    .then((data) => init(app, data.access_token))
     .catch(() => connectionError(app));
 
   history.pushState({}, "", redirectUrl.pathname);
@@ -168,14 +184,17 @@ const initPlayer = (app, token, retries) => {
     return false;
   }
 
-  if (window.spotifyPlayerLoaded == false || window.spotify.connected == false) {
+  if (
+    window.spotifyPlayerLoaded == false ||
+    window.spotify.connected == false
+  ) {
     return setTimeout(() => initPlayer(app, token, retries + 1), 1000);
   }
 
   player = new Spotify.Player({
     name: "Pelmodoro",
-    getOAuthToken: cb => cb(token),
-    volume: 1
+    getOAuthToken: (cb) => cb(token),
+    volume: 1,
   });
 
   player.addListener("ready", ({ device_id }) => {
@@ -203,7 +222,7 @@ const initApp = (app, flash = true) => {
     if (now > authData.expires_at) {
       refreshAuthToken(authData.refresh_token)
         .catch(() => notConnected(app))
-        .then(data => {
+        .then((data) => {
           storage.set("spotifyAuthData", data);
 
           init(app, data.access_token, flash);
@@ -223,24 +242,27 @@ const initApp = (app, flash = true) => {
   }
 };
 
-const apiReqParams = token => {
+const apiReqParams = (token) => {
   return {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`
-    }
-  }
+      Authorization: `Bearer ${token}`,
+    },
+  };
 };
 
-const pause = token => {
+const pause = (token) => {
   if (window.spotify.playing == true) {
     checkStateReq(token)
       .then(promiseByStatus)
-      .then(state => storage.set("spotifyLastState", state))
+      .then((state) => storage.set("spotifyLastState", state))
       .finally(() => {
         window.spotify.playing = false;
-        fetch(`https://api.spotify.com/v1/me/player/pause?device_id=${window.spotify.deviceId}`, apiReqParams(token));
+        fetch(
+          `https://api.spotify.com/v1/me/player/pause?device_id=${window.spotify.deviceId}`,
+          apiReqParams(token)
+        );
       });
   }
 };
@@ -256,46 +278,45 @@ const play = (token, uri) => {
   let body = { context_uri: uri };
 
   if (lastState.context.uri == uri) {
-    body = { ...body, position_ms: lastState.progress_ms }
+    body = { ...body, position_ms: lastState.progress_ms };
   }
 
   fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
     ...apiReqParams(token),
-    body: JSON.stringify(body)
-  })
-    .then(res => {
-      if (res.status != 204) {
-        window.spotify.playing = false;
+    body: JSON.stringify(body),
+  }).then((res) => {
+    if (res.status != 204) {
+      window.spotify.playing = false;
 
-        return false;
-      }
-
-      window.spotify.playing = true;
-    });
-};
-
-const checkStateReq = token => {
-  return fetch(`https://api.spotify.com/v1/me/player`, {
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`
+      return false;
     }
+
+    window.spotify.playing = true;
   });
 };
 
-const checkState = token => {
+const checkStateReq = (token) => {
+  return fetch(`https://api.spotify.com/v1/me/player`, {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+};
+
+const checkState = (token) => {
   setInterval(() => {
     if (window.spotify.playing == true) {
       checkStateReq(token)
         .then(promiseByStatus)
-        .then(state => {
+        .then((state) => {
           storage.set("spotifyLastState", state);
         });
     }
   }, 30 * 1000);
 };
 
-const disconnect = app => {
+const disconnect = (app) => {
   storage.del("spotifyLastState");
   storage.del("spotifyAuthData");
   storage.del("spotifyConnectData");
@@ -314,7 +335,7 @@ const init = (app, token, flash) => {
   setupPlaylists(app, token, flash);
   checkState(token);
 
-  app.ports.toSpotify.subscribe(data => {
+  app.ports.toSpotify.subscribe((data) => {
     switch (data["type"]) {
       case "play":
         play(token, data["url"]);

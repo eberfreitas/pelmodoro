@@ -10,9 +10,9 @@ export default defineConfig({
     basicSsl(),
     VitePWA({
       registerType: "autoUpdate",
-      devOptions: {
-        enabled: true,
-      },
+      // devOptions: {
+      //   enabled: true,
+      // },
       workbox: {
         globPatterns: ["**/*.{html,js,css,png,svg,ico,wav}"],
       },

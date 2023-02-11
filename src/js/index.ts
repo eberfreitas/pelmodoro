@@ -1,4 +1,4 @@
-import * as storage from "./helpers/local-storage.js";
+import * as storage from "./helpers/local-storage";
 import viewportFix from "./viewport-fix.js";
 import notify from "./notify.js";
 import spotify from "./spotify.js";

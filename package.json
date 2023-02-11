@@ -1,9 +1,14 @@
 {
   "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^5.51.0",
+    "@typescript-eslint/parser": "^5.51.0",
     "@vitejs/plugin-basic-ssl": "^1.0.1",
     "elm-review": "^2.5.3",
     "elm-tooling": "^1.12.0",
     "elm-watch": "^1.1.2",
+    "eslint": "^8.34.0",
+    "eslint-config-prettier": "^8.6.0",
+    "prettier": "2.8.4",
     "run-pty": "^4.0.3",
     "vite": "^4.1.1",
     "vite-plugin-pwa": "^0.14.3"
@@ -12,7 +17,10 @@
     "postinstall": "elm-tooling install",
     "dev": "run-pty % elm-watch hot % vite",
     "build": "elm-watch make --optimize app && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "eslint": "eslint ./src",
+    "type-check": "tsc -p ./src --noemit",
+    "lint": "npm run type-check; npm run eslint"
   },
   "dependencies": {
     "@sentry/browser": "^7.37.1",
