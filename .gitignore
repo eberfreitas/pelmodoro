@@ -4,4 +4,4 @@ elm-stuff
 dist
 dev-dist
 .env
-src/js/main.js
+public/main.js

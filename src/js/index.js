@@ -26,6 +26,6 @@ spotify(app);
 logs(app);
 settings(app);
 
-const tickWorker = new Worker("./src/js/tick.js");
+const tickWorker = new Worker("./tick.js");
 
 tickWorker.onmessage = ({ data }) => app.ports.tick.send(data);
