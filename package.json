@@ -20,7 +20,7 @@
     "dexie": "^3.2.3",
     "dexie-export-import": "^4.0.5",
     "downloadjs": "^1.4.7",
-    "howler": "^2.2.1",
+    "howler": "^2.2.3",
     "nosleep.js": "^0.12.0",
     "pkce-challenge": "^3.0.0"
   }
