@@ -1,5 +1,7 @@
-.cache/
-node_modules/
-elm-stuff/
-dist/
+.cache
+node_modules
+elm-stuff
+dist
+dev-dist
 .env
+public/main.js

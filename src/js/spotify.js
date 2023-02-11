@@ -4,8 +4,8 @@ import randomString from "crypto-random-string";
 import * as storage from "./helpers/local-storage.js";
 import setFlash from "./helpers/flash.js";
 
-const clientId = process.env.SPOTIFY_CLIENT_ID;
-const redirectUri = process.env.SPOTIFY_REDIRECT_URL;
+const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
+const redirectUri = import.meta.env.VITE_SPOTIFY_REDIRECT_URL;
 const redirectUrl = new URL(redirectUri);
 
 let player;
