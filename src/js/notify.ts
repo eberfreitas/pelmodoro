@@ -5,11 +5,13 @@ const notify = (config) => {
     alarmSounds[config.sound].play();
   }
 
-  let permission = Notification.permission;
+  const permission = Notification.permission;
 
   if (config.config.browser && permission == "granted") {
-    let notif = new Notification(config.msg);
+    return new Notification(config.msg);
   }
+
+  return null;
 };
 
 export default function (app) {

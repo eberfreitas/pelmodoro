@@ -104,7 +104,7 @@ const authRequest = (body) => {
 };
 
 const refreshAuthToken = (token) => {
-  let body = new URLSearchParams();
+  const body = new URLSearchParams();
 
   body.append("client_id", clientId);
   body.append("grant_type", "refresh_token");
@@ -120,7 +120,7 @@ const getAuthToken = (code, state) => {
     return false;
   }
 
-  let body = new URLSearchParams();
+  const body = new URLSearchParams();
 
   body.append("client_id", clientId);
   body.append("grant_type", "authorization_code");
@@ -274,7 +274,7 @@ const play = (token, uri) => {
 
   const deviceId = window.spotify.deviceId;
 
-  let lastState = storage.get("spotifyLastState", { context: { uri: null } });
+  const lastState = storage.get("spotifyLastState", { context: { uri: null } });
   let body = { context_uri: uri };
 
   if (lastState.context.uri == uri) {
