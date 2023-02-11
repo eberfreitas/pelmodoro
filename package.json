@@ -1,5 +1,6 @@
 {
   "devDependencies": {
+    "@vitejs/plugin-basic-ssl": "^1.0.1",
     "elm-review": "^2.5.3",
     "elm-tooling": "^1.12.0",
     "elm-watch": "^1.1.2",

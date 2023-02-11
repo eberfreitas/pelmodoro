@@ -1,17 +1,20 @@
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
+import basicSsl from "@vitejs/plugin-basic-ssl";
 
 export default defineConfig({
+  server: {
+    https: true,
+  },
   plugins: [
+    basicSsl(),
     VitePWA({
       registerType: "autoUpdate",
       devOptions: {
         enabled: true,
       },
       workbox: {
-        globPatterns: [
-          "**/*.{html,js,css,png,svg,ico,wav}",
-        ],
+        globPatterns: ["**/*.{html,js,css,png,svg,ico,wav}"],
       },
       manifest: {
         name: "Pelmodoro",
