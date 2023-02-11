@@ -1,4 +1,4 @@
-import alarmSounds from "./helpers/alarm-sounds.js";
+import alarmSounds from "./helpers/alarm-sounds";
 
 const notify = (config) => {
   if (config.config.sound && alarmSounds[config.sound]) {

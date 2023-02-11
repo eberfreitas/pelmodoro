@@ -1,4 +1,4 @@
-import db from "./helpers/db.js";
+import db from "./helpers/db";
 import download from "downloadjs";
 import { peakImportFile } from "dexie-export-import";
 

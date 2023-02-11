@@ -2,7 +2,7 @@ import pkceChallenge from "pkce-challenge";
 import randomString from "crypto-random-string";
 
 import * as storage from "./helpers/local-storage";
-import setFlash from "./helpers/flash.js";
+import setFlash from "./helpers/flash";
 
 const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
 const redirectUri = import.meta.env.VITE_SPOTIFY_REDIRECT_URL;

@@ -1,4 +1,4 @@
-import db from "./helpers/db.js";
+import db from "./helpers/db";
 
 const insert = (session) => db.cycles.add(session);
 
