@@ -2,11 +2,16 @@ import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
+  experimental: {
+    renderBuiltUrl: (filename) => {
+      console.log(filename);
+    }
+  },
   plugins: [
     VitePWA({
       registerType: "autoUpdate",
       devOptions: {
-        enabled: true,
+        enabled: false,
       },
       workbox: {
         globPatterns: [
