@@ -1,7 +1,7 @@
 import pkceChallenge from "pkce-challenge";
 import randomString from "crypto-random-string";
 
-import * as storage from "./helpers/local-storage.js";
+import * as storage from "./helpers/local-storage";
 import setFlash from "./helpers/flash.js";
 
 const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
