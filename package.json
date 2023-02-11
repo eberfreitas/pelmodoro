@@ -14,8 +14,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@sentry/browser": "^6.2.5",
-    "@sentry/tracing": "^6.2.5",
+    "@sentry/browser": "^7.37.1",
+    "@sentry/tracing": "^7.37.1",
     "crypto-random-string": "^5.0.0",
     "dexie": "^3.0.3",
     "dexie-export-import": "^1.0.3",
