@@ -8,14 +8,23 @@ const clientId = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
 const redirectUri = import.meta.env.VITE_SPOTIFY_REDIRECT_URL;
 const redirectUrl = new URL(redirectUri);
 
-let player;
+let player: unknown;
 
-window.spotify = {
+export type SpotifyDef = {
+  connected: boolean;
+  canPlay: boolean;
+  playing: boolean;
+  deviceId: string | null;
+}
+
+const spotify: SpotifyDef = {
   connected: false,
   canPlay: false,
   playing: false,
   deviceId: null,
-};
+}
+
+window.spotify = spotify;
 
 const connectData = () => {
   const pkce = pkceChallenge(128);

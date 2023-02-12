@@ -4,6 +4,7 @@ import notify from "./notify";
 import spotify from "./spotify";
 import logs from "./logs";
 import settings from "./settings";
+import { LocalStoragePayload } from "../globals";
 
 const active = storage.get("active", storage.get("current", {}));
 const settings_ = storage.get("settings", {});
@@ -16,9 +17,9 @@ const app = window.Elm.Main.init({
   },
 });
 
-app.ports.localStorage.subscribe((payload) =>
-  storage.set(payload["key"], payload["data"])
-);
+app.ports.localStorage.subscribe((payload: LocalStoragePayload) => {
+  storage.set(payload["key"], payload["data"]);
+});
 
 viewportFix();
 notify(app);

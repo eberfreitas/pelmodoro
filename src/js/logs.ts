@@ -1,8 +1,20 @@
+import { ElmApp, ToLogPayload } from "../globals";
 import db from "./helpers/db";
 
-const insert = (session) => db.cycles.add(session);
+type Session = {
+  interval: {
+    type: string;
+    secs: number;
+  };
+  start: number | null;
+  end: number | null;
+  secs: number | null;
+  sentiment: string | null;
+};
 
-const monthlyLogs = (millis) => {
+const insert = (session: Session) => db.cycles.add(session);
+
+const monthlyLogs = (millis: number) => {
   const date = new Date(millis);
   const firstDay = new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0);
   const lastDay = new Date(
@@ -20,16 +32,16 @@ const monthlyLogs = (millis) => {
     .toArray();
 };
 
-const fetch = async (app, millis) => {
+const fetch = async (app: ElmApp, millis: number) => {
   const logs = await monthlyLogs(millis);
 
   app.ports.gotFromLog.send({ ts: millis, logs: logs });
 };
 
-const updateSentiment = async (time, sentiment) => {
+const updateSentiment = async (time: number, sentiment: string) => {
   const session = await db.cycles.where({ start: time }).toArray();
 
-  if (!session[0]) {
+  if (!session[0] || !session[0].id) {
     return;
   }
 
@@ -40,8 +52,8 @@ const updateSentiment = async (time, sentiment) => {
   return updated;
 };
 
-export default function (app) {
-  app.ports.toLog.subscribe(async (data) => {
+export default function(app: ElmApp) {
+  app.ports.toLog.subscribe(async (data: ToLogPayload) => {
     switch (data["type"]) {
       case "fetch":
         await fetch(app, data["time"]);

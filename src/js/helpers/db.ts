@@ -1,8 +1,28 @@
 import Dexie from "dexie";
 import "dexie-export-import";
 
-const db = new Dexie("DB");
+interface Cycles {
+  id?: number;
+  start: number | null;
+  end: number | null;
+  secs: number | null;
+  sentiment: string | null;
+  interval?: {
+    type: string;
+    secs: number;
+  };
+}
 
-db.version(1).stores({ cycles: "++id,start" });
+class Database extends Dexie {
+  cycles!: Dexie.Table<Cycles, number>;
 
-export default db;
+  constructor() {
+    super("DB");
+
+    this.version(1).stores({
+      cycles: "++id, start",
+    });
+  }
+}
+
+export default new Database();
