@@ -1,7 +1,7 @@
-import { ElmApp, NotifyConfig } from "../globals";
+import { ElmApp, NotifyPayload } from "../globals";
 import alarmSounds from "./helpers/alarm-sounds";
 
-const notify = (config: NotifyConfig) => {
+const notify = (config: NotifyPayload) => {
   if (config.config.sound && alarmSounds[config.sound]) {
     alarmSounds[config.sound]?.play();
   }
@@ -15,6 +15,6 @@ const notify = (config: NotifyConfig) => {
   return null;
 };
 
-export default function (app: ElmApp) {
+export default function(app: ElmApp) {
   app.ports.notify.subscribe(notify);
 }

@@ -1,18 +1,5 @@
-import { ElmApp, ToLogPayload } from "../globals";
+import { ElmApp, LogPayload, ToLogPayload } from "../globals";
 import db from "./helpers/db";
-
-type Session = {
-  interval: {
-    type: string;
-    secs: number;
-  };
-  start: number | null;
-  end: number | null;
-  secs: number | null;
-  sentiment: string | null;
-};
-
-const insert = (session: Session) => db.cycles.add(session);
 
 const monthlyLogs = (millis: number) => {
   const date = new Date(millis);
@@ -65,5 +52,5 @@ export default function(app: ElmApp) {
     }
   });
 
-  app.ports.log.subscribe(insert);
+  app.ports.log.subscribe((data: LogPayload) => db.cycles.add(data));
 }

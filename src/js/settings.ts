@@ -1,17 +1,17 @@
-import db from "./helpers/db";
-import download from "downloadjs";
 import { peakImportFile } from "dexie-export-import";
-
-import setFlash from "./helpers/flash.js";
+import download from "downloadjs";
+import { ElmApp, ToSettingsPayload } from "../globals";
 import alarmSounds from "./helpers/alarm-sounds.js";
+import db from "./helpers/db";
+import setFlash from "./helpers/flash.js";
 
-const testSound = (sound) => {
+const testSound = (sound: string): void => {
   if (alarmSounds[sound]) {
-    alarmSounds[sound].play();
+    alarmSounds[sound]?.play();
   }
 };
 
-const requestNotif = async (app, activate) => {
+const requestNotif = async (app: ElmApp, activate: boolean) => {
   if (activate == false) {
     return app.ports.gotFromSettings.send({ val: false, msg: "" });
   }
@@ -21,7 +21,7 @@ const requestNotif = async (app, activate) => {
   if (permission == "denied") {
     return app.ports.gotFromSettings.send({
       val: false,
-      msg: "You have blocked browser notifications for this app. Change your in browser settings to allow new notifications.",
+      msg: "You have blocked browser notifications for this app. Change your browser settings to allow new notifications.",
     });
   }
 
@@ -41,7 +41,7 @@ const requestNotif = async (app, activate) => {
   });
 };
 
-const importData = async (app, str) => {
+const importData = async (app: ElmApp, str: string) => {
   const blob = new Blob([str]);
 
   try {
@@ -73,8 +73,8 @@ const clearLogs = () => {
   db.cycles.clear();
 };
 
-export default function (app) {
-  app.ports.toSettings.subscribe(async (data) => {
+export default function(app: ElmApp) {
+  app.ports.toSettings.subscribe(async (data: ToSettingsPayload) => {
     switch (data["type"]) {
       case "testAlarm":
         testSound(data["data"]);

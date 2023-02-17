@@ -15,14 +15,14 @@ type Notifications = {
   browser: boolean;
 };
 
-type NotifyConfig = {
+type NotifyPayload = {
   sound: string;
   msg: string;
   config: Notifications;
 };
 
 interface NotifySubscribe {
-  (config: NotifyConfig): void;
+  (config: NotifyPayload): void;
 }
 
 export type ToLogPayload =
@@ -33,29 +33,64 @@ interface ToLogSubscribe {
   (payload: ToLogPayload): void;
 }
 
+export type LogPayload = {
+  interval: {
+    type: string;
+    secs: number;
+  };
+  start: number | null;
+  end: number | null;
+  secs: number | null;
+  sentiment: string | null;
+};
+
+interface LogSubscribe {
+  (payload: LogPayload): void;
+}
+
+export type ToSettingsPayload =
+  | { type: "requestExport" }
+  | { type: "import"; data: string }
+  | { type: "delete" }
+  | { type: "testAlarm"; data: string }
+  | { type: "browserPermission"; data: boolean };
+
+interface ToSettingsSubscribe {
+  (payload: ToSettingsSubscribe): void;
+}
+
 export interface ElmApp {
   ports: {
+    // ports
     localStorage: {
       subscribe(LocalStorageSubscribe): void;
     };
+    notify: {
+      subscribe(NotifySubscribe): void;
+    };
+    toLog: {
+      subscribe(ToLogSubscribe): void;
+    };
+    log: {
+      subscribe(LogSubscribe): void;
+    };
+    toSettings: {
+      subscribe(ToSettingsSubscribe): void;
+    };
+
+    // subscriptions
     tick: {
       send(unknown): void;
     };
     gotFlashMsg: {
       send(unknown): void;
     };
-    notify: {
-      subscribe(NotifySubscribe): void;
-    };
     gotFromLog: {
       send(unknown): void;
     };
-    toLog: {
-      subscribe(ToLogSubscribe): void;
+    gotFromSettings: {
+      send(unknown): void;
     };
-    log: {
-      subscribe(unknown): void;
-    }
   };
 }
 
