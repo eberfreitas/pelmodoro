@@ -59,6 +59,16 @@ interface ToSettingsSubscribe {
   (payload: ToSettingsSubscribe): void;
 }
 
+export type ToSpotifyPayload =
+  | { type: "play"; url: string }
+  | { type: "pause" }
+  | { type: "refresh" }
+  | { type: "disconnect" };
+
+interface ToSpotifySubscribe {
+  (payload: ToSpotifyPayload): void;
+}
+
 export interface ElmApp {
   ports: {
     // ports
@@ -77,6 +87,9 @@ export interface ElmApp {
     toSettings: {
       subscribe(ToSettingsSubscribe): void;
     };
+    toSpotify: {
+      subscribe(ToSpotifySubscribe): void;
+    };
 
     // subscriptions
     tick: {
@@ -89,6 +102,9 @@ export interface ElmApp {
       send(unknown): void;
     };
     gotFromSettings: {
+      send(unknown): void;
+    };
+    gotFromSpotify: {
       send(unknown): void;
     };
   };
