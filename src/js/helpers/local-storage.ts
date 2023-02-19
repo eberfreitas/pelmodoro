@@ -2,7 +2,7 @@ export const get = (key: string, defVal: unknown = null): unknown => {
   let parsed: unknown;
 
   try {
-    parsed = JSON.parse(window.localStorage.getItem(key) || "");
+    parsed = JSON.parse(window.localStorage.getItem(key) ?? "");
   } catch (_) {
     parsed = defVal;
   }

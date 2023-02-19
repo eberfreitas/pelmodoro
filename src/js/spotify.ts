@@ -143,7 +143,8 @@ const getAuthToken = (code: string, state: string): Promise<AuthData> => {
   const connectData = spotifyConnectData(storage.get("spotifyConnectData", {}));
 
   if (state != connectData.state) {
-    throw "Incorrect return state";
+    // @TODO: Replace this with a `Result`
+    throw new Error("Incorrect return state");
   }
 
   const body = new URLSearchParams();
@@ -199,10 +200,10 @@ const setupPlaylists = (app: ElmApp, token: string, flash: boolean): void => {
 
 const connectionCallback = (app: ElmApp, code: string, state: string): void => {
   const response = getAuthToken(code, state);
-  response &&
-    response
-      .then((data) => init(app, data.access_token, true))
-      .catch(() => connectionError(app));
+
+  response
+    .then((data) => init(app, data.access_token, true))
+    .catch(() => connectionError(app));
 
   history.pushState({}, "", redirectUrl.pathname);
 };
@@ -363,7 +364,7 @@ const disconnect = (app: ElmApp): void => {
   window.spotify.playing = false;
   window.spotify.deviceId = null;
 
-  player && player.disconnect();
+  player?.disconnect();
   notConnected(app);
 };
 

@@ -28,7 +28,7 @@ const fetch = async (app: ElmApp, millis: number) => {
 const updateSentiment = async (time: number, sentiment: string) => {
   const session = await db.cycles.where({ start: time }).toArray();
 
-  if (!session[0] || !session[0].id) {
+  if (!session[0]?.id) {
     return;
   }
 
