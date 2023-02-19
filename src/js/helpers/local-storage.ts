@@ -1,4 +1,4 @@
-export const get = (key: string, defVal: unknown): unknown => {
+export const get = (key: string, defVal: unknown = null): unknown => {
   let parsed: unknown;
 
   try {

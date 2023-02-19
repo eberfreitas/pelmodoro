@@ -1,11 +1,29 @@
 import {
   array,
+  DecoderFunction,
   decodeType,
   nullable,
   number,
   record,
   string,
 } from "typescript-json-decoder";
+import { Result } from "./result";
+
+export function decodeWith<T>(decoder: DecoderFunction<T>, data: unknown): Result<T, string> {
+  try {
+    const decoded = decoder(data);
+
+    return { status: "ok", data: decoded };
+  } catch (e: unknown) {
+    let error = "Unknown error";
+
+    if (typeof e === "string") {
+      error = e;
+    }
+
+    return { status: "err", error }
+  }
+}
 
 export const spotifyPlaylist = record({
   items: array(

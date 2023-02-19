@@ -4,6 +4,7 @@ import { ElmApp, ToSpotifyPayload } from "../globals";
 import {
   AuthData,
   authData as authDataDecoder,
+  decodeWith,
   playbackState,
   spotifyApiToken,
   SpotifyApiToken,
@@ -308,24 +309,21 @@ const play = (token: string, uri: string): void => {
   }
 
   const deviceId = window.spotify.deviceId;
-
-  const lastState = playbackState(
-    storage.get("spotifyLastState", { context: { uri: null } })
-  );
+  const lastState = decodeWith(playbackState, storage.get("spotifyLastState"));
 
   let body: { context_uri: string; position_ms?: number | null } = {
     context_uri: uri,
   };
 
-  if (lastState.context.uri == uri) {
-    body = { ...body, position_ms: lastState.progress_ms };
+  if (lastState.status === "ok") {
+    body = { ...body, position_ms: lastState.data.progress_ms };
   }
 
   fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
     ...apiReqParams(token),
     body: JSON.stringify(body),
   }).then((res) => {
-    if (res.status != 204) {
+    if (![202, 204].includes(res.status)) {
       window.spotify.playing = false;
       return;
     }
