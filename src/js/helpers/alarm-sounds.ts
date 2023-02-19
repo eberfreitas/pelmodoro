@@ -1,6 +1,6 @@
 import { Howl } from "howler";
 
-const alarmSounds: { [sound: string]: Howl } = {
+const alarmSounds: Record<string, Howl> = {
   "wind-chimes": new Howl({ src: "wind-chimes.wav" }),
   bell: new Howl({ src: "bell.wav" }),
   "alarm-clock": new Howl({ src: "alarm-clock.wav" }),

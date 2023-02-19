@@ -1,39 +1,33 @@
 import { SpotifyDef } from "./spotify";
 
-export type LocalStoragePayload = {
+export interface LocalStoragePayload {
   key: string;
   data: unknown;
-};
-
-interface LocalStorageSubscribe {
-  (payload: LocalStoragePayload): void;
 }
 
-type Notifications = {
+type LocalStorageSubscribe = (payload: LocalStoragePayload) => void;
+
+interface Notifications {
   inapp: boolean;
   sound: boolean;
   browser: boolean;
-};
+}
 
-type NotifyPayload = {
+interface NotifyPayload {
   sound: string;
   msg: string;
   config: Notifications;
-};
-
-interface NotifySubscribe {
-  (config: NotifyPayload): void;
 }
+
+type NotifySubscribe = (config: NotifyPayload) => void;
 
 export type ToLogPayload =
   | { type: "fetch"; time: number }
   | { type: "sentiment"; time: number; sentiment: string };
 
-interface ToLogSubscribe {
-  (payload: ToLogPayload): void;
-}
+type ToLogSubscribe = (payload: ToLogPayload) => void;
 
-export type LogPayload = {
+export interface LogPayload {
   interval: {
     type: string;
     secs: number;
@@ -42,11 +36,9 @@ export type LogPayload = {
   end: number | null;
   secs: number | null;
   sentiment: string | null;
-};
-
-interface LogSubscribe {
-  (payload: LogPayload): void;
 }
+
+type LogSubscribe = (payload: LogPayload) => void;
 
 export type ToSettingsPayload =
   | { type: "requestExport" }
@@ -55,9 +47,7 @@ export type ToSettingsPayload =
   | { type: "testAlarm"; data: string }
   | { type: "browserPermission"; data: boolean };
 
-interface ToSettingsSubscribe {
-  (payload: ToSettingsSubscribe): void;
-}
+type ToSettingsSubscribe = (payload: ToSettingsSubscribe) => void;
 
 export type ToSpotifyPayload =
   | { type: "play"; url: string }
@@ -65,9 +55,7 @@ export type ToSpotifyPayload =
   | { type: "refresh" }
   | { type: "disconnect" };
 
-interface ToSpotifySubscribe {
-  (payload: ToSpotifyPayload): void;
-}
+type ToSpotifySubscribe = (payload: ToSpotifyPayload) => void;
 
 export interface ElmApp {
   ports: {

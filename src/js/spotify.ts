@@ -21,17 +21,17 @@ const redirectUrl = new URL(redirectUri);
 
 let player: Spotify.Player | undefined;
 
-export type SpotifyDef = {
+export interface SpotifyDef {
   connected: boolean;
   canPlay: boolean;
   playing: boolean;
   deviceId: string | null;
-};
+}
 
-type Playlist = {
+interface Playlist {
   uri: string;
   title: string;
-};
+}
 
 const spotify: SpotifyDef = {
   connected: false,
@@ -213,7 +213,7 @@ const initPlayer = (app: ElmApp, token: string, retries: number): void => {
   }
 
   if (
-    window.spotifyPlayerLoaded == false ||
+    !window.spotifyPlayerLoaded ||
     window.spotify.connected == false
   ) {
     setTimeout(() => initPlayer(app, token, retries + 1), 1000);
@@ -273,10 +273,10 @@ const initApp = (app: ElmApp, flash = true): void => {
   }
 };
 
-type ReqParams = {
+interface ReqParams {
   method: "PUT";
   headers: Record<string, string>;
-};
+}
 
 const apiReqParams = (token: string): ReqParams => {
   return {
@@ -373,9 +373,9 @@ const init = (app: ElmApp, token: string, flash: boolean): void => {
   checkState(token);
 
   app.ports.toSpotify.subscribe((data: ToSpotifyPayload) => {
-    switch (data["type"]) {
+    switch (data.type) {
       case "play":
-        play(token, data["url"]);
+        play(token, data.url);
         break;
 
       case "pause":

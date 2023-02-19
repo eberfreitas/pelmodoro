@@ -18,7 +18,7 @@ const app = window.Elm.Main.init({
 });
 
 app.ports.localStorage.subscribe((payload: LocalStoragePayload) => {
-  storage.set(payload["key"], payload["data"]);
+  storage.set(payload.key, payload.data);
 });
 
 viewportFix();

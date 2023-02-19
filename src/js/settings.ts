@@ -12,7 +12,7 @@ const testSound = (sound: string): void => {
 };
 
 const requestNotif = async (app: ElmApp, activate: boolean) => {
-  if (activate == false) {
+  if (!activate) {
     return app.ports.gotFromSettings.send({ val: false, msg: "" });
   }
 
@@ -75,17 +75,17 @@ const clearLogs = () => {
 
 export default function(app: ElmApp) {
   app.ports.toSettings.subscribe(async (data: ToSettingsPayload) => {
-    switch (data["type"]) {
+    switch (data.type) {
       case "testAlarm":
-        testSound(data["data"]);
+        testSound(data.data);
         break;
 
       case "browserPermission":
-        await requestNotif(app, data["data"]);
+        await requestNotif(app, data.data);
         break;
 
       case "import":
-        await importData(app, data["data"]);
+        await importData(app, data.data);
         break;
 
       case "requestExport":

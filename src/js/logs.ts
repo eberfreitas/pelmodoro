@@ -41,13 +41,13 @@ const updateSentiment = async (time: number, sentiment: string) => {
 
 export default function(app: ElmApp) {
   app.ports.toLog.subscribe(async (data: ToLogPayload) => {
-    switch (data["type"]) {
+    switch (data.type) {
       case "fetch":
-        await fetch(app, data["time"]);
+        await fetch(app, data.time);
         break;
 
       case "sentiment":
-        await updateSentiment(data["time"], data["sentiment"]);
+        await updateSentiment(data.time, data.sentiment);
         break;
     }
   });
