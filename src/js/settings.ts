@@ -70,7 +70,7 @@ const clearLogs = () => {
     return;
   }
 
-  db.cycles.clear();
+  void db.cycles.clear();
 };
 
 export default function(app: ElmApp) {

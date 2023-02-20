@@ -1,6 +1,6 @@
 import randomString from "crypto-random-string";
 import pkceChallenge from "pkce-challenge";
-import { ElmApp, ToSpotifyPayload } from "../globals";
+import { ElmApp, SpotifyDef, ToSpotifyPayload } from "../globals";
 import {
   AuthData,
   authData as authDataDecoder,
@@ -20,13 +20,6 @@ const redirectUri = import.meta.env.VITE_SPOTIFY_REDIRECT_URL;
 const redirectUrl = new URL(redirectUri);
 
 let player: Spotify.Player | undefined;
-
-export interface SpotifyDef {
-  connected: boolean;
-  canPlay: boolean;
-  playing: boolean;
-  deviceId: string | null;
-}
 
 interface Playlist {
   uri: string;
@@ -213,10 +206,7 @@ const initPlayer = (app: ElmApp, token: string, retries: number): void => {
     return;
   }
 
-  if (
-    !window.spotifyPlayerLoaded ||
-    window.spotify.connected == false
-  ) {
+  if (!window.spotifyPlayerLoaded || !window.spotify.connected) {
     setTimeout(() => initPlayer(app, token, retries + 1), 1000);
     return;
   }
@@ -240,7 +230,7 @@ const initPlayer = (app: ElmApp, token: string, retries: number): void => {
   player.addListener("authentication_error", () => notConnected(app));
   player.addListener("account_error", () => connectionError(app));
 
-  player.connect();
+  void player.connect();
 };
 
 const initApp = (app: ElmApp, flash = true): void => {
@@ -251,14 +241,11 @@ const initApp = (app: ElmApp, flash = true): void => {
 
     if (now > authData.expires_at) {
       refreshAuthToken(authData.refresh_token)
-        .catch(() => notConnected(app))
         .then((data) => {
-          if (!data) return;
-
           storage.set("spotifyAuthData", data);
-
           init(app, data.access_token, flash);
-        });
+        })
+        .catch(() => notConnected(app));
     } else {
       const expiresDiff = authData.expires_at - now;
       const timeout = Math.floor(expiresDiff) + 1000;
@@ -290,14 +277,16 @@ const apiReqParams = (token: string): ReqParams => {
 };
 
 const pause = (token: string): void => {
-  if (window.spotify.playing == true) {
+  if (window.spotify.playing) {
     checkStateReq(token)
       .then(promiseByStatus)
       .then((state) => storage.set("spotifyLastState", state))
       .finally(() => {
         window.spotify.playing = false;
-        fetch(
-          `https://api.spotify.com/v1/me/player/pause?device_id=${window.spotify.deviceId}`,
+
+        void fetch(
+          `https://api.spotify.com/v1/me/player/pause?device_id=${window.spotify.deviceId ?? ""
+          }`,
           apiReqParams(token)
         );
       });
@@ -305,11 +294,11 @@ const pause = (token: string): void => {
 };
 
 const play = (token: string, uri: string): void => {
-  if (window.spotify.canPlay == false) {
+  if (!window.spotify.canPlay) {
     return;
   }
 
-  const deviceId = window.spotify.deviceId;
+  const deviceId = window.spotify.deviceId ?? "";
   const lastState = decodeWith(playbackState, storage.get("spotifyLastState"));
 
   let body: { context_uri: string; position_ms?: number | null } = {
@@ -320,7 +309,7 @@ const play = (token: string, uri: string): void => {
     body = { ...body, position_ms: lastState.data.progress_ms };
   }
 
-  fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
+  void fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
     ...apiReqParams(token),
     body: JSON.stringify(body),
   }).then((res) => {
@@ -344,8 +333,8 @@ const checkStateReq = (token: string): Promise<Response> => {
 
 const checkState = (token: string): void => {
   setInterval(() => {
-    if (window.spotify.playing == true) {
-      checkStateReq(token)
+    if (window.spotify.playing) {
+      void checkStateReq(token)
         .then(promiseByStatus)
         .then((state) => {
           storage.set("spotifyLastState", state);

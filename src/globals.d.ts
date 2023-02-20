@@ -1,4 +1,9 @@
-import { SpotifyDef } from "./spotify";
+export interface SpotifyDef {
+  connected: boolean;
+  canPlay: boolean;
+  playing: boolean;
+  deviceId: string | null;
+}
 
 export interface LocalStoragePayload {
   key: string;

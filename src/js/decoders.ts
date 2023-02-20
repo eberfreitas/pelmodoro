@@ -9,7 +9,10 @@ import {
 } from "typescript-json-decoder";
 import { Result } from "./result";
 
-export function decodeWith<T>(decoder: DecoderFunction<T>, data: unknown): Result<T, string> {
+export function decodeWith<T>(
+  decoder: DecoderFunction<T>,
+  data: unknown
+): Result<T> {
   try {
     const decoded = decoder(data);
 
@@ -21,7 +24,9 @@ export function decodeWith<T>(decoder: DecoderFunction<T>, data: unknown): Resul
       error = e;
     }
 
-    return { status: "err", error }
+    error += `| DATA: ${JSON.stringify(data)}`;
+
+    return { status: "err", error: new Error(error) };
   }
 }
 
