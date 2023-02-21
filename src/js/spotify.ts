@@ -326,23 +326,46 @@ const pause = (token: string): void => {
   const deviceId = window.spotify.deviceId ?? "";
 
   void fetch(
-    `https://api.spotify.com/v1/me/player/pause?device_id=${deviceId}`
+    `https://api.spotify.com/v1/me/player/pause?device_id=${deviceId}`,
+    apiReqParams(token)
   ).then(() => (window.spotify.playing = false));
 };
+
+interface PlayRequestBody {
+  context_uri: string;
+  position_ms?: number | null;
+  offset?: {
+    uri: string;
+  };
+}
 
 const play = (token: string, uri: string): void => {
   if (!window.spotify.canPlay) return;
 
-  const deviceId = window.spotify.deviceId ?? "";
-  const lastState = decodeWith(playbackState, storage.get("spotifyLastState"));
+  let body: PlayRequestBody = { context_uri: uri };
 
-  let body: { context_uri: string; position_ms?: number | null } = {
-    context_uri: uri,
-  };
+  const lastStateResult = decodeWith(
+    playbackState,
+    storage.get("spotifyLastState")
+  );
 
-  if (lastState.status === "ok") {
-    body = { ...body, position_ms: lastState.data.progress_ms };
+  if (
+    lastStateResult.status === "ok" &&
+    lastStateResult.data.context.uri === uri
+  ) {
+    const {
+      item: { uri },
+      progress_ms,
+    } = lastStateResult.data;
+
+    body = {
+      ...body,
+      position_ms: progress_ms,
+      offset: { uri },
+    };
   }
+
+  const deviceId = window.spotify.deviceId ?? "";
 
   void fetch(
     `https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`,

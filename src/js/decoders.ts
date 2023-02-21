@@ -74,6 +74,9 @@ export const playbackState = record({
   context: record({
     uri: string,
   }),
+  item: record({
+    uri: string,
+  }),
 });
 
 export type PlaybackState = decodeType<typeof playbackState>;
