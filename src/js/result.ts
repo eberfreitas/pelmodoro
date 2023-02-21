@@ -34,13 +34,12 @@ export function resultAndThen<T, N, E>(
 
 export function resultCallback<T, E>(
   result: Result<T, E>,
-  callback: (data: T) => void,
-  errorCallback: ((error: E) => void) | null = null
+  callback: (data: T) => void | Promise<void>,
+  errorCallback: ((error: E) => void | Promise<void>) | null = null
 ): void {
   if (result.status === "err") {
-    errorCallback?.(result.error);
-    return;
+    void errorCallback?.(result.error);
+  } else {
+    void callback(result.data);
   }
-
-  callback(result.data);
 }
