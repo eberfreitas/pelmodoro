@@ -7,7 +7,7 @@ import {
   record,
   string,
 } from "typescript-json-decoder";
-import { Result } from "./result";
+import { Result, resultErr, resultOk } from "./result";
 
 export function decodeWith<T>(
   decoder: DecoderFunction<T>,
@@ -16,7 +16,7 @@ export function decodeWith<T>(
   try {
     const decoded = decoder(data);
 
-    return { status: "ok", data: decoded };
+    return resultOk(decoded);
   } catch (e: unknown) {
     let error = "Unknown error";
 
@@ -26,7 +26,7 @@ export function decodeWith<T>(
 
     error += `| DATA: ${JSON.stringify(data)}`;
 
-    return { status: "err", error: new Error(error) };
+    return resultErr(new Error(error));
   }
 }
 

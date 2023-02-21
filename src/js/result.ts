@@ -21,17 +21,6 @@ export function resultMap<T, N, E>(
   }
 }
 
-export function resultAndThen<T, N, E>(
-  result: Result<T, E>,
-  andThenFn: (data: T) => Result<N, E>
-): Result<N, E> {
-  if (result.status === "ok") {
-    return andThenFn(result.data);
-  } else {
-    return resultErr(result.error);
-  }
-}
-
 export function resultCallback<T, E>(
   result: Result<T, E>,
   callback: (data: T) => void | Promise<void>,
