@@ -25,7 +25,8 @@
     "preview": "vite preview",
     "eslint": "eslint ./src",
     "type-check": "tsc -p ./src --noemit",
-    "lint": "npm run type-check; npm run eslint"
+    "elm-review": "elm-review",
+    "lint": "npm run type-check; npm run eslint; npm run elm-review"
   },
   "dependencies": {
     "@sentry/browser": "^7.37.1",
