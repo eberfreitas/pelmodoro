@@ -1,10 +1,20 @@
 {
   "devDependencies": {
+    "@types/downloadjs": "^1.4.3",
+    "@types/howler": "^2.2.7",
+    "@types/spotify-web-playback-sdk": "^0.1.15",
+    "@typescript-eslint/eslint-plugin": "^5.51.0",
+    "@typescript-eslint/parser": "^5.51.0",
     "@vitejs/plugin-basic-ssl": "^1.0.1",
     "elm-review": "^2.5.3",
     "elm-tooling": "^1.12.0",
     "elm-watch": "^1.1.2",
+    "eslint": "^8.34.0",
+    "eslint-config-prettier": "^8.6.0",
+    "prettier": "2.8.4",
+    "prettier-plugin-organize-imports": "^3.2.2",
     "run-pty": "^4.0.3",
+    "typescript": "^4.9.5",
     "vite": "^4.1.1",
     "vite-plugin-pwa": "^0.14.3"
   },
@@ -12,17 +22,22 @@
     "postinstall": "elm-tooling install",
     "dev": "run-pty % elm-watch hot % vite",
     "build": "elm-watch make --optimize app && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "eslint": "eslint ./src",
+    "type-check": "tsc -p ./src --noemit",
+    "elm-review": "elm-review",
+    "lint": "npm run type-check; npm run eslint; npm run elm-review"
   },
   "dependencies": {
     "@sentry/browser": "^7.37.1",
     "@sentry/tracing": "^7.37.1",
     "crypto-random-string": "^5.0.0",
     "dexie": "^3.2.3",
-    "dexie-export-import": "^4.0.5",
+    "dexie-export-import": "^4.0.6",
     "downloadjs": "^1.4.7",
     "howler": "^2.2.3",
     "nosleep.js": "^0.12.0",
-    "pkce-challenge": "^3.0.0"
+    "pkce-challenge": "^3.0.0",
+    "typescript-json-decoder": "^1.0.11"
   }
 }
